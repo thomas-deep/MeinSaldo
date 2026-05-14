@@ -1,36 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Tag, Database, Sparkles } from "lucide-react";
+import { Users, Tag, Sparkles } from "lucide-react";
 import KontogruppenManager from "./KontogruppenManager";
 import CategoriesView from "./CategoriesView";
-import DbStatus from "./DbStatus";
 import AiSettings from "./AiSettings";
 import { Kontogruppe } from "../lib/types";
 
 interface SettingsViewProps {
   kontogruppen: Kontogruppe[];
   onKontogruppenChange: () => void;
-  dbStats: { count: number; earliest: string | null; latest: string | null };
-  lastImport: { inserted: number; skipped: number } | null;
-  onClearDb: () => void;
 }
 
-type Section = "kontogruppen" | "kategorien" | "ki" | "daten";
+type Section = "kontogruppen" | "kategorien" | "ki";
 
 const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
   { id: "kontogruppen", label: "Kontogruppen", icon: Users },
   { id: "kategorien", label: "Kategorien", icon: Tag },
   { id: "ki", label: "KI-Kategorisierung", icon: Sparkles },
-  { id: "daten", label: "Daten", icon: Database },
 ];
 
 export default function SettingsView({
   kontogruppen,
   onKontogruppenChange,
-  dbStats,
-  lastImport,
-  onClearDb,
 }: SettingsViewProps) {
   const [section, setSection] = useState<Section>("kontogruppen");
 
@@ -66,15 +58,6 @@ export default function SettingsView({
         )}
         {section === "kategorien" && <CategoriesView />}
         {section === "ki" && <AiSettings />}
-        {section === "daten" && (
-          <DbStatus
-            count={dbStats.count}
-            earliest={dbStats.earliest}
-            latest={dbStats.latest}
-            lastImport={lastImport}
-            onClear={onClearDb}
-          />
-        )}
       </div>
     </div>
   );

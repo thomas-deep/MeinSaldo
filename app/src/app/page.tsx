@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
+import { BarChart3, LineChart, Database, Settings as SettingsIcon } from "lucide-react";
 import CsvUpload from "../components/CsvUpload";
 import FieldMappingComponent from "../components/FieldMapping";
 import SummaryCards from "../components/SummaryCards";
@@ -40,7 +40,7 @@ export default function Home() {
   const presetHooksRef = useRef<PresetHooks>({});
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "tabelle">("dashboard");
-  const [view, setView] = useState<"daten" | "einstellungen">("daten");
+  const [view, setView] = useState<"auswertung" | "daten" | "einstellungen">("auswertung");
   const [dbStats, setDbStats] = useState<DbStats>({ count: 0, earliest: null, latest: null });
   const [lastImport, setLastImport] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,7 +245,8 @@ export default function Home() {
   const hasData = transactions.length > 0;
 
   const navItems = [
-    { id: "daten" as const, label: "Daten", icon: LayoutDashboard },
+    { id: "auswertung" as const, label: "Auswertung", icon: LineChart },
+    { id: "daten" as const, label: "Daten", icon: Database },
     { id: "einstellungen" as const, label: "Einstellungen", icon: SettingsIcon },
   ];
 
@@ -286,135 +287,158 @@ export default function Home() {
         </nav>
       </header>
 
-      {view === "einstellungen" ? (
+      {view === "einstellungen" && (
         <SettingsView
           kontogruppen={kontogruppen}
           onKontogruppenChange={loadFromDb}
-          dbStats={dbStats}
-          lastImport={lastImport}
-          onClearDb={handleClearDb}
         />
-      ) : (
-      <div className="space-y-6">
-        <CsvUpload kontogruppen={kontogruppen} onFileLoaded={handleFileLoaded} />
+      )}
 
-        {dbStats.count > 0 && (
-          <DbStatus
-            count={dbStats.count}
-            earliest={dbStats.earliest}
-            latest={dbStats.latest}
-            lastImport={lastImport}
-            onClear={handleClearDb}
-          />
-        )}
+      {view === "daten" && (
+        <div className="space-y-6">
+          <CsvUpload kontogruppen={kontogruppen} onFileLoaded={handleFileLoaded} />
 
-        {csvHeaders.length > 0 && (
-          <div className="space-y-3">
-            <FieldMappingComponent
-              csvHeaders={csvHeaders}
-              mapping={mapping}
-              separator={separator}
-              invertAmount={invertAmount}
-              onMappingChange={handleMappingChange}
-              onSeparatorChange={handleSeparatorChange}
-              onInvertAmountChange={setInvertAmount}
-              onPresetSelect={handlePresetSelect}
+          {dbStats.count > 0 && (
+            <DbStatus
+              count={dbStats.count}
+              earliest={dbStats.earliest}
+              latest={dbStats.latest}
+              lastImport={lastImport}
+              onClear={handleClearDb}
             />
-            <button
-              onClick={handleReimport}
-              className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
-            >
-              ↻ Mit aktuellem Mapping neu importieren
-            </button>
-          </div>
-        )}
+          )}
 
-        {isLoading && (
-          <p className="py-12 text-center text-sm text-slate-500">Lade...</p>
-        )}
-
-        {!isLoading && hasData && (
-          <>
-            <AiCategorizeButton onDone={loadFromDb} />
-
-            {kontogruppen.length > 0 && (
-              <KontogruppeFilter
-                kontogruppen={kontogruppen}
-                selected={filter}
-                onSelect={setFilter}
-                counts={filterCounts}
+          {csvHeaders.length > 0 && (
+            <div className="space-y-3">
+              <FieldMappingComponent
+                csvHeaders={csvHeaders}
+                mapping={mapping}
+                separator={separator}
+                invertAmount={invertAmount}
+                onMappingChange={handleMappingChange}
+                onSeparatorChange={handleSeparatorChange}
+                onInvertAmountChange={setInvertAmount}
+                onPresetSelect={handlePresetSelect}
               />
-            )}
-
-            <SummaryCards transactions={filteredTransactions} />
-
-            <div className="flex gap-1 rounded-xl bg-slate-800/50 p-1 border border-slate-700">
               <button
-                onClick={() => {
-                  setActiveTab("dashboard");
-                  setDrillDown(null);
-                }}
-                className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === "dashboard"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
+                onClick={handleReimport}
+                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
               >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveTab("tabelle")}
-                className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === "tabelle"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                Transaktionen ({filteredTransactions.length})
+                ↻ Mit aktuellem Mapping neu importieren
               </button>
             </div>
+          )}
 
-            {activeTab === "dashboard" ? (
-              drillDown ? (
-                <CategoryDrillDown
-                  transactions={filteredTransactions}
-                  kategorie={drillDown.kategorie}
-                  type={drillDown.type}
+          {!isLoading && !hasData && (
+            <p className="py-6 text-center text-sm text-slate-500">
+              Noch keine Buchungen importiert. Lade eine CSV-Datei hoch, um zu starten.
+            </p>
+          )}
+        </div>
+      )}
+
+      {view === "auswertung" && (
+        <div className="space-y-6">
+          {isLoading && (
+            <p className="py-12 text-center text-sm text-slate-500">Lade...</p>
+          )}
+
+          {!isLoading && !hasData && (
+            <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-8 text-center">
+              <p className="text-sm text-slate-300">
+                Noch keine Daten zum Auswerten vorhanden.
+              </p>
+              <button
+                onClick={() => setView("daten")}
+                className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 cursor-pointer"
+              >
+                Zu Daten wechseln
+              </button>
+            </div>
+          )}
+
+          {!isLoading && hasData && (
+            <>
+              <AiCategorizeButton onDone={loadFromDb} />
+
+              {kontogruppen.length > 0 && (
+                <KontogruppeFilter
                   kontogruppen={kontogruppen}
-                  onBack={() => setDrillDown(null)}
+                  selected={filter}
+                  onSelect={setFilter}
+                  counts={filterCounts}
                 />
-              ) : (
-                <div className="space-y-6">
-                  <MonthlyChart transactions={filteredTransactions} />
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <CategoryChart
-                      transactions={filteredTransactions}
-                      type="ausgaben"
-                      onCategoryClick={(kategorie) =>
-                        setDrillDown({ kategorie, type: "ausgaben" })
-                      }
-                    />
-                    <CategoryChart
-                      transactions={filteredTransactions}
-                      type="einnahmen"
-                      onCategoryClick={(kategorie) =>
-                        setDrillDown({ kategorie, type: "einnahmen" })
-                      }
-                    />
+              )}
+
+              <SummaryCards transactions={filteredTransactions} />
+
+              <div className="flex gap-1 rounded-xl bg-slate-800/50 p-1 border border-slate-700">
+                <button
+                  onClick={() => {
+                    setActiveTab("dashboard");
+                    setDrillDown(null);
+                  }}
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === "dashboard"
+                      ? "bg-slate-700 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setActiveTab("tabelle")}
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                    activeTab === "tabelle"
+                      ? "bg-slate-700 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Transaktionen ({filteredTransactions.length})
+                </button>
+              </div>
+
+              {activeTab === "dashboard" ? (
+                drillDown ? (
+                  <CategoryDrillDown
+                    transactions={filteredTransactions}
+                    kategorie={drillDown.kategorie}
+                    type={drillDown.type}
+                    kontogruppen={kontogruppen}
+                    onBack={() => setDrillDown(null)}
+                  />
+                ) : (
+                  <div className="space-y-6">
+                    <MonthlyChart transactions={filteredTransactions} />
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <CategoryChart
+                        transactions={filteredTransactions}
+                        type="ausgaben"
+                        onCategoryClick={(kategorie) =>
+                          setDrillDown({ kategorie, type: "ausgaben" })
+                        }
+                      />
+                      <CategoryChart
+                        transactions={filteredTransactions}
+                        type="einnahmen"
+                        onCategoryClick={(kategorie) =>
+                          setDrillDown({ kategorie, type: "einnahmen" })
+                        }
+                      />
+                    </div>
                   </div>
-                </div>
-              )
-            ) : (
-              <TransactionTable
-                transactions={filteredTransactions}
-                kontogruppen={kontogruppen}
-                onCategoryChange={handleCategoryChange}
-                onUmbuchungToggle={handleUmbuchungToggle}
-              />
-            )}
-          </>
-        )}
-      </div>
+                )
+              ) : (
+                <TransactionTable
+                  transactions={filteredTransactions}
+                  kontogruppen={kontogruppen}
+                  onCategoryChange={handleCategoryChange}
+                  onUmbuchungToggle={handleUmbuchungToggle}
+                />
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );

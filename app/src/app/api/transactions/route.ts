@@ -7,6 +7,14 @@ import {
 } from "../../../lib/db";
 import { Transaction } from "../../../lib/types";
 
+async function parseJson(req: NextRequest): Promise<unknown | null> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   const transactions = getAllTransactions();
   const stats = getStats();
@@ -14,10 +22,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const transactions = body.transactions as Transaction[];
-  const kontogruppeId =
-    typeof body.kontogruppeId === "number" ? body.kontogruppeId : null;
+  const body = await parseJson(req);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  const { transactions, kontogruppeId } = body as {
+    transactions?: Transaction[];
+    kontogruppeId?: number | null;
+  };
 
   if (!Array.isArray(transactions)) {
     return NextResponse.json(
@@ -26,7 +38,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = insertTransactions(transactions, kontogruppeId);
+  const groupId = typeof kontogruppeId === "number" ? kontogruppeId : null;
+  const result = insertTransactions(transactions, groupId);
   return NextResponse.json(result);
 }
 

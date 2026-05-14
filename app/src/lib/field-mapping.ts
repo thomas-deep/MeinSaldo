@@ -19,7 +19,7 @@ function dkbPreprocess(rawText: string): PreprocessResult {
   let ibanKonto = "";
   let kontoBezeichnung = "";
   let headerIdx = -1;
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.includes("Buchungsdatum") && line.includes("Betrag")) {
       headerIdx = i;
@@ -60,7 +60,7 @@ function dkbRowTransform(row: RawRow): RawRow {
 function comdirectPreprocess(rawText: string): PreprocessResult {
   const lines = rawText.split(/\r?\n/);
   let headerIdx = -1;
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+  for (let i = 0; i < lines.length; i++) {
     if (
       lines[i].includes("Buchungstag") &&
       lines[i].includes("Umsatz in EUR")
@@ -149,7 +149,7 @@ export const bankPresets: BankPreset[] = [
       waehrung: "Waehrung",
     },
     separator: ";",
-    encoding: "utf-8",
+    encoding: "windows-1252",
   },
   {
     name: "Commerzbank",

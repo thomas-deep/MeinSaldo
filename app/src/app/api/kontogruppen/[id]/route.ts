@@ -10,14 +10,28 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
   const { name, type, color, icon, bank } = body as {
-    name: string;
-    type: KontogruppeType;
-    color: string;
+    name?: string;
+    type?: KontogruppeType;
+    color?: string;
     icon?: string;
     bank?: string | null;
   };
+  if (!name || !type || !color) {
+    return NextResponse.json(
+      { error: "name, type, color required" },
+      { status: 400 }
+    );
+  }
   const updated = updateKontogruppe(
     parseInt(id, 10),
     name,

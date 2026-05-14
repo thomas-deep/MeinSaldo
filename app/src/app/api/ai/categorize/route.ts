@@ -3,7 +3,7 @@ import {
   getSetting,
   getTransactionsByIds,
   getUncategorizedIds,
-  updateCategory,
+  updateCategoryByAi,
 } from "../../../../lib/db";
 import {
   categorizeWithOllama,
@@ -16,7 +16,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
   const url = getSetting("ollama_url") || "http://localhost:11434";
   const model = getSetting("ollama_model");
   if (!model) {
@@ -26,7 +34,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+  const bodyData = body as { ids?: unknown };
+  const ids: string[] = Array.isArray(bodyData.ids)
+    ? bodyData.ids.filter((v): v is string => typeof v === "string")
+    : [];
   if (ids.length === 0) {
     return NextResponse.json({ error: "ids array required" }, { status: 400 });
   }
@@ -39,7 +50,7 @@ export async function POST(req: NextRequest) {
     try {
       const cat = await categorizeWithOllama(url, model, tx, categories);
       if (cat) {
-        updateCategory(tx.id, cat);
+        updateCategoryByAi(tx.id, cat);
         results.push({ id: tx.id, kategorie: cat });
       } else {
         results.push({ id: tx.id, kategorie: null, error: "no match" });

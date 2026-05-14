@@ -3,10 +3,31 @@
 import { Upload, AlertCircle } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Kontogruppe } from "../lib/types";
+import { bankPresets } from "../lib/field-mapping";
 
 interface CsvUploadProps {
   kontogruppen: Kontogruppe[];
   onFileLoaded: (content: string, filename: string, kontogruppeId: number | null) => void;
+}
+
+const ENCODINGS = ["auto", "utf-8", "windows-1252"] as const;
+type EncodingChoice = (typeof ENCODINGS)[number];
+
+function resolveEncoding(choice: EncodingChoice, kg: Kontogruppe | undefined): string {
+  if (choice !== "auto") return choice;
+  if (kg?.bank) {
+    const preset = bankPresets.find((p) => p.name === kg.bank);
+    if (preset?.encoding) return preset.encoding;
+  }
+  return "utf-8";
+}
+
+function decodeBuffer(buffer: ArrayBuffer, encoding: string): string {
+  try {
+    return new TextDecoder(encoding, { fatal: false }).decode(buffer);
+  } catch {
+    return new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+  }
 }
 
 export default function CsvUpload({ kontogruppen, onFileLoaded }: CsvUploadProps) {
@@ -14,18 +35,23 @@ export default function CsvUpload({ kontogruppen, onFileLoaded }: CsvUploadProps
   const [filename, setFilename] = useState<string | null>(null);
   const [selectedKontogruppe, setSelectedKontogruppe] = useState<number | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [encoding, setEncoding] = useState<EncodingChoice>("auto");
 
   const processFile = useCallback(
     (file: File, kontogruppeId: number | null) => {
       setFilename(file.name);
       const reader = new FileReader();
       reader.onload = (e) => {
-        const text = e.target?.result as string;
+        const buf = e.target?.result;
+        if (!(buf instanceof ArrayBuffer)) return;
+        const kg = kontogruppen.find((k) => k.id === kontogruppeId);
+        const enc = resolveEncoding(encoding, kg);
+        const text = decodeBuffer(buf, enc);
         onFileLoaded(text, file.name, kontogruppeId);
       };
-      reader.readAsText(file, "utf-8");
+      reader.readAsArrayBuffer(file);
     },
-    [onFileLoaded]
+    [onFileLoaded, kontogruppen, encoding]
   );
 
   const handleFile = useCallback(
@@ -114,6 +140,28 @@ export default function CsvUpload({ kontogruppen, onFileLoaded }: CsvUploadProps
           ))}
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">Encoding:</span>
+        {ENCODINGS.map((enc) => (
+          <button
+            key={enc}
+            onClick={() => setEncoding(enc)}
+            className={`rounded-lg border px-3 py-1 text-xs cursor-pointer ${
+              encoding === enc
+                ? "border-slate-500 bg-slate-700 text-slate-200"
+                : "border-slate-700 bg-slate-800/50 text-slate-500"
+            }`}
+            title={
+              enc === "auto"
+                ? "Encoding aus Bank-Preset (Sparkasse: windows-1252, sonst utf-8)"
+                : enc
+            }
+          >
+            {enc}
+          </button>
+        ))}
+      </div>
 
       <div
         onDragOver={(e) => {

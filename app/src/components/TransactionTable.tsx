@@ -52,6 +52,8 @@ export default function TransactionTable({
   const [sortDesc, setSortDesc] = useState(true);
   const [filterKategorie, setFilterKategorie] = useState("");
   const [filterType, setFilterType] = useState<"alle" | "einnahmen" | "ausgaben">("alle");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 200;
 
   const filtered = useMemo(() => {
     let result = [...transactions];
@@ -74,15 +76,22 @@ export default function TransactionTable({
     if (filterType === "einnahmen") result = result.filter((t) => t.betrag > 0);
     if (filterType === "ausgaben") result = result.filter((t) => t.betrag < 0);
 
+    const collator = new Intl.Collator("de-DE", { sensitivity: "base" });
     result.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "betrag") cmp = a.betrag - b.betrag;
-      else cmp = (a[sortKey] || "").localeCompare(b[sortKey] || "");
+      else cmp = collator.compare(a[sortKey] || "", b[sortKey] || "");
       return sortDesc ? -cmp : cmp;
     });
 
     return result;
   }, [transactions, search, sortKey, sortDesc, filterKategorie, filterType]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageStart = currentPage * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDesc(!sortDesc);
@@ -179,7 +188,7 @@ export default function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 200).map((tx) => (
+            {pageRows.map((tx) => (
               <tr
                 key={tx.id}
                 className="border-b border-slate-700/50 transition-colors hover:bg-slate-700/20"
@@ -259,10 +268,31 @@ export default function TransactionTable({
         </table>
       </div>
 
-      {filtered.length > 200 && (
-        <p className="border-t border-slate-700 px-5 py-3 text-center text-xs text-slate-500">
-          Zeige 200 von {filtered.length} Transaktionen
-        </p>
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 px-5 py-3 text-xs text-slate-500">
+          <span>
+            Zeige {pageStart + 1}–{pageEnd} von {filtered.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:border-slate-500 cursor-pointer"
+            >
+              Zurück
+            </button>
+            <span className="text-slate-400">
+              Seite {currentPage + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+              className="rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:border-slate-500 cursor-pointer"
+            >
+              Weiter
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

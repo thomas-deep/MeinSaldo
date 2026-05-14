@@ -10,11 +10,19 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
   const { name, type, color, icon, bank } = body as {
-    name: string;
-    type: KontogruppeType;
-    color: string;
+    name?: string;
+    type?: KontogruppeType;
+    color?: string;
     icon?: string;
     bank?: string | null;
   };

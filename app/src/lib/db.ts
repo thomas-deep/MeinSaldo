@@ -67,6 +67,7 @@ function getDb(): Database.Database {
 
   ensureColumn(db, "transactions", "kontogruppe_id", "INTEGER REFERENCES kontogruppen(id)");
   ensureColumn(db, "transactions", "umbuchung_override", "INTEGER");
+  ensureColumn(db, "transactions", "ai_classified", "INTEGER DEFAULT 0");
   ensureColumn(db, "kontogruppen", "icon", "TEXT DEFAULT 'user'");
   ensureColumn(db, "kontogruppen", "bank", "TEXT");
 
@@ -82,8 +83,8 @@ export function computeTransactionHash(tx: Omit<Transaction, "id" | "kategorie">
     tx.ibanZahlungsbeteiligter,
     tx.nameZahlungsbeteiligter,
     tx.verwendungszweck,
+    tx.ibanKonto,
     tx.saldoNachBuchung.toFixed(2),
-    tx.kontogruppeId ?? "",
   ].join("|");
   return createHash("sha256").update(key).digest("hex").substring(0, 16);
 }
@@ -223,12 +224,16 @@ export function insertTransactions(
   let inserted = 0;
   let skipped = 0;
 
+  const updateGroup = db.prepare(
+    "UPDATE transactions SET kontogruppe_id = ? WHERE id = ? AND kontogruppe_id IS NULL"
+  );
+
   const tx = db.transaction((items: Transaction[]) => {
     for (const t of items) {
-      const txWithGroup = { ...t, kontogruppeId };
-      const hashId = computeTransactionHash(txWithGroup);
+      const hashId = computeTransactionHash(t);
 
       if (checkExisting.get(hashId)) {
+        if (kontogruppeId !== null) updateGroup.run(kontogruppeId, hashId);
         skipped++;
         continue;
       }
@@ -266,6 +271,16 @@ export function updateCategory(id: string, kategorie: string): boolean {
   const result = db
     .prepare(
       "UPDATE transactions SET kategorie = ?, is_manual_override = 1 WHERE id = ?"
+    )
+    .run(kategorie, id);
+  return result.changes > 0;
+}
+
+export function updateCategoryByAi(id: string, kategorie: string): boolean {
+  const db = getDb();
+  const result = db
+    .prepare(
+      "UPDATE transactions SET kategorie = ?, ai_classified = 1 WHERE id = ? AND is_manual_override = 0"
     )
     .run(kategorie, id);
   return result.changes > 0;
