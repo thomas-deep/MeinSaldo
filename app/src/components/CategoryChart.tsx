@@ -13,6 +13,8 @@ import {
   Pie,
 } from "recharts";
 import { Transaction, CategorySummary } from "../lib/types";
+import { categoryPalette, useChartTheme } from "../lib/chart-theme";
+import { useTheme } from "./ThemeProvider";
 
 function extractKategorie(payload: unknown): string | null {
   if (
@@ -43,12 +45,7 @@ interface CategoryChartProps {
   onCategoryClick?: (kategorie: string) => void;
 }
 
-const COLORS = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
-  "#EC4899", "#06B6D4", "#F97316", "#14B8A6", "#6366F1",
-  "#84CC16", "#E11D48", "#0EA5E9", "#A855F7", "#22D3EE",
-  "#FB923C", "#4ADE80",
-];
+// Palette wird theme-aware unten via categoryPalette() berechnet.
 
 function formatEuro(value: number): string {
   return new Intl.NumberFormat("de-DE", {
@@ -60,6 +57,9 @@ function formatEuro(value: number): string {
 
 export default function CategoryChart({ transactions, type, onCategoryClick }: CategoryChartProps) {
   const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+  const chartTheme = useChartTheme();
+  const { resolved } = useTheme();
+  const COLORS = categoryPalette(resolved);
 
   const data: CategorySummary[] = useMemo(() => {
     const operative = transactions.filter((t) => !t.isUmbuchung);
@@ -91,31 +91,31 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
   }, [transactions, type]);
 
   const title = type === "einnahmen" ? "Einnahmen" : "Ausgaben";
-  const accentColor = type === "einnahmen" ? "text-emerald-400" : "text-red-400";
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className={`text-sm font-semibold ${accentColor}`}>
-          {title} nach Kategorie
+    <div className="rounded-2xl border border-border bg-surface p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-fg-faint">
+          <span className={`inline-block h-1.5 w-1.5 rounded-full ${type === "einnahmen" ? "bg-positive" : "bg-danger"}`} />
+          {title} <span className="text-fg-faint">·</span> nach Kategorie
         </h3>
-        <div className="flex gap-1 rounded-lg bg-slate-700/50 p-0.5">
+        <div className="flex gap-0.5 rounded-full border border-border bg-bg-muted p-0.5">
           <button
             onClick={() => setChartType("bar")}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
               chartType === "bar"
-                ? "bg-slate-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-fg text-fg-inverse"
+                : "text-fg-muted hover:text-fg"
             }`}
           >
             Balken
           </button>
           <button
             onClick={() => setChartType("pie")}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
               chartType === "pie"
-                ? "bg-slate-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-fg text-fg-inverse"
+                : "text-fg-muted hover:text-fg"
             }`}
           >
             Kreis
@@ -124,14 +124,14 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
       </div>
 
       {data.length === 0 ? (
-        <p className="py-12 text-center text-sm text-slate-500">Keine Daten vorhanden</p>
+        <p className="py-12 text-center text-sm text-fg-subtle">Keine Daten vorhanden</p>
       ) : chartType === "bar" ? (
         <ResponsiveContainer width="100%" height={Math.max(data.length * 36, 200)}>
           <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
             <XAxis
               type="number"
               tickFormatter={(v) => formatEuro(v)}
-              tick={{ fill: "#94A3B8", fontSize: 11 }}
+              tick={{ fill: chartTheme.fgMuted, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
@@ -139,18 +139,20 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               type="category"
               dataKey="kategorie"
               width={150}
-              tick={{ fill: "#CBD5E1", fontSize: 12 }}
+              tick={{ fill: chartTheme.fg, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
             <Tooltip
               formatter={(value) => [formatEuro(Number(value)), "Betrag"]}
+              cursor={{ fill: chartTheme.border, opacity: 0.4 }}
               contentStyle={{
-                backgroundColor: "#1E293B",
-                border: "1px solid #334155",
-                borderRadius: "0.5rem",
-                color: "#E2E8F0",
+                backgroundColor: chartTheme.surface,
+                border: `1px solid ${chartTheme.border}`,
+                borderRadius: "0.75rem",
+                color: chartTheme.fg,
                 fontSize: "0.8rem",
+                boxShadow: "0 14px 32px -12px rgb(0 0 0 / 0.25)",
               }}
             />
             <Bar
@@ -185,7 +187,7 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
                 const p = extractKategoriePercent(props);
                 return p ? `${p.kategorie} (${p.prozent}%)` : "";
               }}
-              labelLine={{ stroke: "#475569" }}
+              labelLine={{ stroke: chartTheme.border }}
               cursor={onCategoryClick ? "pointer" : undefined}
               onClick={(d) => {
                 const k = extractKategorie(d);
@@ -199,11 +201,12 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
             <Tooltip
               formatter={(value) => [formatEuro(Number(value)), "Betrag"]}
               contentStyle={{
-                backgroundColor: "#1E293B",
-                border: "1px solid #334155",
-                borderRadius: "0.5rem",
-                color: "#E2E8F0",
+                backgroundColor: chartTheme.surface,
+                border: `1px solid ${chartTheme.border}`,
+                borderRadius: "0.75rem",
+                color: chartTheme.fg,
                 fontSize: "0.8rem",
+                boxShadow: "0 14px 32px -12px rgb(0 0 0 / 0.25)",
               }}
             />
           </PieChart>
@@ -215,19 +218,19 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
           <div
             key={item.kategorie}
             onClick={() => onCategoryClick?.(item.kategorie)}
-            className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-xs hover:bg-slate-700/30 ${onCategoryClick ? "cursor-pointer" : ""}`}
+            className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-xs hover:bg-surface-hover ${onCategoryClick ? "cursor-pointer" : ""}`}
           >
             <div className="flex items-center gap-2">
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: COLORS[i % COLORS.length] }}
               />
-              <span className="text-slate-300">{item.kategorie}</span>
-              <span className="text-slate-500">({item.anzahl}x)</span>
+              <span className="text-fg-soft">{item.kategorie}</span>
+              <span className="text-fg-subtle">({item.anzahl}x)</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-slate-400">{item.prozent}%</span>
-              <span className="font-medium text-slate-200">{formatEuro(item.betrag)}</span>
+              <span className="text-fg-muted">{item.prozent}%</span>
+              <span className="font-medium text-fg">{formatEuro(item.betrag)}</span>
             </div>
           </div>
         ))}

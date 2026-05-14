@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, LineChart, Database, Settings as SettingsIcon } from "lucide-react";
+import { LineChart, Database, Settings as SettingsIcon } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle";
 import CsvUpload, { AiImportMode, EncodingChoice } from "../components/CsvUpload";
 import FieldMappingComponent from "../components/FieldMapping";
 import SummaryCards from "../components/SummaryCards";
@@ -546,40 +547,43 @@ export default function Home() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-blue-600/20 p-2.5">
-            <BarChart3 className="h-6 w-6 text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100">Finanz-Auswertung</h1>
-            <p className="text-xs text-slate-500">
-              Einnahmen & Ausgaben aus Konto-Exporten
-            </p>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <div className="flex items-baseline gap-3">
+          <span
+            aria-hidden
+            className="inline-block h-4 w-1 translate-y-[3px] bg-fg"
+          />
+          <h1 className="font-display text-3xl font-medium tracking-tight text-fg">
+            <span className="font-display-italic">Finanz</span>
+            <span className="text-fg-muted">·</span>
+            Auswertung
+          </h1>
         </div>
 
-        <nav className="flex gap-1 rounded-xl bg-slate-800/50 p-1 border border-slate-700">
-          {navItems.map((n) => {
-            const Icon = n.icon;
-            const active = view === n.id;
-            return (
-              <button
-                key={n.id}
-                onClick={() => setView(n.id)}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium cursor-pointer transition-colors ${
-                  active
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {n.label}
-              </button>
-            );
-          })}
-        </nav>
+        <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-0.5 rounded-full border border-border bg-surface p-0.5">
+            {navItems.map((n) => {
+              const Icon = n.icon;
+              const active = view === n.id;
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => setView(n.id)}
+                  className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                    active
+                      ? "bg-fg text-fg-inverse"
+                      : "text-fg-muted hover:text-fg"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {n.label}
+                </button>
+              );
+            })}
+          </nav>
+          <ThemeToggle />
+        </div>
       </header>
 
       {view === "einstellungen" && (
@@ -594,7 +598,7 @@ export default function Home() {
           <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
 
           {isPreviewing && (
-            <p className="rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-slate-300">
+            <p className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-fg-soft">
               Datei wird geparst…
             </p>
           )}
@@ -609,14 +613,14 @@ export default function Home() {
           )}
 
           {aiProgress && (
-            <p className="rounded-lg border border-purple-500/30 bg-purple-500/5 px-4 py-2 text-sm text-purple-300">
+            <p className="rounded-lg border border-magic bg-magic-soft px-4 py-2 text-sm text-magic">
               KI-Kategorisierung läuft… {aiProgress.done} / {aiProgress.total}
               {aiProgress.total > 0 && ` – ${aiProgress.matched} erkannt`}
             </p>
           )}
 
           {importError && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-2 text-sm text-red-300">
+            <p className="rounded-lg border border-danger bg-danger-soft px-4 py-2 text-sm text-danger">
               {importError}
             </p>
           )}
@@ -646,7 +650,7 @@ export default function Home() {
               <button
                 onClick={handleReparse}
                 disabled={isPreviewing || isImporting}
-                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer disabled:opacity-50"
+                className="text-xs text-brand hover:text-brand cursor-pointer disabled:opacity-50"
               >
                 ↻ Mit aktuellem Mapping neu parsen
               </button>
@@ -654,7 +658,7 @@ export default function Home() {
           )}
 
           {!isLoading && !hasData && (
-            <p className="py-6 text-center text-sm text-slate-500">
+            <p className="py-6 text-center text-sm text-fg-subtle">
               Noch keine Buchungen importiert. Lade eine CSV-Datei hoch, um zu starten.
             </p>
           )}
@@ -664,17 +668,17 @@ export default function Home() {
       {view === "auswertung" && (
         <div className="space-y-6">
           {isLoading && (
-            <p className="py-12 text-center text-sm text-slate-500">Lade...</p>
+            <p className="py-12 text-center text-sm text-fg-subtle">Lade...</p>
           )}
 
           {!isLoading && !hasData && (
-            <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-8 text-center">
-              <p className="text-sm text-slate-300">
+            <div className="rounded-xl border border-border bg-surface p-8 text-center">
+              <p className="text-sm text-fg-soft">
                 Noch keine Daten zum Auswerten vorhanden.
               </p>
               <button
                 onClick={() => setView("daten")}
-                className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 cursor-pointer"
+                className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-fg hover:opacity-90 cursor-pointer"
               >
                 Zu Daten wechseln
               </button>
@@ -704,29 +708,32 @@ export default function Home() {
                 comparison={comparisonTransactions}
               />
 
-              <div className="flex gap-1 rounded-xl bg-slate-800/50 p-1 border border-slate-700">
+              <div className="flex items-center gap-6 border-b border-border">
                 <button
                   onClick={() => {
                     setActiveTab("dashboard");
                     setDrillDown(null);
                   }}
-                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                  className={`-mb-px border-b-2 px-1 py-3 text-sm font-medium transition-colors cursor-pointer ${
                     activeTab === "dashboard"
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "border-fg text-fg"
+                      : "border-transparent text-fg-muted hover:text-fg"
                   }`}
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={() => setActiveTab("tabelle")}
-                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                  className={`-mb-px border-b-2 px-1 py-3 text-sm font-medium transition-colors cursor-pointer ${
                     activeTab === "tabelle"
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "border-fg text-fg"
+                      : "border-transparent text-fg-muted hover:text-fg"
                   }`}
                 >
-                  Transaktionen ({filteredTransactions.length})
+                  Transaktionen{" "}
+                  <span className="ml-1 inline-flex items-center rounded-full bg-bg-muted px-1.5 text-[10px] font-mono tabular-nums text-fg-muted">
+                    {filteredTransactions.length}
+                  </span>
                 </button>
               </div>
 

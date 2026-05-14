@@ -55,18 +55,18 @@ export default function AuswertungFilter({ state, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-4">
+    <div className="space-y-3 rounded-xl border border-border bg-surface px-5 py-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Calendar className="h-4 w-4 text-slate-500" />
-        <span className="text-xs font-medium text-slate-400">Zeitraum:</span>
+        <Calendar className="h-4 w-4 text-fg-subtle" />
+        <span className="text-xs font-medium text-fg-muted">Zeitraum:</span>
         {PRESETS.map((p) => (
           <button
             key={p}
             onClick={() => handlePreset(p)}
             className={`rounded-lg border px-3 py-1 text-xs cursor-pointer ${
               state.preset === p
-                ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                : "border-slate-700 bg-slate-800/50 text-slate-400 hover:text-slate-200"
+                ? "border-brand bg-brand-soft text-brand"
+                : "border-border bg-surface text-fg-muted hover:text-fg"
             }`}
           >
             {PRESET_LABELS[p]}
@@ -75,36 +75,36 @@ export default function AuswertungFilter({ state, onChange }: Props) {
       </div>
 
       {state.preset === "custom" && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
           <span>von</span>
           <input
             type="date"
             value={state.range.from ?? ""}
             onChange={(e) => setRangeField("from", e.target.value)}
-            className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1 text-slate-200"
+            className="rounded-lg border border-border-strong bg-surface-active px-3 py-1 text-fg"
           />
           <span>bis</span>
           <input
             type="date"
             value={state.range.to ?? ""}
             onChange={(e) => setRangeField("to", e.target.value)}
-            className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1 text-slate-200"
+            className="rounded-lg border border-border-strong bg-surface-active px-3 py-1 text-fg"
           />
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Coins className="h-4 w-4 text-slate-500" />
-          <span className="text-xs font-medium text-slate-400">Typ:</span>
+          <Coins className="h-4 w-4 text-fg-subtle" />
+          <span className="text-xs font-medium text-fg-muted">Typ:</span>
           {(["alle", "einnahmen", "ausgaben"] as DirectionFilter[]).map((d) => (
             <button
               key={d}
               onClick={() => onChange({ ...state, direction: d })}
               className={`rounded-lg border px-3 py-1 text-xs cursor-pointer ${
                 state.direction === d
-                  ? "border-slate-500 bg-slate-700 text-slate-200"
-                  : "border-slate-700 bg-slate-800/50 text-slate-500"
+                  ? "border-border-strong bg-surface-active text-fg"
+                  : "border-border bg-surface text-fg-subtle"
               }`}
             >
               {d === "alle" ? "Alle" : d === "einnahmen" ? "Einnahmen" : "Ausgaben"}
@@ -112,7 +112,7 @@ export default function AuswertungFilter({ state, onChange }: Props) {
           ))}
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-slate-400">
+        <label className="flex items-center gap-2 text-xs text-fg-muted">
           <span>Min-Betrag</span>
           <input
             type="number"
@@ -128,19 +128,19 @@ export default function AuswertungFilter({ state, onChange }: Props) {
               })
             }
             placeholder="0"
-            className="w-24 rounded-lg border border-slate-600 bg-slate-700 px-2 py-1 text-slate-200"
+            className="w-24 rounded-lg border border-border-strong bg-surface-active px-2 py-1 text-fg"
           />
-          <span className="text-slate-500">€</span>
+          <span className="text-fg-subtle">€</span>
         </label>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
           <input
             type="text"
             placeholder="Suche…"
             value={state.search}
             onChange={(e) => onChange({ ...state, search: e.target.value })}
-            className="w-48 rounded-lg border border-slate-600 bg-slate-700 py-1 pl-8 pr-2 text-xs text-slate-200 placeholder-slate-500"
+            className="w-48 rounded-lg border border-border-strong bg-surface-active py-1 pl-8 pr-2 text-xs text-fg placeholder:text-fg-subtle"
           />
         </div>
 

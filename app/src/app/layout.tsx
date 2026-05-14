@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
-import { Fira_Sans, Fira_Code } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "../components/ThemeProvider";
 
-const firaSans = Fira_Sans({
-  variable: "--font-fira-sans",
+const geistSans = Geist({
+  variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
 });
 
-const firaCode = Fira_Code({
-  variable: "--font-fira-code",
+const geistMono = Geist_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 
 export const metadata: Metadata = {
@@ -25,9 +30,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}>
-      <body className="min-h-full" style={{ fontFamily: "var(--font-fira-sans), system-ui, sans-serif" }}>
-        {children}
+    <html
+      lang="de"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+    >
+      <head>
+        {/* Theme blocking script: setzt vor First-Paint die richtige Klasse, vermeidet FOUC */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');var sys=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var c=(t==='light'||t==='dark')?t:sys;document.documentElement.classList.add(c);document.documentElement.style.colorScheme=c;}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-full font-sans">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

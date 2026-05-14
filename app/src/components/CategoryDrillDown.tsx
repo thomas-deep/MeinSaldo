@@ -150,7 +150,7 @@ export default function CategoryDrillDown({
       });
   }, [categoryTx]);
 
-  const accentColor = type === "einnahmen" ? "text-emerald-400" : "text-red-400";
+  const accentColor = type === "einnahmen" ? "text-positive" : "text-danger";
   const barColor = type === "einnahmen" ? "#10B981" : "#EF4444";
 
   return (
@@ -158,44 +158,44 @@ export default function CategoryDrillDown({
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-600 hover:text-white cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-white cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
           Zurück zum Dashboard
         </button>
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-slate-500">Dashboard</span>
-          <ChevronRight className="h-3 w-3 text-slate-600" />
-          <span className="text-slate-400">
+          <span className="text-fg-subtle">Dashboard</span>
+          <ChevronRight className="h-3 w-3 text-fg-faint" />
+          <span className="text-fg-muted">
             {type === "einnahmen" ? "Einnahmen" : "Ausgaben"}
           </span>
-          <ChevronRight className="h-3 w-3 text-slate-600" />
+          <ChevronRight className="h-3 w-3 text-fg-faint" />
           <span className={`font-medium ${accentColor}`}>{kategorie}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-          <p className="text-xs font-medium text-slate-400">Summe</p>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <p className="text-xs font-medium text-fg-muted">Summe</p>
           <p className={`mt-2 text-xl font-semibold ${accentColor}`}>
             {formatEuro(stats.sum)}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-          <p className="text-xs font-medium text-slate-400">Buchungen</p>
-          <p className="mt-2 text-xl font-semibold text-slate-200">{stats.count}</p>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <p className="text-xs font-medium text-fg-muted">Buchungen</p>
+          <p className="mt-2 text-xl font-semibold text-fg">{stats.count}</p>
         </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-          <p className="text-xs font-medium text-slate-400">Ø pro Buchung</p>
-          <p className="mt-2 text-xl font-semibold text-slate-200">
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <p className="text-xs font-medium text-fg-muted">Ø pro Buchung</p>
+          <p className="mt-2 text-xl font-semibold text-fg">
             {formatEuro(stats.avg)}
           </p>
         </div>
       </div>
 
       {monthly.length > 1 && (
-        <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-          <h3 className="mb-4 text-sm font-semibold text-slate-300">
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <h3 className="mb-4 text-sm font-semibold text-fg-soft">
             Monatsverlauf
           </h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -235,20 +235,20 @@ export default function CategoryDrillDown({
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-700 bg-slate-800/50">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 px-5 py-3">
-          <h3 className="text-sm font-semibold text-slate-300">
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+          <h3 className="text-sm font-semibold text-fg-soft">
             {type === "einnahmen" ? "Absender" : "Empfänger"} ({counterparties.length})
           </h3>
-          <div className="flex gap-1 rounded-lg bg-slate-700/50 p-0.5 text-xs">
+          <div className="flex gap-1 rounded-lg bg-bg-muted p-0.5 text-xs">
             {(["sum", "count", "last", "name"] as SortKey[]).map((k) => (
               <button
                 key={k}
                 onClick={() => setSortKey(k)}
                 className={`rounded px-2.5 py-1 cursor-pointer ${
                   sortKey === k
-                    ? "bg-slate-600 text-white"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-fg text-fg-inverse"
+                    : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {k === "sum"
@@ -264,11 +264,11 @@ export default function CategoryDrillDown({
         </div>
 
         {counterparties.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-500">
+          <p className="px-5 py-8 text-center text-sm text-fg-subtle">
             Keine Buchungen in dieser Kategorie
           </p>
         ) : (
-          <div className="divide-y divide-slate-700/50">
+          <div className="divide-y divide-border">
             {counterparties.map((cp) => {
               const isExpanded = expandedKey === cp.key;
               const share = stats.sum > 0 ? (cp.sum / stats.sum) * 100 : 0;
@@ -276,19 +276,19 @@ export default function CategoryDrillDown({
                 <div key={cp.key}>
                   <button
                     onClick={() => setExpandedKey(isExpanded ? null : cp.key)}
-                    className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-slate-700/20 cursor-pointer"
+                    className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-surface-hover cursor-pointer"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                        <ChevronDown className="h-4 w-4 flex-shrink-0 text-fg-subtle" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                        <ChevronRight className="h-4 w-4 flex-shrink-0 text-fg-subtle" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-200">
+                        <p className="truncate text-sm font-medium text-fg">
                           {cp.name}
                         </p>
-                        <p className="truncate text-xs text-slate-500 font-mono">
+                        <p className="truncate text-xs text-fg-subtle font-mono">
                           {cp.iban || "—"} · {cp.count}x · zuletzt {formatDate(cp.last)}
                         </p>
                       </div>
@@ -298,9 +298,9 @@ export default function CategoryDrillDown({
                         <p className={`text-sm font-semibold ${accentColor}`}>
                           {formatEuro(cp.sum)}
                         </p>
-                        <p className="text-xs text-slate-500">{share.toFixed(1)}%</p>
+                        <p className="text-xs text-fg-subtle">{share.toFixed(1)}%</p>
                       </div>
-                      <div className="hidden h-8 w-24 overflow-hidden rounded bg-slate-700/30 sm:block">
+                      <div className="hidden h-8 w-24 overflow-hidden rounded bg-surface-hover sm:block">
                         <div
                           className="h-full"
                           style={{
@@ -313,30 +313,30 @@ export default function CategoryDrillDown({
                   </button>
 
                   {isExpanded && (
-                    <div className="bg-slate-900/30 px-5 py-3">
+                    <div className="bg-bg-muted px-5 py-3">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="text-left text-slate-500">
+                          <tr className="text-left text-fg-subtle">
                             <th className="py-1.5 font-medium">Datum</th>
                             <th className="py-1.5 font-medium">Verwendungszweck</th>
                             <th className="py-1.5 font-medium">Gruppe</th>
                             <th className="py-1.5 text-right font-medium">Betrag</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-border">
                           {cp.transactions.map((tx) => {
                             const kg = tx.kontogruppeId
                               ? kontogruppenById[tx.kontogruppeId]
                               : null;
                             return (
                               <tr key={tx.id}>
-                                <td className="whitespace-nowrap py-1.5 text-slate-400">
+                                <td className="whitespace-nowrap py-1.5 text-fg-muted">
                                   {formatDate(tx.buchungstag)}
                                 </td>
-                                <td className="py-1.5 text-slate-300">
+                                <td className="py-1.5 text-fg-soft">
                                   <div className="flex items-center gap-2">
                                     {tx.isUmbuchung && (
-                                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">
+                                      <span className="inline-flex items-center gap-1 rounded bg-warn-soft px-1.5 py-0.5 text-[10px] text-warn">
                                         <ArrowLeftRight className="h-3 w-3" />
                                         Umbuchung
                                       </span>
@@ -360,14 +360,14 @@ export default function CategoryDrillDown({
                                       {kg.name}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-600">–</span>
+                                    <span className="text-fg-faint">–</span>
                                   )}
                                 </td>
                                 <td
                                   className={`whitespace-nowrap py-1.5 text-right font-medium ${
                                     tx.betrag >= 0
-                                      ? "text-emerald-400"
-                                      : "text-red-400"
+                                      ? "text-positive"
+                                      : "text-danger"
                                   }`}
                                 >
                                   {formatEuro(tx.betrag)}

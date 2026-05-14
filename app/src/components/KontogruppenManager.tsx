@@ -55,11 +55,11 @@ function FormFields({
         placeholder='z.B. "Privat", "Gemeinsam", "Firma A"'
         value={state.name}
         onChange={(e) => onChange({ ...state, name: e.target.value })}
-        className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-200 placeholder-slate-500"
+        className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
         autoFocus
       />
       <div>
-        <label className="mb-1.5 block text-xs text-slate-400">Typ</label>
+        <label className="mb-1.5 block text-xs text-fg-muted">Typ</label>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {TYPES_ORDER.map((t) => (
             <button
@@ -77,8 +77,8 @@ function FormFields({
               }
               className={`rounded-lg border px-3 py-1.5 text-xs cursor-pointer ${
                 state.type === t
-                  ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                  : "border-slate-600 bg-slate-700/50 text-slate-400"
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-border-strong bg-bg-muted text-fg-muted"
               }`}
             >
               {TYPE_LABELS[t]}
@@ -87,14 +87,14 @@ function FormFields({
         </div>
       </div>
       <div>
-        <label className="mb-1.5 block text-xs text-slate-400">Farbe</label>
+        <label className="mb-1.5 block text-xs text-fg-muted">Farbe</label>
         <div className="flex flex-wrap gap-1.5">
           {PRESET_COLORS.map((c) => (
             <button
               key={c}
               onClick={() => onChange({ ...state, color: c })}
               className={`h-7 w-7 rounded-md cursor-pointer ${
-                state.color === c ? "ring-2 ring-white ring-offset-2 ring-offset-slate-900" : ""
+                state.color === c ? "ring-2 ring-fg ring-offset-2 ring-offset-bg" : ""
               }`}
               style={{ backgroundColor: c }}
             />
@@ -102,11 +102,11 @@ function FormFields({
         </div>
       </div>
       <div>
-        <label className="mb-1.5 block text-xs text-slate-400">Bank / CSV-Format</label>
+        <label className="mb-1.5 block text-xs text-fg-muted">Bank / CSV-Format</label>
         <select
           value={state.bank}
           onChange={(e) => onChange({ ...state, bank: e.target.value })}
-          className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-200"
+          className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-sm text-fg"
         >
           <option value="">— keine Vorbelegung —</option>
           {bankPresets
@@ -117,12 +117,12 @@ function FormFields({
               </option>
             ))}
         </select>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-fg-subtle">
           Beim Upload an diese Gruppe wird das passende Bank-Mapping automatisch gewählt.
         </p>
       </div>
       <div>
-        <label className="mb-1.5 block text-xs text-slate-400">Icon</label>
+        <label className="mb-1.5 block text-xs text-fg-muted">Icon</label>
         <div className="grid grid-cols-10 gap-1.5">
           {ICON_KEYS.map((key) => {
             const Icon = getIcon(key);
@@ -133,8 +133,8 @@ function FormFields({
                 onClick={() => onChange({ ...state, icon: key })}
                 className={`flex h-8 w-8 items-center justify-center rounded-md border cursor-pointer ${
                   active
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-slate-600 bg-slate-700/50 hover:border-slate-500"
+                    ? "border-brand bg-brand-soft"
+                    : "border-border-strong bg-bg-muted hover:border-border-strong"
                 }`}
                 style={active ? { color: state.color } : { color: "#94A3B8" }}
               >
@@ -227,19 +227,19 @@ export default function KontogruppenManager({
   };
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50">
+    <div className="rounded-xl border border-border bg-surface">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between px-5 py-4 text-left cursor-pointer"
       >
         <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-slate-400" />
-          <span className="text-sm font-medium text-slate-200">
+          <Users className="h-5 w-5 text-fg-muted" />
+          <span className="text-sm font-medium text-fg">
             Kontoinhaber & Kontogruppen ({kontogruppen.length})
           </span>
         </div>
         <svg
-          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+          className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"
@@ -252,9 +252,9 @@ export default function KontogruppenManager({
       </button>
 
       {isOpen && (
-        <div className="space-y-3 border-t border-slate-700 px-5 py-4">
+        <div className="space-y-3 border-t border-border px-5 py-4">
           {kontogruppen.length === 0 && !showForm && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-fg-subtle">
               Noch keine Kontogruppen angelegt. Lege eine an, um Uploads zuordnen zu können.
             </p>
           )}
@@ -265,7 +265,7 @@ export default function KontogruppenManager({
             return (
               <div
                 key={kg.id}
-                className="rounded-lg border border-slate-700 bg-slate-900/50"
+                className="rounded-lg border border-border bg-bg-muted"
               >
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-3">
@@ -276,8 +276,8 @@ export default function KontogruppenManager({
                       <Icon className="h-4 w-4" style={{ color: kg.color }} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-200">{kg.name}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-fg">{kg.name}</p>
+                      <p className="text-xs text-fg-subtle">
                         {TYPE_LABELS[kg.type]}
                         {kg.bank ? ` · ${kg.bank}` : ""}
                       </p>
@@ -287,7 +287,7 @@ export default function KontogruppenManager({
                     {!isEditing && (
                       <button
                         onClick={() => handleEdit(kg)}
-                        className="rounded p-1.5 text-slate-500 hover:bg-slate-700 hover:text-blue-400 cursor-pointer"
+                        className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
                         title="Bearbeiten"
                       >
                         <Pencil className="h-4 w-4" />
@@ -295,7 +295,7 @@ export default function KontogruppenManager({
                     )}
                     <button
                       onClick={() => handleDelete(kg.id)}
-                      className="rounded p-1.5 text-slate-500 hover:bg-slate-700 hover:text-red-400 cursor-pointer"
+                      className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-danger cursor-pointer"
                       title="Löschen"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -304,19 +304,19 @@ export default function KontogruppenManager({
                 </div>
 
                 {isEditing && (
-                  <div className="border-t border-slate-700 px-3 py-3 space-y-3">
+                  <div className="border-t border-border px-3 py-3 space-y-3">
                     <FormFields state={form} onChange={setForm} />
                     <div className="flex gap-2">
                       <button
                         onClick={resetForm}
-                        className="flex-1 rounded-lg border border-slate-600 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 cursor-pointer"
+                        className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
                       >
                         Abbrechen
                       </button>
                       <button
                         onClick={handleUpdate}
                         disabled={!form.name.trim()}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                       >
                         <Check className="h-3.5 w-3.5" />
                         Speichern
@@ -329,14 +329,14 @@ export default function KontogruppenManager({
           })}
 
           {showForm ? (
-            <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-900/50 p-3">
+            <div className="space-y-3 rounded-lg border border-border bg-bg-muted p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-300">
+                <span className="text-xs font-medium text-fg-soft">
                   Neue Kontogruppe
                 </span>
                 <button
                   onClick={resetForm}
-                  className="text-slate-500 hover:text-slate-300 cursor-pointer"
+                  className="text-fg-subtle hover:text-fg-soft cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -345,7 +345,7 @@ export default function KontogruppenManager({
               <button
                 onClick={handleCreate}
                 disabled={!form.name.trim()}
-                className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 Anlegen
               </button>
@@ -363,7 +363,7 @@ export default function KontogruppenManager({
                   });
                   setShowForm(true);
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-600 px-3 py-2 text-xs font-medium text-slate-400 hover:border-blue-500 hover:text-blue-400 cursor-pointer"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong px-3 py-2 text-xs font-medium text-fg-muted hover:border-brand hover:text-brand cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 Kontogruppe anlegen

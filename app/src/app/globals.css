@@ -1,23 +1,251 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0F172A;
-  --foreground: #E2E8F0;
-  --color-primary: #1E40AF;
-  --color-secondary: #3B82F6;
-  --color-accent: #059669;
+/* -----------------------------------------------------------
+ * Editorial Finance · Token System
+ * Hue-Strategie: warmer Neutralton (240° leicht), nicht steril.
+ * Akzent: deep emerald-teal. Danger: warmer Oxblood. Warn: amber.
+ * --------------------------------------------------------- */
+
+@layer base {
+  :root,
+  .light {
+    /* Surfaces */
+    --bg: oklch(0.985 0.004 80);
+    --bg-elev: oklch(1 0 0);
+    --bg-muted: oklch(0.965 0.005 75);
+    --surface: oklch(1 0 0);
+    --surface-hover: oklch(0.97 0.006 75);
+    --surface-active: oklch(0.945 0.008 75);
+
+    /* Borders */
+    --border: oklch(0.91 0.006 75);
+    --border-strong: oklch(0.83 0.008 75);
+    --ring: oklch(0.55 0.04 75);
+
+    /* Typography */
+    --fg: oklch(0.22 0.012 270);
+    --fg-soft: oklch(0.34 0.012 270);
+    --fg-muted: oklch(0.5 0.012 270);
+    --fg-subtle: oklch(0.65 0.012 270);
+    --fg-faint: oklch(0.78 0.008 270);
+    --fg-inverse: oklch(0.985 0.004 80);
+
+    /* Brand & State */
+    --brand: oklch(0.5 0.13 240);
+    --brand-fg: oklch(0.99 0.004 240);
+    --brand-soft: oklch(0.94 0.04 240);
+
+    --accent: oklch(0.58 0.12 165);
+    --accent-soft: oklch(0.93 0.05 165);
+
+    --positive: oklch(0.6 0.14 155);
+    --positive-fg: oklch(0.99 0.004 155);
+    --positive-soft: oklch(0.94 0.05 155);
+
+    --danger: oklch(0.52 0.18 28);
+    --danger-fg: oklch(0.99 0.004 28);
+    --danger-soft: oklch(0.94 0.06 28);
+
+    --warn: oklch(0.7 0.15 75);
+    --warn-soft: oklch(0.94 0.06 75);
+
+    --info: oklch(0.55 0.11 240);
+    --info-soft: oklch(0.93 0.04 240);
+
+    --magic: oklch(0.5 0.2 305);
+    --magic-fg: oklch(0.99 0.004 305);
+    --magic-soft: oklch(0.94 0.06 305);
+
+    /* Shadows — Light: zarte Diffusion */
+    --shadow-sm: 0 1px 0 0 rgb(0 0 0 / 0.04), 0 1px 2px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 1px 0 0 rgb(0 0 0 / 0.04), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 1px 0 0 rgb(0 0 0 / 0.04), 0 14px 32px -12px rgb(0 0 0 / 0.12);
+
+    /* Charts */
+    --chart-grid: oklch(0.93 0.006 75);
+  }
+
+  .dark {
+    --bg: oklch(0.165 0.012 270);
+    --bg-elev: oklch(0.205 0.012 270);
+    --bg-muted: oklch(0.19 0.012 270);
+    --surface: oklch(0.22 0.013 270);
+    --surface-hover: oklch(0.255 0.014 270);
+    --surface-active: oklch(0.29 0.015 270);
+
+    --border: oklch(0.31 0.012 270);
+    --border-strong: oklch(0.4 0.014 270);
+    --ring: oklch(0.6 0.04 270);
+
+    --fg: oklch(0.965 0.005 75);
+    --fg-soft: oklch(0.88 0.008 75);
+    --fg-muted: oklch(0.72 0.012 270);
+    --fg-subtle: oklch(0.58 0.014 270);
+    --fg-faint: oklch(0.42 0.014 270);
+    --fg-inverse: oklch(0.18 0.012 270);
+
+    --brand: oklch(0.65 0.15 240);
+    --brand-fg: oklch(0.99 0.004 240);
+    --brand-soft: oklch(0.32 0.07 240);
+
+    --accent: oklch(0.78 0.13 165);
+    --accent-soft: oklch(0.3 0.06 165);
+
+    --positive: oklch(0.7 0.15 155);
+    --positive-fg: oklch(0.99 0.004 155);
+    --positive-soft: oklch(0.3 0.06 155);
+
+    --danger: oklch(0.65 0.18 28);
+    --danger-fg: oklch(0.99 0.004 28);
+    --danger-soft: oklch(0.32 0.09 28);
+
+    --warn: oklch(0.82 0.15 75);
+    --warn-soft: oklch(0.35 0.08 75);
+
+    --info: oklch(0.74 0.13 240);
+    --info-soft: oklch(0.3 0.07 240);
+
+    --magic: oklch(0.62 0.2 305);
+    --magic-fg: oklch(0.99 0.004 305);
+    --magic-soft: oklch(0.32 0.08 305);
+
+    --shadow-sm: 0 1px 0 0 rgb(0 0 0 / 0.3), 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 1px 0 0 rgb(0 0 0 / 0.3), 0 6px 16px -4px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 1px 0 0 rgb(0 0 0 / 0.35), 0 18px 40px -12px rgb(0 0 0 / 0.6);
+
+    --chart-grid: oklch(0.3 0.012 270);
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Fonts */
+  --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-display), "Iowan Old Style", "Apple Garamond",
+    Baskerville, "Times New Roman", serif;
+
+  /* Semantic colors (Tailwind utility class names) */
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-muted: var(--bg-muted);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-fg-inverse: var(--fg-inverse);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-positive-fg: var(--positive-fg);
+  --color-positive-soft: var(--positive-soft);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-magic: var(--magic);
+  --color-magic-fg: var(--magic-fg);
+  --color-magic-soft: var(--magic-soft);
+  --color-chart-grid: var(--chart-grid);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  html.light {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-feature-settings: "cv11", "ss03", "ss02";
+  }
+  /* Tabular numbers überall, wo es sinnvoll ist */
+  .tabular-nums,
+  table,
+  .numeric {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Selection */
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--fg);
+  }
+  /* Native form-Element-Theming */
+  select,
+  input,
+  textarea {
+    color-scheme: inherit;
+  }
 }
 
-select {
-  appearance: auto;
+/* Subtile Grid-Hintergrund-Textur, nur Dark Mode */
+.dark body {
+  background-image: radial-gradient(
+    1200px 600px at 100% -10%,
+    color-mix(in oklch, var(--brand) 6%, transparent),
+    transparent 60%
+  );
+  background-attachment: fixed;
 }
+
+/* Editorial Display-Helper: aktiviert OPSZ und Soft/Wonk-Achsen für Hero-Zahlen */
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144, "SOFT" 20, "WONK" 0;
+  letter-spacing: -0.025em;
+}
+.font-display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Hairline-Trennlinien — präziser als 1px-borders auf Retina */
+.hairline {
+  position: relative;
+}
+.hairline::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Stagger-Reveal beim Mount (page-load) */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.rise-1 { animation-delay: 40ms; }
+.rise-2 { animation-delay: 80ms; }
+.rise-3 { animation-delay: 120ms; }
+.rise-4 { animation-delay: 160ms; }
+.rise-5 { animation-delay: 200ms; }

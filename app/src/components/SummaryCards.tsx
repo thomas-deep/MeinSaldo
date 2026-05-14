@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Transaction } from "../lib/types";
 
 interface SummaryCardsProps {
@@ -9,10 +9,11 @@ interface SummaryCardsProps {
   comparisonLabel?: string;
 }
 
-function formatEuro(value: number): string {
+function formatEuro(value: number, opts?: { sign?: boolean }): string {
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
     currency: "EUR",
+    signDisplay: opts?.sign ? "exceptZero" : "auto",
   }).format(value);
 }
 
@@ -51,129 +52,160 @@ function deltaPct(current: number, prev: number): number | null {
   return ((current - prev) / Math.abs(prev)) * 100;
 }
 
-interface DeltaBadgeProps {
+interface DeltaProps {
   label: string;
   current: number;
   prev: number;
-  /** Bei Ausgaben ist "weniger" gut → invertierte Färbung */
   lowerIsBetter?: boolean;
   format: (v: number) => string;
 }
 
-function DeltaBadge({ label, current, prev, lowerIsBetter, format }: DeltaBadgeProps) {
+function Delta({ label, current, prev, lowerIsBetter, format }: DeltaProps) {
   const diff = current - prev;
   const pct = deltaPct(current, prev);
   const isImprovement = lowerIsBetter ? diff < 0 : diff > 0;
   const isWorse = lowerIsBetter ? diff > 0 : diff < 0;
   const color =
     diff === 0
-      ? "text-slate-500"
+      ? "text-fg-subtle"
       : isImprovement
-        ? "text-emerald-400"
+        ? "text-positive"
         : isWorse
-          ? "text-red-400"
-          : "text-slate-400";
+          ? "text-danger"
+          : "text-fg-muted";
+  const Icon = diff === 0 ? Minus : diff > 0 ? ArrowUpRight : ArrowDownRight;
   return (
-    <p className={`mt-2 text-[11px] ${color}`}>
-      {label}: {format(prev)}
-      {pct !== null && (
-        <span className="ml-1.5">
-          ({diff > 0 ? "+" : ""}
-          {pct.toFixed(1)} %)
-        </span>
+    <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3 text-[11px]">
+      <span className="uppercase tracking-[0.16em] text-fg-faint">{label}</span>
+      <span className={`inline-flex items-center gap-1 font-mono tabular-nums ${color}`}>
+        <Icon className="h-3 w-3" />
+        {pct !== null
+          ? `${diff > 0 ? "+" : ""}${pct.toFixed(1)} %`
+          : "—"}
+        <span className="ml-1 text-fg-subtle">{format(prev)}</span>
+      </span>
+    </div>
+  );
+}
+
+interface CardProps {
+  label: string;
+  value: string;
+  valueColor?: string;
+  caption?: string;
+  delta?: { current: number; prev: number; lowerIsBetter?: boolean };
+  comparisonLabel: string;
+  formatDelta: (v: number) => string;
+}
+
+function StatCard({
+  label,
+  value,
+  valueColor = "text-fg",
+  caption,
+  delta,
+  comparisonLabel,
+  formatDelta,
+}: CardProps) {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-shadow hover:shadow-[var(--shadow-md)]">
+      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fg-faint">
+        {label}
+      </p>
+      <p
+        className={`mt-3 font-display text-[40px] leading-none tracking-tight ${valueColor}`}
+        style={{ fontVariationSettings: '"opsz" 144, "SOFT" 30, "WONK" 0' }}
+      >
+        <span className="tabular-nums">{value}</span>
+      </p>
+      {caption && (
+        <p className="mt-2 text-xs text-fg-muted">{caption}</p>
       )}
-    </p>
+      {delta && (
+        <Delta
+          label={comparisonLabel}
+          current={delta.current}
+          prev={delta.prev}
+          lowerIsBetter={delta.lowerIsBetter}
+          format={formatDelta}
+        />
+      )}
+    </div>
   );
 }
 
 export default function SummaryCards({
   transactions,
   comparison,
-  comparisonLabel = "Vorjahr",
+  comparisonLabel = "vs. Vorjahr",
 }: SummaryCardsProps) {
   const cur = aggregate(transactions);
   const prev = comparison ? aggregate(comparison) : null;
 
-  const cards = [
-    {
-      label: "Einnahmen",
-      value: formatEuro(cur.einnahmen),
-      icon: ArrowDownLeft,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      delta: prev
-        ? { current: cur.einnahmen, prev: prev.einnahmen, lowerIsBetter: false }
-        : null,
-    },
-    {
-      label: "Ausgaben",
-      value: formatEuro(cur.ausgaben),
-      icon: ArrowUpRight,
-      color: "text-red-400",
-      bg: "bg-red-500/10",
-      delta: prev
-        ? { current: cur.ausgaben, prev: prev.ausgaben, lowerIsBetter: true }
-        : null,
-    },
-    {
-      label: "Saldo",
-      value: formatEuro(cur.saldo),
-      icon: Wallet,
-      color: cur.saldo >= 0 ? "text-emerald-400" : "text-red-400",
-      bg: cur.saldo >= 0 ? "bg-emerald-500/10" : "bg-red-500/10",
-      delta: prev
-        ? { current: cur.saldo, prev: prev.saldo, lowerIsBetter: false }
-        : null,
-    },
-    {
-      label: "Sparquote",
-      value: `${cur.sparquote.toFixed(1)} %`,
-      icon: TrendingUp,
-      color: cur.sparquote >= 0 ? "text-blue-400" : "text-red-400",
-      bg: "bg-blue-500/10",
-      delta: prev
-        ? { current: cur.sparquote, prev: prev.sparquote, lowerIsBetter: false }
-        : null,
-    },
-  ];
-
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-xl border border-slate-700 bg-slate-800/50 p-5"
-          >
-            <div className="flex items-center gap-3">
-              <div className={`rounded-lg p-2 ${card.bg}`}>
-                <card.icon className={`h-5 w-5 ${card.color}`} />
-              </div>
-              <span className="text-xs font-medium text-slate-400">{card.label}</span>
-            </div>
-            <p className={`mt-3 text-xl font-semibold ${card.color}`}>
-              {card.value}
-            </p>
-            {card.delta && (
-              <DeltaBadge
-                label={comparisonLabel}
-                current={card.delta.current}
-                prev={card.delta.prev}
-                lowerIsBetter={card.delta.lowerIsBetter}
-                format={
-                  card.label === "Sparquote"
-                    ? (v) => `${v.toFixed(1)} %`
-                    : formatEuro
+    <div className="space-y-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Einnahmen"
+          value={formatEuro(cur.einnahmen)}
+          valueColor="text-positive"
+          comparisonLabel={comparisonLabel}
+          delta={
+            prev
+              ? { current: cur.einnahmen, prev: prev.einnahmen }
+              : undefined
+          }
+          formatDelta={formatEuro}
+        />
+        <StatCard
+          label="Ausgaben"
+          value={formatEuro(cur.ausgaben)}
+          valueColor="text-danger"
+          comparisonLabel={comparisonLabel}
+          delta={
+            prev
+              ? {
+                  current: cur.ausgaben,
+                  prev: prev.ausgaben,
+                  lowerIsBetter: true,
                 }
-              />
-            )}
-          </div>
-        ))}
+              : undefined
+          }
+          formatDelta={formatEuro}
+        />
+        <StatCard
+          label="Saldo"
+          value={formatEuro(cur.saldo, { sign: true })}
+          valueColor={cur.saldo >= 0 ? "text-positive" : "text-danger"}
+          comparisonLabel={comparisonLabel}
+          delta={
+            prev ? { current: cur.saldo, prev: prev.saldo } : undefined
+          }
+          formatDelta={(v) => formatEuro(v, { sign: true })}
+        />
+        <StatCard
+          label="Sparquote"
+          value={`${cur.sparquote.toFixed(1)} %`}
+          valueColor={cur.sparquote >= 0 ? "text-fg" : "text-danger"}
+          comparisonLabel={comparisonLabel}
+          delta={
+            prev
+              ? { current: cur.sparquote, prev: prev.sparquote }
+              : undefined
+          }
+          formatDelta={(v) => `${v.toFixed(1)} %`}
+        />
       </div>
       {cur.umbuchungenCount > 0 && (
-        <p className="text-xs text-slate-500">
-          {cur.umbuchungenCount} Umbuchungen zwischen eigenen Konten erkannt und
-          aus Summen ausgeschlossen ({formatEuro(cur.umbuchungenVolume)} Volumen)
+        <p className="text-xs text-fg-subtle">
+          <span className="font-medium text-fg-muted">
+            {cur.umbuchungenCount}
+          </span>{" "}
+          Umbuchungen zwischen eigenen Konten — aus Summen ausgeschlossen (
+          <span className="font-mono tabular-nums">
+            {formatEuro(cur.umbuchungenVolume)}
+          </span>{" "}
+          Volumen)
         </p>
       )}
     </div>

@@ -34,7 +34,7 @@ export default function Toggle({
       className={`inline-flex items-center gap-2.5 text-xs ${
         disabled
           ? "cursor-not-allowed opacity-50"
-          : "cursor-pointer text-slate-300"
+          : "cursor-pointer text-fg-soft"
       }`}
     >
       <span className="relative inline-flex h-5 w-9 flex-shrink-0 items-center">
@@ -47,8 +47,8 @@ export default function Toggle({
         />
         <span
           className={`absolute inset-0 rounded-full transition-colors ${
-            checked ? ACCENT_TRACK_ON[accent] : "bg-slate-600"
-          } peer-focus-visible:ring-2 peer-focus-visible:ring-slate-400`}
+            checked ? ACCENT_TRACK_ON[accent] : "bg-surface-active"
+          } peer-focus-visible:ring-2 peer-focus-visible:ring-fg-faint`}
         />
         <span
           className={`absolute left-0.5 inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
@@ -59,7 +59,7 @@ export default function Toggle({
       {(label || hint) && (
         <span className="flex flex-col leading-tight">
           {label && <span>{label}</span>}
-          {hint && <span className="text-[10px] text-slate-500">{hint}</span>}
+          {hint && <span className="text-[10px] text-fg-subtle">{hint}</span>}
         </span>
       )}
     </label>

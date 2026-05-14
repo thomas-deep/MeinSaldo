@@ -14,6 +14,7 @@ import {
 import { Transaction, MonthlyData } from "../lib/types";
 import { format, parse } from "date-fns";
 import { de } from "date-fns/locale";
+import { useChartTheme } from "../lib/chart-theme";
 
 interface MonthlyChartProps {
   transactions: Transaction[];
@@ -28,6 +29,8 @@ function formatEuro(value: number): string {
 }
 
 export default function MonthlyChart({ transactions }: MonthlyChartProps) {
+  const ct = useChartTheme();
+
   const data: MonthlyData[] = useMemo(() => {
     const grouped: Record<string, { einnahmen: number; ausgaben: number }> = {};
 
@@ -60,31 +63,47 @@ export default function MonthlyChart({ transactions }: MonthlyChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-        <p className="py-12 text-center text-sm text-slate-500">Keine monatlichen Daten</p>
+      <div className="rounded-2xl border border-border bg-surface p-6">
+        <p className="py-12 text-center text-sm text-fg-subtle">
+          Keine monatlichen Daten
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-      <h3 className="mb-4 text-sm font-semibold text-blue-400">
-        Monatliche Übersicht
-      </h3>
+    <div className="rounded-2xl border border-border bg-surface p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-fg-faint">
+          Monatliche Übersicht
+        </h3>
+        <div className="flex items-center gap-4 text-[11px] text-fg-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-sm bg-positive" />
+            Einnahmen
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-sm bg-danger" />
+            Ausgaben
+          </span>
+        </div>
+      </div>
 
       <ResponsiveContainer width="100%" height={320}>
         <BarChart data={data} margin={{ left: 8, right: 8 }}>
           <XAxis
             dataKey="monat"
-            tick={{ fill: "#94A3B8", fontSize: 11 }}
+            tick={{ fill: ct.fgMuted, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
+            dy={6}
           />
           <YAxis
             tickFormatter={(v) => formatEuro(v)}
-            tick={{ fill: "#94A3B8", fontSize: 11 }}
+            tick={{ fill: ct.fgMuted, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
+            width={70}
           />
           <Tooltip
             formatter={(value, name) => [
@@ -95,27 +114,30 @@ export default function MonthlyChart({ transactions }: MonthlyChartProps) {
                   ? "Ausgaben"
                   : "Saldo",
             ]}
+            cursor={{ fill: ct.border, opacity: 0.35 }}
             contentStyle={{
-              backgroundColor: "#1E293B",
-              border: "1px solid #334155",
-              borderRadius: "0.5rem",
-              color: "#E2E8F0",
+              backgroundColor: ct.surface,
+              border: `1px solid ${ct.border}`,
+              borderRadius: "0.75rem",
+              color: ct.fg,
               fontSize: "0.8rem",
+              boxShadow: "0 14px 32px -12px rgb(0 0 0 / 0.25)",
             }}
           />
-          <Legend
-            formatter={(value) =>
-              value === "einnahmen"
-                ? "Einnahmen"
-                : value === "ausgaben"
-                  ? "Ausgaben"
-                  : "Saldo"
-            }
-            wrapperStyle={{ fontSize: "0.75rem", color: "#94A3B8" }}
+          <Legend wrapperStyle={{ display: "none" }} />
+          <ReferenceLine y={0} stroke={ct.border} />
+          <Bar
+            dataKey="einnahmen"
+            fill={ct.positive}
+            radius={[3, 3, 0, 0]}
+            maxBarSize={36}
           />
-          <ReferenceLine y={0} stroke="#475569" />
-          <Bar dataKey="einnahmen" fill="#10B981" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="ausgaben" fill="#EF4444" radius={[4, 4, 0, 0]} />
+          <Bar
+            dataKey="ausgaben"
+            fill={ct.danger}
+            radius={[3, 3, 0, 0]}
+            maxBarSize={36}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

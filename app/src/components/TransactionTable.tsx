@@ -171,25 +171,25 @@ export default function TransactionTable({
   };
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-700 px-5 py-4">
+    <div className="rounded-xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
           <input
             type="text"
             placeholder="Suchen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-slate-600 bg-slate-700 py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-border-strong bg-surface-active py-2 pl-10 pr-3 text-sm text-fg placeholder:text-fg-subtle focus:border-brand focus:outline-none"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-slate-500" />
+          <Filter className="h-4 w-4 text-fg-subtle" />
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-            className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200"
+            className="rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-xs text-fg"
           >
             <option value="alle">Alle</option>
             <option value="einnahmen">Einnahmen</option>
@@ -199,7 +199,7 @@ export default function TransactionTable({
           <select
             value={filterKategorie}
             onChange={(e) => setFilterKategorie(e.target.value)}
-            className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200"
+            className="rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-xs text-fg"
           >
             <option value="">Alle Kategorien</option>
             {allCategories.map((k) => (
@@ -210,19 +210,19 @@ export default function TransactionTable({
           </select>
         </div>
 
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-fg-subtle">
           {filtered.length} von {transactions.length}
         </span>
       </div>
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-purple-500/30 bg-purple-500/5 px-5 py-3">
-          <span className="text-sm text-purple-200">
+        <div className="flex flex-wrap items-center gap-3 border-b border-magic bg-magic-soft px-5 py-3">
+          <span className="text-sm text-magic">
             {selected.size} Buchung{selected.size === 1 ? "" : "en"} ausgewählt
           </span>
           <div className="flex-1" />
           {aiProgress ? (
-            <span className="flex items-center gap-2 text-xs text-purple-200">
+            <span className="flex items-center gap-2 text-xs text-magic">
               <Loader2 className="h-4 w-4 animate-spin" />
               {aiProgress.done} / {aiProgress.total} – {aiProgress.matched} erkannt
             </span>
@@ -236,14 +236,14 @@ export default function TransactionTable({
                     ? `Auswahl mit ${aiStatus.model} neu kategorisieren`
                     : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
                 }
-                className="flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 rounded-lg bg-magic px-3 py-1.5 text-xs font-medium text-magic-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 KI-Kategorisierung
               </button>
               <button
                 onClick={clearSelection}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:border-slate-500 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
               >
                 <X className="h-3.5 w-3.5" />
                 Auswahl aufheben
@@ -256,7 +256,7 @@ export default function TransactionTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700 text-left text-xs text-slate-400">
+            <tr className="border-b border-border text-left text-xs text-fg-muted">
               <th className="px-3 py-3">
                 <input
                   type="checkbox"
@@ -270,17 +270,17 @@ export default function TransactionTable({
                       ? "Auswahl auf dieser Seite aufheben"
                       : "Alle Buchungen dieser Seite auswählen"
                   }
-                  className="h-3.5 w-3.5 cursor-pointer accent-purple-500"
+                  className="h-3.5 w-3.5 cursor-pointer accent-[var(--magic)]"
                 />
               </th>
               <th
-                className="cursor-pointer px-5 py-3 hover:text-slate-200"
+                className="cursor-pointer px-5 py-3 hover:text-fg"
                 onClick={() => handleSort("buchungstag")}
               >
                 Datum {renderSortIcon("buchungstag")}
               </th>
               <th
-                className="cursor-pointer px-5 py-3 hover:text-slate-200"
+                className="cursor-pointer px-5 py-3 hover:text-fg"
                 onClick={() => handleSort("nameZahlungsbeteiligter")}
               >
                 Zahlungsbeteiligter {renderSortIcon("nameZahlungsbeteiligter")}
@@ -288,13 +288,13 @@ export default function TransactionTable({
               <th className="px-5 py-3">Verwendungszweck</th>
               <th className="px-5 py-3">Gruppe</th>
               <th
-                className="cursor-pointer px-5 py-3 hover:text-slate-200"
+                className="cursor-pointer px-5 py-3 hover:text-fg"
                 onClick={() => handleSort("kategorie")}
               >
                 Kategorie {renderSortIcon("kategorie")}
               </th>
               <th
-                className="cursor-pointer px-5 py-3 text-right hover:text-slate-200"
+                className="cursor-pointer px-5 py-3 text-right hover:text-fg"
                 onClick={() => handleSort("betrag")}
               >
                 Betrag {renderSortIcon("betrag")}
@@ -307,10 +307,10 @@ export default function TransactionTable({
               return (
                 <tr
                   key={tx.id}
-                  className={`border-b border-slate-700/50 transition-colors ${
+                  className={`border-b border-border transition-colors ${
                     isSelected
-                      ? "bg-purple-500/5 hover:bg-purple-500/10"
-                      : "hover:bg-slate-700/20"
+                      ? "bg-magic-soft hover:bg-magic-soft"
+                      : "hover:bg-surface-hover"
                   }`}
                 >
                   <td className="px-3 py-3">
@@ -318,16 +318,16 @@ export default function TransactionTable({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleRow(tx.id)}
-                      className="h-3.5 w-3.5 cursor-pointer accent-purple-500"
+                      className="h-3.5 w-3.5 cursor-pointer accent-[var(--magic)]"
                     />
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3 text-slate-400">
+                  <td className="whitespace-nowrap px-5 py-3 text-fg-muted">
                     {formatDate(tx.buchungstag)}
                   </td>
-                  <td className="max-w-[200px] truncate px-5 py-3 text-slate-200">
+                  <td className="max-w-[200px] truncate px-5 py-3 text-fg">
                     {tx.nameZahlungsbeteiligter}
                   </td>
-                  <td className="max-w-[280px] truncate px-5 py-3 text-slate-400">
+                  <td className="max-w-[280px] truncate px-5 py-3 text-fg-muted">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={(e) => {
@@ -336,8 +336,8 @@ export default function TransactionTable({
                         }}
                         className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-colors ${
                           tx.isUmbuchung
-                            ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                            : "border border-slate-700 text-slate-600 hover:border-amber-500/50 hover:text-amber-500"
+                            ? "bg-warn-soft text-warn hover:bg-warn-soft"
+                            : "border border-border text-fg-faint hover:border-warn hover:text-warn"
                         }`}
                         title={
                           tx.isUmbuchung
@@ -370,14 +370,14 @@ export default function TransactionTable({
                         {kontogruppenById[tx.kontogruppeId].name}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-600">–</span>
+                      <span className="text-xs text-fg-faint">–</span>
                     )}
                   </td>
                   <td className="px-5 py-3">
                     <select
                       value={tx.kategorie}
                       onChange={(e) => onCategoryChange(tx.id, e.target.value)}
-                      className="rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-slate-300"
+                      className="rounded border border-border-strong bg-surface-active px-2 py-1 text-xs text-fg-soft"
                     >
                       {allCategories.map((k) => (
                         <option key={k} value={k}>
@@ -388,7 +388,7 @@ export default function TransactionTable({
                   </td>
                   <td
                     className={`whitespace-nowrap px-5 py-3 text-right font-medium ${
-                      tx.betrag >= 0 ? "text-emerald-400" : "text-red-400"
+                      tx.betrag >= 0 ? "text-positive" : "text-danger"
                     }`}
                   >
                     {formatEuro(tx.betrag)}
@@ -401,7 +401,7 @@ export default function TransactionTable({
       </div>
 
       {filtered.length > PAGE_SIZE && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 px-5 py-3 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-fg-subtle">
           <span>
             Zeige {pageStart + 1}–{pageEnd} von {filtered.length}
           </span>
@@ -409,17 +409,17 @@ export default function TransactionTable({
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
-              className="rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:border-slate-500 cursor-pointer"
+              className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
             >
               Zurück
             </button>
-            <span className="text-slate-400">
+            <span className="text-fg-muted">
               Seite {currentPage + 1} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              className="rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:border-slate-500 cursor-pointer"
+              className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
             >
               Weiter
             </button>

@@ -28,16 +28,16 @@ export default function DbStatus({
   onClear,
 }: DbStatusProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface px-5 py-3">
       <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-blue-500/10 p-2">
-          <Database className="h-4 w-4 text-blue-400" />
+        <div className="rounded-lg bg-brand-soft p-2">
+          <Database className="h-4 w-4 text-brand" />
         </div>
         <div className="text-xs">
-          <p className="font-medium text-slate-200">
+          <p className="font-medium text-fg">
             {count.toLocaleString("de-DE")} Transaktionen gespeichert
           </p>
-          <p className="text-slate-500">
+          <p className="text-fg-subtle">
             Zeitraum: {formatDate(earliest)} – {formatDate(latest)}
           </p>
         </div>
@@ -45,16 +45,16 @@ export default function DbStatus({
 
       <div className="flex items-center gap-3">
         {lastImport && (
-          <div className="text-xs text-slate-400">
-            <span className="text-emerald-400 font-medium">+{lastImport.inserted}</span>
+          <div className="text-xs text-fg-muted">
+            <span className="text-positive font-medium">+{lastImport.inserted}</span>
             {" neu, "}
-            <span className="text-slate-500">{lastImport.skipped}</span>
+            <span className="text-fg-subtle">{lastImport.skipped}</span>
             {" Duplikate übersprungen"}
           </div>
         )}
         <button
           onClick={onClear}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-red-500 hover:text-red-400 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-border-strong bg-bg-muted px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:border-red-500 hover:text-danger cursor-pointer"
         >
           <Trash2 className="h-3.5 w-3.5" />
           DB leeren

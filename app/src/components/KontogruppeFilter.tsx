@@ -25,12 +25,12 @@ export default function KontogruppeFilter({
         onClick={() => onSelect("all")}
         className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer ${
           selected === "all"
-            ? "border-blue-500 bg-blue-500/10 text-blue-300"
-            : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600"
+            ? "border-brand bg-brand-soft text-brand"
+            : "border-border bg-surface text-fg-muted hover:border-border-strong"
         }`}
       >
         Gesamt
-        <span className="text-slate-500">({counts["all"] ?? 0})</span>
+        <span className="text-fg-subtle">({counts["all"] ?? 0})</span>
       </button>
       {kontogruppen.map((kg) => (
         <button
@@ -38,8 +38,8 @@ export default function KontogruppeFilter({
           onClick={() => onSelect(kg.id)}
           className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer ${
             selected === kg.id
-              ? "bg-slate-700 text-white"
-              : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600"
+              ? "bg-fg text-fg-inverse"
+              : "border-border bg-surface text-fg-muted hover:border-border-strong"
           }`}
           style={
             selected === kg.id
@@ -52,7 +52,7 @@ export default function KontogruppeFilter({
             style={{ backgroundColor: kg.color }}
           />
           {kg.name}
-          <span className="text-slate-500">({counts[kg.id] ?? 0})</span>
+          <span className="text-fg-subtle">({counts[kg.id] ?? 0})</span>
         </button>
       ))}
       {counts["null"] > 0 && (
@@ -60,12 +60,12 @@ export default function KontogruppeFilter({
           onClick={() => onSelect(-1)}
           className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer ${
             selected === -1
-              ? "border-slate-400 bg-slate-700 text-slate-200"
-              : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600"
+              ? "border-border-strong bg-surface-active text-fg"
+              : "border-border bg-surface text-fg-muted hover:border-border-strong"
           }`}
         >
           Nicht zugeordnet
-          <span className="text-slate-500">({counts["null"]})</span>
+          <span className="text-fg-subtle">({counts["null"]})</span>
         </button>
       )}
     </div>

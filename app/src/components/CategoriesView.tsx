@@ -43,7 +43,7 @@ function ChipList({
 }) {
   if (items.length === 0) {
     return (
-      <p className="text-xs italic text-slate-500">noch keine Einträge</p>
+      <p className="text-xs italic text-fg-subtle">noch keine Einträge</p>
     );
   }
   return (
@@ -52,7 +52,7 @@ function ChipList({
         <span
           key={`${v}-${i}`}
           className={`group inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
-            className ?? "bg-slate-700/50 text-slate-300"
+            className ?? "bg-bg-muted text-fg-soft"
           }`}
         >
           {v}
@@ -96,12 +96,12 @@ function AddChipInput({
           }
         }}
         placeholder={placeholder}
-        className="flex-1 rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-slate-200 placeholder-slate-500"
+        className="flex-1 rounded border border-border-strong bg-surface-active px-2 py-1 text-xs text-fg placeholder:text-fg-subtle"
       />
       <button
         onClick={submit}
         disabled={!value.trim()}
-        className="flex items-center gap-1 rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-slate-400 disabled:opacity-40 cursor-pointer"
+        className="flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-xs text-fg-soft hover:border-border-strong disabled:opacity-40 cursor-pointer"
       >
         <Plus className="h-3 w-3" />
         Hinzufügen
@@ -149,17 +149,17 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
   };
 
   return (
-    <div className="space-y-4 bg-slate-900/30 px-5 py-4">
+    <div className="space-y-4 bg-bg-muted px-5 py-4">
       {!rule.isFallback && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-fg-muted">
             Name
           </label>
           <input
             type="text"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            className="w-full max-w-md rounded border border-slate-600 bg-slate-700 px-2 py-1 text-sm text-slate-200"
+            className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg"
           />
         </div>
       )}
@@ -167,7 +167,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
       {!rule.isFallback && (
         <>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-400">
+            <p className="mb-1.5 text-xs font-medium text-fg-muted">
               Keywords (Treffer im Verwendungszweck/Namen/Buchungstext, case-insensitive)
             </p>
             <ChipList
@@ -190,7 +190,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-400">
+            <p className="mb-1.5 text-xs font-medium text-fg-muted">
               Namens-Patterns (Treffer im Empfänger/Sender)
             </p>
             <ChipList
@@ -203,7 +203,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
                   ),
                 })
               }
-              className="bg-blue-500/10 text-blue-300"
+              className="bg-brand-soft text-brand"
             />
             <div className="mt-2">
               <AddChipInput
@@ -221,13 +221,13 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
       )}
 
       {rule.isFallback && (
-        <p className="text-xs italic text-slate-500">
+        <p className="text-xs italic text-fg-subtle">
           Fallback-Kategorie. Wird automatisch zugewiesen, wenn keine Regel
           greift — Name und Regeln sind nicht editierbar.
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-700/50 pt-3">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
         {!rule.isFallback && (
           <button
             onClick={() => {
@@ -239,7 +239,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
                 void onDelete(rule.id);
               }
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-500/10 cursor-pointer"
+            className="flex items-center gap-1.5 rounded-lg border border-danger bg-danger-soft px-2.5 py-1.5 text-xs text-danger hover:bg-danger-soft cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Löschen
@@ -249,7 +249,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
         <button
           onClick={handleSave}
           disabled={!dirty || saving || rule.isFallback}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -355,14 +355,14 @@ export default function CategoriesView() {
   }, [newDraft, load]);
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-700 px-5 py-4">
-        <Tag className="h-5 w-5 text-slate-400" />
+    <div className="rounded-xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
+        <Tag className="h-5 w-5 text-fg-muted" />
         <div>
-          <h3 className="text-sm font-medium text-slate-200">
+          <h3 className="text-sm font-medium text-fg">
             Kategorisierungs-Regeln ({rules.length})
           </h3>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-fg-subtle">
             Regeln werden auf Verwendungszweck, Zahlungsbeteiligten und
             Buchungstext angewendet (case-insensitive). Reihenfolge entscheidet:
             erste passende Regel gewinnt.
@@ -371,7 +371,7 @@ export default function CategoriesView() {
         <div className="flex-1" />
         <button
           onClick={() => load()}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:border-slate-500 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
         >
           <RefreshCw
             className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
@@ -380,7 +380,7 @@ export default function CategoriesView() {
         </button>
         <button
           onClick={() => setShowNewForm((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 cursor-pointer"
         >
           <Plus className="h-3.5 w-3.5" />
           Neue Kategorie
@@ -388,9 +388,9 @@ export default function CategoriesView() {
       </div>
 
       {showNewForm && (
-        <div className="space-y-3 border-b border-slate-700 bg-blue-500/5 px-5 py-4">
+        <div className="space-y-3 border-b border-border bg-brand-soft px-5 py-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Name
             </label>
             <input
@@ -400,11 +400,11 @@ export default function CategoriesView() {
                 setNewDraft({ ...newDraft, name: e.target.value })
               }
               placeholder="z. B. Hobby & Freizeit"
-              className="w-full max-w-md rounded border border-slate-600 bg-slate-700 px-2 py-1 text-sm text-slate-200 placeholder-slate-500"
+              className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg placeholder:text-fg-subtle"
             />
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-400">
+            <p className="mb-1.5 text-xs font-medium text-fg-muted">
               Keywords
             </p>
             <ChipList
@@ -429,7 +429,7 @@ export default function CategoriesView() {
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-400">
+            <p className="mb-1.5 text-xs font-medium text-fg-muted">
               Namens-Patterns
             </p>
             <ChipList
@@ -442,7 +442,7 @@ export default function CategoriesView() {
                   ),
                 })
               }
-              className="bg-blue-500/10 text-blue-300"
+              className="bg-brand-soft text-brand"
             />
             <div className="mt-2">
               <AddChipInput
@@ -462,14 +462,14 @@ export default function CategoriesView() {
                 setShowNewForm(false);
                 setNewDraft({ name: "", keywords: [], namePatterns: [] });
               }}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 cursor-pointer"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
             >
               Abbrechen
             </button>
             <button
               onClick={handleCreate}
               disabled={!newDraft.name.trim() || creating}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
             >
               {creating ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -482,9 +482,9 @@ export default function CategoriesView() {
         </div>
       )}
 
-      <div className="divide-y divide-slate-700/50">
+      <div className="divide-y divide-border">
         {rules.length === 0 && !loading && (
-          <p className="py-8 text-center text-sm text-slate-500">
+          <p className="py-8 text-center text-sm text-fg-subtle">
             Noch keine Kategorien
           </p>
         )}
@@ -495,24 +495,24 @@ export default function CategoriesView() {
             <div key={rule.id}>
               <button
                 onClick={() => setExpanded(isOpen ? null : rule.id)}
-                className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-slate-700/20 cursor-pointer"
+                className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-surface-hover cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                    <ChevronDown className="h-4 w-4 text-fg-subtle" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                    <ChevronRight className="h-4 w-4 text-fg-subtle" />
                   )}
-                  <span className="text-sm font-medium text-slate-200">
+                  <span className="text-sm font-medium text-fg">
                     {rule.name}
                   </span>
                   {rule.isFallback && (
-                    <span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+                    <span className="rounded bg-bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fg-muted">
                       Fallback
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-fg-subtle">
                   {rule.isFallback ? "—" : `${total} Einträge`}
                 </span>
               </button>

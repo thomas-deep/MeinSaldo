@@ -50,7 +50,7 @@ function formatTime(iso: string): string {
 function LevelBadge({ level }: { level: LogEntry["level"] }) {
   if (level === "error") {
     return (
-      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-300 bg-red-500/10">
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-danger bg-danger-soft">
         <XCircle className="h-3 w-3" />
         Error
       </span>
@@ -58,14 +58,14 @@ function LevelBadge({ level }: { level: LogEntry["level"] }) {
   }
   if (level === "warn") {
     return (
-      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-300 bg-amber-500/10">
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-warn bg-warn-soft">
         <AlertTriangle className="h-3 w-3" />
         Warn
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-slate-700/50">
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-fg-muted bg-bg-muted">
       <Info className="h-3 w-3" />
       Info
     </span>
@@ -123,11 +123,11 @@ export default function LogsView() {
     : logs;
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-700 px-5 py-4">
+    <div className="rounded-xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
         <div>
-          <h3 className="text-sm font-medium text-slate-200">Logs</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="text-sm font-medium text-fg">Logs</h3>
+          <p className="text-xs text-fg-subtle">
             {data ? `${data.total} Einträge gesamt` : "lade…"} – KI-Prompts,
             Imports, DB-Operationen, Settings-Änderungen
           </p>
@@ -136,7 +136,7 @@ export default function LogsView() {
         <select
           value={eventFilter}
           onChange={(e) => setEventFilter(e.target.value)}
-          className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-xs text-slate-200"
+          className="rounded-lg border border-border-strong bg-surface-active px-3 py-1.5 text-xs text-fg"
         >
           <option value="">Alle Events</option>
           {events.map((ev) => (
@@ -147,7 +147,7 @@ export default function LogsView() {
         </select>
         <button
           onClick={() => load()}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:border-slate-500 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Aktualisieren
@@ -155,7 +155,7 @@ export default function LogsView() {
         <button
           onClick={handleClear}
           disabled={!data || data.total === 0}
-          className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-danger bg-danger-soft px-2.5 py-1.5 text-xs text-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Logs löschen
@@ -163,37 +163,37 @@ export default function LogsView() {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-fg-subtle">
           {loading ? "Lade Logs…" : "Keine Logs vorhanden"}
         </p>
       ) : (
-        <ul className="divide-y divide-slate-700/50">
+        <ul className="divide-y divide-border">
           {filtered.map((log) => {
             const isExpanded = expanded.has(log.id);
             return (
               <li key={log.id}>
                 <button
                   onClick={() => toggleRow(log.id)}
-                  className="flex w-full items-start gap-3 px-5 py-2.5 text-left hover:bg-slate-700/20 cursor-pointer"
+                  className="flex w-full items-start gap-3 px-5 py-2.5 text-left hover:bg-surface-hover cursor-pointer"
                 >
                   <ChevronRight
-                    className={`mt-1 h-3.5 w-3.5 flex-shrink-0 text-slate-500 transition-transform ${
+                    className={`mt-1 h-3.5 w-3.5 flex-shrink-0 text-fg-subtle transition-transform ${
                       isExpanded ? "rotate-90" : ""
                     } ${!log.details ? "invisible" : ""}`}
                   />
-                  <span className="w-40 flex-shrink-0 font-mono text-[11px] text-slate-500">
+                  <span className="w-40 flex-shrink-0 font-mono text-[11px] text-fg-subtle">
                     {formatTime(log.createdAt)}
                   </span>
                   <LevelBadge level={log.level} />
-                  <span className="w-32 flex-shrink-0 font-mono text-[11px] text-slate-400">
+                  <span className="w-32 flex-shrink-0 font-mono text-[11px] text-fg-muted">
                     {EVENT_LABELS[log.event] ?? log.event}
                   </span>
-                  <span className="flex-1 text-xs text-slate-300">
+                  <span className="flex-1 text-xs text-fg-soft">
                     {log.message}
                   </span>
                 </button>
                 {isExpanded && log.details && (
-                  <pre className="max-h-96 overflow-auto border-t border-slate-700/30 bg-slate-900/50 px-5 py-3 font-mono text-[11px] leading-relaxed text-slate-300">
+                  <pre className="max-h-96 overflow-auto border-t border-border bg-bg-muted px-5 py-3 font-mono text-[11px] leading-relaxed text-fg-soft">
                     {(() => {
                       try {
                         return JSON.stringify(JSON.parse(log.details), null, 2);

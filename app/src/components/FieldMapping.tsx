@@ -31,19 +31,19 @@ export default function FieldMappingComponent({
   const mappingKeys = Object.keys(fieldLabels) as (keyof FieldMappingType)[];
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50">
+    <div className="rounded-xl border border-border bg-surface">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between px-5 py-4 text-left cursor-pointer"
       >
         <div className="flex items-center gap-3">
-          <Settings2 className="h-5 w-5 text-slate-400" />
-          <span className="text-sm font-medium text-slate-200">
+          <Settings2 className="h-5 w-5 text-fg-muted" />
+          <span className="text-sm font-medium text-fg">
             Feld-Mapping & Bank-Vorlagen
           </span>
         </div>
         <svg
-          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -54,13 +54,13 @@ export default function FieldMappingComponent({
       </button>
 
       {isOpen && (
-        <div className="border-t border-slate-700 px-5 py-4">
+        <div className="border-t border-border px-5 py-4">
           <div className="mb-4 flex flex-wrap gap-2">
             {bankPresets.map((preset, i) => (
               <button
                 key={preset.name}
                 onClick={() => onPresetSelect(i)}
-                className="rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-blue-500 hover:text-blue-400 cursor-pointer"
+                className="rounded-lg border border-border-strong bg-bg-muted px-3 py-1.5 text-xs font-medium text-fg-soft transition-colors hover:border-brand hover:text-brand cursor-pointer"
               >
                 {preset.name}
               </button>
@@ -69,26 +69,26 @@ export default function FieldMappingComponent({
 
           <div className="mb-4 flex flex-wrap items-end gap-4">
             <div>
-              <label className="mb-1 block text-xs text-slate-400">Trennzeichen</label>
+              <label className="mb-1 block text-xs text-fg-muted">Trennzeichen</label>
               <select
                 value={separator}
                 onChange={(e) => onSeparatorChange(e.target.value)}
-                className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm text-slate-200"
+                className="rounded-lg border border-border-strong bg-surface-active px-3 py-1.5 text-sm text-fg"
               >
                 <option value=";">Semikolon (;)</option>
                 <option value=",">Komma (,)</option>
                 <option value="\t">Tab</option>
               </select>
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-fg-soft">
               <input
                 type="checkbox"
                 checked={invertAmount}
                 onChange={(e) => onInvertAmountChange(e.target.checked)}
-                className="h-4 w-4 cursor-pointer accent-blue-500"
+                className="h-4 w-4 cursor-pointer accent-[var(--brand)]"
               />
               Vorzeichen umkehren
-              <span className="text-slate-500">
+              <span className="text-fg-subtle">
                 (für CSVs mit Ausgaben als positive Werte, z.B. AmEx)
               </span>
             </label>
@@ -97,7 +97,7 @@ export default function FieldMappingComponent({
           <div className="grid gap-3 sm:grid-cols-2">
             {mappingKeys.map((key) => (
               <div key={key}>
-                <label className="mb-1 block text-xs text-slate-400">
+                <label className="mb-1 block text-xs text-fg-muted">
                   {fieldLabels[key]}
                 </label>
                 <select
@@ -105,7 +105,7 @@ export default function FieldMappingComponent({
                   onChange={(e) =>
                     onMappingChange({ ...mapping, [key]: e.target.value })
                   }
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm text-slate-200"
+                  className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-1.5 text-sm text-fg"
                 >
                   <option value="">-- nicht zugeordnet --</option>
                   {csvHeaders.map((header) => (

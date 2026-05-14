@@ -40,8 +40,8 @@ export default function SettingsView({
               onClick={() => setSection(s.id)}
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer transition-colors ${
                 active
-                  ? "bg-blue-500/10 text-blue-300"
-                  : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                  ? "bg-surface text-fg"
+                  : "text-fg-muted hover:bg-surface/60 hover:text-fg"
               }`}
             >
               <Icon className="h-4 w-4" />
