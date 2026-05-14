@@ -2,7 +2,12 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { createHash } from "crypto";
-import { Kontogruppe, KontogruppeType, Transaction } from "./types";
+import {
+  Kontogruppe,
+  KontogruppeArt,
+  KontogruppeType,
+  Transaction,
+} from "./types";
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 
@@ -16,11 +21,17 @@ interface Migration {
   up: (db: Database.Database) => void;
 }
 
+/**
+ * Konsolidiertes Initial-Schema. Alle vorherigen Migrationen (v1-v4) sind
+ * in dieses Schema eingeflossen; in einer Greenfield-DB läuft nur noch v1.
+ * Neue Schema-Änderungen kommen als zusätzliche Migrationen ans Ende.
+ */
 const SCHEMA_V1 = `
   CREATE TABLE kontogruppen (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL,
+    art TEXT NOT NULL DEFAULT 'girokonto',
     color TEXT NOT NULL,
     icon TEXT NOT NULL DEFAULT 'user',
     bank TEXT,
@@ -29,7 +40,10 @@ const SCHEMA_V1 = `
 
   CREATE TABLE kategorien (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    rule_order INTEGER NOT NULL DEFAULT 999,
+    keywords TEXT NOT NULL DEFAULT '[]',
+    name_patterns TEXT NOT NULL DEFAULT '[]'
   );
 
   CREATE TABLE transactions (
@@ -63,9 +77,7 @@ const SCHEMA_V1 = `
     key TEXT PRIMARY KEY,
     value TEXT
   );
-`;
 
-const SCHEMA_V2 = `
   CREATE TABLE logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
@@ -78,51 +90,12 @@ const SCHEMA_V2 = `
   CREATE INDEX idx_logs_event ON logs(event);
 `;
 
-const SCHEMA_V3 = `
-  ALTER TABLE kategorien ADD COLUMN rule_order INTEGER NOT NULL DEFAULT 999;
-  ALTER TABLE kategorien ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
-  ALTER TABLE kategorien ADD COLUMN name_patterns TEXT NOT NULL DEFAULT '[]';
-`;
-
 const migrations: Migration[] = [
   {
     version: 1,
-    description: "Initial schema (kategorien-FK, is_umbuchung materialisiert)",
-    up: (db) => db.exec(SCHEMA_V1),
-  },
-  {
-    version: 2,
-    description: "logs-Tabelle (Audit-Trail für KI-Prompts, Imports, Settings)",
-    up: (db) => db.exec(SCHEMA_V2),
-  },
-  {
-    version: 3,
-    description: "kategorien: rule_order, keywords, name_patterns für Editor",
-    up: (db) => db.exec(SCHEMA_V3),
-  },
-  {
-    version: 4,
     description:
-      "Backfill der Default-Rules in leere kategorien-Zeilen (legacy DBs)",
-    up: (db) => {
-      const update = db.prepare(
-        "UPDATE kategorien SET keywords = ?, name_patterns = ?, rule_order = ? WHERE name = ? AND keywords = '[]' AND name_patterns = '[]'"
-      );
-      categoryRules.forEach((rule, idx) => {
-        update.run(
-          JSON.stringify(rule.keywords),
-          JSON.stringify(rule.namePatterns),
-          idx,
-          rule.kategorie
-        );
-      });
-      db.prepare(
-        "UPDATE kategorien SET rule_order = 9000 WHERE name = 'Sonstige Einnahmen' AND rule_order = 999"
-      ).run();
-      db.prepare(
-        "UPDATE kategorien SET rule_order = 9001 WHERE name = 'Sonstiges' AND rule_order = 999"
-      ).run();
-    },
+      "Initial schema (Kategorien-FK, materialisiertes is_umbuchung, Logs, Kontogruppen mit type+art)",
+    up: (db) => db.exec(SCHEMA_V1),
   },
 ];
 
@@ -519,7 +492,7 @@ function recomputeUmbuchungen(db: Database.Database): void {
     (
       db
         .prepare(
-          "SELECT COUNT(*) AS c FROM kontogruppen WHERE type = 'kreditkarte'"
+          "SELECT COUNT(*) AS c FROM kontogruppen WHERE art = 'kreditkarte'"
         )
         .get() as { c: number }
     ).c > 0;
@@ -898,6 +871,7 @@ interface KontogruppeRow {
   id: number;
   name: string;
   type: KontogruppeType;
+  art: KontogruppeArt;
   color: string;
   icon: string | null;
   bank: string | null;
@@ -909,6 +883,7 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
     id: row.id,
     name: row.name,
     type: row.type,
+    art: row.art ?? "girokonto",
     color: row.color,
     icon: row.icon || "user",
     bank: row.bank ?? undefined,
@@ -927,6 +902,7 @@ export function getAllKontogruppen(): Kontogruppe[] {
 export function createKontogruppe(
   name: string,
   type: KontogruppeType,
+  art: KontogruppeArt,
   color: string,
   icon: string,
   bank: string | null
@@ -934,9 +910,9 @@ export function createKontogruppe(
   const db = getDb();
   const result = db
     .prepare(
-      `INSERT INTO kontogruppen (name, type, color, icon, bank, created_at) VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO kontogruppen (name, type, art, color, icon, bank, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, type, color, icon, bank, new Date().toISOString());
+    .run(name, type, art, color, icon, bank, new Date().toISOString());
   const row = db
     .prepare("SELECT * FROM kontogruppen WHERE id = ?")
     .get(result.lastInsertRowid) as KontogruppeRow;
@@ -962,6 +938,7 @@ export function updateKontogruppe(
   id: number,
   name: string,
   type: KontogruppeType,
+  art: KontogruppeArt,
   color: string,
   icon: string,
   bank: string | null
@@ -969,9 +946,9 @@ export function updateKontogruppe(
   const db = getDb();
   const result = db
     .prepare(
-      "UPDATE kontogruppen SET name = ?, type = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
+      "UPDATE kontogruppen SET name = ?, type = ?, art = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
     )
-    .run(name, type, color, icon, bank, id);
+    .run(name, type, art, color, icon, bank, id);
   if (result.changes > 0) recomputeUmbuchungen(db);
   return result.changes > 0;
 }

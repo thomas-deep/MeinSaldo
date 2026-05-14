@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Trash2, Users, X, Pencil, Check } from "lucide-react";
-import { Kontogruppe, KontogruppeType } from "../lib/types";
+import { Kontogruppe, KontogruppeArt, KontogruppeType } from "../lib/types";
 import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
 
@@ -15,17 +15,39 @@ const TYPE_LABELS: Record<KontogruppeType, string> = {
   privat: "Privat",
   gemeinsam: "Gemeinsam",
   firma: "Firma",
-  kreditkarte: "Kreditkarte",
 };
 
 const TYPE_DEFAULT_ICON: Record<KontogruppeType, string> = {
   privat: "user",
   gemeinsam: "users",
   firma: "briefcase",
-  kreditkarte: "creditcard",
 };
 
-const TYPES_ORDER: KontogruppeType[] = ["privat", "gemeinsam", "firma", "kreditkarte"];
+const TYPES_ORDER: KontogruppeType[] = ["privat", "gemeinsam", "firma"];
+
+const ART_LABELS: Record<KontogruppeArt, string> = {
+  girokonto: "Girokonto",
+  sparkonto: "Sparkonto",
+  kreditkarte: "Kreditkarte",
+  depot: "Depot",
+  sonstiges: "Sonstiges",
+};
+
+const ART_DEFAULT_ICON: Record<KontogruppeArt, string> = {
+  girokonto: "wallet",
+  sparkonto: "piggybank",
+  kreditkarte: "creditcard",
+  depot: "trendingup",
+  sonstiges: "coins",
+};
+
+const ARTS_ORDER: KontogruppeArt[] = [
+  "girokonto",
+  "sparkonto",
+  "kreditkarte",
+  "depot",
+  "sonstiges",
+];
 
 const PRESET_COLORS = [
   "#3B82F6", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6",
@@ -36,6 +58,7 @@ const PRESET_COLORS = [
 interface FormState {
   name: string;
   type: KontogruppeType;
+  art: KontogruppeArt;
   color: string;
   icon: string;
   bank: string;
@@ -59,8 +82,10 @@ function FormFields({
         autoFocus
       />
       <div>
-        <label className="mb-1.5 block text-xs text-fg-muted">Typ</label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <label className="mb-1.5 block text-xs text-fg-muted">
+          Typ <span className="text-fg-faint">— wem gehört&apos;s</span>
+        </label>
+        <div className="grid grid-cols-3 gap-2">
           {TYPES_ORDER.map((t) => (
             <button
               key={t}
@@ -69,19 +94,51 @@ function FormFields({
                   ...state,
                   type: t,
                   icon:
-                    ICON_KEYS.includes(state.icon) &&
-                    state.icon !== TYPE_DEFAULT_ICON[state.type]
+                    state.icon &&
+                    state.icon !== TYPE_DEFAULT_ICON[state.type] &&
+                    state.icon !== ART_DEFAULT_ICON[state.art]
                       ? state.icon
                       : TYPE_DEFAULT_ICON[t],
                 })
               }
               className={`rounded-lg border px-3 py-1.5 text-xs cursor-pointer ${
                 state.type === t
-                  ? "border-brand bg-brand-soft text-brand"
-                  : "border-border-strong bg-bg-muted text-fg-muted"
+                  ? "border-fg bg-fg text-fg-inverse"
+                  : "border-border bg-surface text-fg-muted hover:text-fg"
               }`}
             >
               {TYPE_LABELS[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs text-fg-muted">
+          Art <span className="text-fg-faint">— Kontoart</span>
+        </label>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {ARTS_ORDER.map((a) => (
+            <button
+              key={a}
+              onClick={() =>
+                onChange({
+                  ...state,
+                  art: a,
+                  icon:
+                    state.icon &&
+                    state.icon !== ART_DEFAULT_ICON[state.art] &&
+                    state.icon !== TYPE_DEFAULT_ICON[state.type]
+                      ? state.icon
+                      : ART_DEFAULT_ICON[a],
+                })
+              }
+              className={`rounded-lg border px-3 py-1.5 text-xs cursor-pointer ${
+                state.art === a
+                  ? "border-fg bg-fg text-fg-inverse"
+                  : "border-border bg-surface text-fg-muted hover:text-fg"
+              }`}
+            >
+              {ART_LABELS[a]}
             </button>
           ))}
         </div>
@@ -157,13 +214,21 @@ export default function KontogruppenManager({
   const [form, setForm] = useState<FormState>({
     name: "",
     type: "privat",
+    art: "girokonto",
     color: PRESET_COLORS[0],
     icon: "user",
     bank: "",
   });
 
   const resetForm = () => {
-    setForm({ name: "", type: "privat", color: PRESET_COLORS[0], icon: "user", bank: "" });
+    setForm({
+      name: "",
+      type: "privat",
+      art: "girokonto",
+      color: PRESET_COLORS[0],
+      icon: "user",
+      bank: "",
+    });
     setShowForm(false);
     setEditingId(null);
   };
@@ -176,6 +241,7 @@ export default function KontogruppenManager({
       body: JSON.stringify({
         name: form.name.trim(),
         type: form.type,
+        art: form.art,
         color: form.color,
         icon: form.icon,
         bank: form.bank || null,
@@ -193,6 +259,7 @@ export default function KontogruppenManager({
       body: JSON.stringify({
         name: form.name.trim(),
         type: form.type,
+        art: form.art,
         color: form.color,
         icon: form.icon,
         bank: form.bank || null,
@@ -206,6 +273,7 @@ export default function KontogruppenManager({
     setForm({
       name: kg.name,
       type: kg.type,
+      art: kg.art,
       color: kg.color,
       icon: kg.icon,
       bank: kg.bank ?? "",
@@ -271,6 +339,7 @@ export default function KontogruppenManager({
                       <p className="text-sm font-medium text-fg">{kg.name}</p>
                       <p className="text-xs text-fg-subtle">
                         {TYPE_LABELS[kg.type]}
+                        {` · ${ART_LABELS[kg.art]}`}
                         {kg.bank ? ` · ${kg.bank}` : ""}
                       </p>
                     </div>
@@ -349,6 +418,7 @@ export default function KontogruppenManager({
                   setForm({
                     name: "",
                     type: "privat",
+                    art: "girokonto",
                     color: PRESET_COLORS[0],
                     icon: "user",
                     bank: "",

@@ -44,7 +44,14 @@ export const kontogruppeTypeSchema = z.enum([
   "privat",
   "gemeinsam",
   "firma",
+]);
+
+export const kontogruppeArtSchema = z.enum([
+  "girokonto",
+  "sparkonto",
   "kreditkarte",
+  "depot",
+  "sonstiges",
 ]);
 
 const isoDate = z
@@ -92,6 +99,7 @@ export const hexColor = z
 export const kontogruppeCreateSchema = z.object({
   name: z.string().min(1).max(64),
   type: kontogruppeTypeSchema,
+  art: kontogruppeArtSchema.optional(),
   color: hexColor,
   icon: z.string().max(32).optional(),
   bank: z.string().max(64).nullable().optional(),

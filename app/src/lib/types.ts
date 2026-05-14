@@ -20,12 +20,19 @@ export interface Transaction {
   isUmbuchung?: boolean;
 }
 
-export type KontogruppeType = "privat" | "gemeinsam" | "firma" | "kreditkarte";
+export type KontogruppeType = "privat" | "gemeinsam" | "firma";
+export type KontogruppeArt =
+  | "girokonto"
+  | "sparkonto"
+  | "kreditkarte"
+  | "depot"
+  | "sonstiges";
 
 export interface Kontogruppe {
   id: number;
   name: string;
   type: KontogruppeType;
+  art: KontogruppeArt;
   color: string;
   icon: string;
   bank?: string;
