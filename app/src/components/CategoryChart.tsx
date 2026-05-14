@@ -180,14 +180,9 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               nameKey="kategorie"
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={110}
+              innerRadius={70}
+              outerRadius={120}
               paddingAngle={2}
-              label={(props) => {
-                const p = extractKategoriePercent(props);
-                return p ? `${p.kategorie} (${p.prozent}%)` : "";
-              }}
-              labelLine={{ stroke: chartTheme.border }}
               cursor={onCategoryClick ? "pointer" : undefined}
               onClick={(d) => {
                 const k = extractKategorie(d);
@@ -199,7 +194,13 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               ))}
             </Pie>
             <Tooltip
-              formatter={(value) => [formatEuro(Number(value)), "Betrag"]}
+              formatter={(value, _name, item) => {
+                const p = extractKategoriePercent(item?.payload);
+                const betrag = formatEuro(Number(value));
+                return p
+                  ? [`${betrag} · ${p.prozent}%`, p.kategorie]
+                  : [betrag, "Betrag"];
+              }}
               contentStyle={{
                 backgroundColor: chartTheme.surface,
                 border: `1px solid ${chartTheme.border}`,
