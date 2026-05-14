@@ -205,17 +205,15 @@
   background-attachment: fixed;
 }
 
-/* Editorial Display-Helper: aktiviert OPSZ und Soft/Wonk-Achsen für Hero-Zahlen */
+/* Editorial Display für Hero-Zahlen und große Headlines */
 .font-display {
   font-family: var(--font-display);
-  font-variation-settings: "opsz" 144, "SOFT" 20, "WONK" 0;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.015em;
 }
 .font-display-italic {
   font-family: var(--font-display);
   font-style: italic;
-  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* Hairline-Trennlinien — präziser als 1px-borders auf Retina */

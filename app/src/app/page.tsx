@@ -280,19 +280,15 @@ export default function Home() {
     [loadFromDb]
   );
 
-  const [pendingAiMode, setPendingAiMode] = useState<AiImportMode>("none");
-
   const handleFileSelected = useCallback(
     async (
       file: File,
       kontogruppeId: number | null,
-      encoding: EncodingChoice,
-      aiMode: AiImportMode
+      encoding: EncodingChoice
     ) => {
       setPendingFile(file);
       setPendingEncoding(encoding);
       setPendingKontogruppeId(kontogruppeId);
-      setPendingAiMode(aiMode);
 
       let activeMapping = mapping;
       let activeSeparator = separator;
@@ -402,7 +398,7 @@ export default function Home() {
     fetchPreview,
   ]);
 
-  const handleConfirmImport = useCallback(() => {
+  const handleConfirmImport = useCallback((aiMode: AiImportMode) => {
     if (!pendingFile) return;
     void confirmImport(
       pendingFile,
@@ -413,7 +409,7 @@ export default function Home() {
       invertAmount,
       defaultCurrency,
       presetName,
-      pendingAiMode
+      aiMode
     );
   }, [
     pendingFile,
@@ -424,7 +420,6 @@ export default function Home() {
     invertAmount,
     defaultCurrency,
     presetName,
-    pendingAiMode,
     confirmImport,
   ]);
 
@@ -477,6 +472,42 @@ export default function Home() {
       console.error("Clear failed:", e);
     }
   }, [loadFromDb]);
+
+  const handleBulkCategory = useCallback(
+    async (ids: string[], kategorie: string) => {
+      await fetch("/api/transactions/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, kategorie }),
+      });
+      await loadFromDb();
+    },
+    [loadFromDb]
+  );
+
+  const handleBulkUmbuchung = useCallback(
+    async (ids: string[], isUmbuchung: boolean) => {
+      await fetch("/api/transactions/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, umbuchung: isUmbuchung }),
+      });
+      await loadFromDb();
+    },
+    [loadFromDb]
+  );
+
+  const handleBulkDelete = useCallback(
+    async (ids: string[]) => {
+      await fetch("/api/transactions/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      await loadFromDb();
+    },
+    [loadFromDb]
+  );
 
   const filterCounts = useMemo(() => {
     const counts: Record<string, number> = { all: transactions.length, null: 0 };
@@ -597,8 +628,23 @@ export default function Home() {
         <div className="space-y-6">
           <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
 
+          {csvHeaders.length > 0 && (
+            <FieldMappingComponent
+              csvHeaders={csvHeaders}
+              mapping={mapping}
+              separator={separator}
+              invertAmount={invertAmount}
+              onMappingChange={handleMappingChange}
+              onSeparatorChange={handleSeparatorChange}
+              onInvertAmountChange={setInvertAmount}
+              onPresetSelect={handlePresetSelect}
+              onReparse={handleReparse}
+              isReparseDisabled={isPreviewing || isImporting}
+            />
+          )}
+
           {isPreviewing && (
-            <p className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-fg-soft">
+            <p className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-fg-soft">
               Datei wird geparst…
             </p>
           )}
@@ -613,14 +659,14 @@ export default function Home() {
           )}
 
           {aiProgress && (
-            <p className="rounded-lg border border-magic bg-magic-soft px-4 py-2 text-sm text-magic">
+            <p className="rounded-2xl border border-magic/30 bg-magic-soft px-4 py-3 text-sm text-magic">
               KI-Kategorisierung läuft… {aiProgress.done} / {aiProgress.total}
               {aiProgress.total > 0 && ` – ${aiProgress.matched} erkannt`}
             </p>
           )}
 
           {importError && (
-            <p className="rounded-lg border border-danger bg-danger-soft px-4 py-2 text-sm text-danger">
+            <p className="rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
               {importError}
             </p>
           )}
@@ -635,29 +681,7 @@ export default function Home() {
             />
           )}
 
-          {csvHeaders.length > 0 && (
-            <div className="space-y-3">
-              <FieldMappingComponent
-                csvHeaders={csvHeaders}
-                mapping={mapping}
-                separator={separator}
-                invertAmount={invertAmount}
-                onMappingChange={handleMappingChange}
-                onSeparatorChange={handleSeparatorChange}
-                onInvertAmountChange={setInvertAmount}
-                onPresetSelect={handlePresetSelect}
-              />
-              <button
-                onClick={handleReparse}
-                disabled={isPreviewing || isImporting}
-                className="text-xs text-brand hover:text-brand cursor-pointer disabled:opacity-50"
-              >
-                ↻ Mit aktuellem Mapping neu parsen
-              </button>
-            </div>
-          )}
-
-          {!isLoading && !hasData && (
+          {!isLoading && !hasData && !importPreview && (
             <p className="py-6 text-center text-sm text-fg-subtle">
               Noch keine Buchungen importiert. Lade eine CSV-Datei hoch, um zu starten.
             </p>
@@ -748,7 +772,25 @@ export default function Home() {
                   />
                 ) : (
                   <div className="space-y-6">
-                    <MonthlyChart transactions={filteredTransactions} />
+                    <MonthlyChart
+                      transactions={filteredTransactions}
+                      onMonthClick={(yearMonth) => {
+                        const [yStr, mStr] = yearMonth.split("-");
+                        const y = parseInt(yStr, 10);
+                        const m = parseInt(mStr, 10);
+                        const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+                        const pad = (n: number) =>
+                          n < 10 ? `0${n}` : String(n);
+                        setAuswertungFilter({
+                          ...auswertungFilter,
+                          preset: "custom",
+                          range: {
+                            from: `${y}-${pad(m)}-01`,
+                            to: `${y}-${pad(m)}-${pad(lastDay)}`,
+                          },
+                        });
+                      }}
+                    />
                     <div className="grid gap-6 lg:grid-cols-2">
                       <CategoryChart
                         transactions={filteredTransactions}
@@ -774,6 +816,9 @@ export default function Home() {
                   kategorien={kategorienNames}
                   onCategoryChange={handleCategoryChange}
                   onUmbuchungToggle={handleUmbuchungToggle}
+                  onBulkCategory={handleBulkCategory}
+                  onBulkUmbuchung={handleBulkUmbuchung}
+                  onBulkDelete={handleBulkDelete}
                   onAiBulkDone={() => loadFromDb()}
                 />
               )}

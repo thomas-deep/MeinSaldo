@@ -1,6 +1,8 @@
 "use client";
 
-import { CheckCircle2, X, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, X, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { useAiStatus } from "../lib/use-ai-categorize";
+import { AiImportMode } from "./CsvUpload";
 
 export interface ImportPreviewRow {
   id: string;
@@ -25,7 +27,7 @@ export interface ImportPreview {
 
 interface Props {
   preview: ImportPreview;
-  onConfirm: () => void;
+  onConfirm: (mode: AiImportMode) => void;
   onCancel: () => void;
   isImporting: boolean;
 }
@@ -51,12 +53,14 @@ export default function CsvImportPreview({
   const { total, newCount, duplicateCount, dateFrom, dateTo } = preview;
   const allDuplicates = total > 0 && newCount === 0;
   const empty = total === 0;
+  const disabled = isImporting || empty || allDuplicates;
+  const { status: aiStatus } = useAiStatus();
 
   return (
-    <div className="space-y-3 rounded-xl border border-brand bg-brand-soft">
-      <div className="flex flex-wrap items-center gap-4 px-5 pt-4">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center gap-4 px-5 py-4">
         <div>
-          <h3 className="text-sm font-medium text-fg">
+          <h3 className="font-display text-xl text-fg">
             Vorschau – noch nicht importiert
           </h3>
           <p className="mt-1 text-xs text-fg-muted">
@@ -75,11 +79,11 @@ export default function CsvImportPreview({
         </div>
         <div className="flex-1" />
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-lg bg-positive-soft px-2.5 py-1 text-xs text-positive">
+          <span className="rounded-full border border-positive bg-positive-soft px-2.5 py-1 text-xs font-medium text-positive">
             {newCount} neu
           </span>
           {duplicateCount > 0 && (
-            <span className="rounded-lg bg-bg-muted px-2.5 py-1 text-xs text-fg-muted">
+            <span className="rounded-full border border-border bg-bg-muted px-2.5 py-1 text-xs text-fg-muted">
               {duplicateCount} bereits vorhanden
             </span>
           )}
@@ -87,7 +91,7 @@ export default function CsvImportPreview({
       </div>
 
       {empty && (
-        <div className="mx-5 flex items-start gap-2 rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs text-warn">
+        <div className="mx-5 mb-3 flex items-start gap-2 rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs text-warn">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
           <span>
             Keine Buchungen aus der Datei extrahiert. Bitte Mapping und Separator
@@ -97,7 +101,7 @@ export default function CsvImportPreview({
       )}
 
       {allDuplicates && !empty && (
-        <div className="mx-5 flex items-start gap-2 rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs text-warn">
+        <div className="mx-5 mb-3 flex items-start gap-2 rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs text-warn">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
           <span>
             Alle Buchungen sind bereits in der Datenbank — der Import würde nichts
@@ -107,10 +111,10 @@ export default function CsvImportPreview({
       )}
 
       {preview.preview.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border-t border-border">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-y border-border text-left text-[11px] text-fg-subtle">
+              <tr className="border-b border-border bg-bg-muted/40 text-left text-[10px] uppercase tracking-[0.12em] text-fg-faint">
                 <th className="px-5 py-2 font-medium">Datum</th>
                 <th className="px-5 py-2 font-medium">Zahlungsbeteiligter</th>
                 <th className="px-5 py-2 font-medium">Verwendungszweck</th>
@@ -123,11 +127,11 @@ export default function CsvImportPreview({
               {preview.preview.map((row) => (
                 <tr
                   key={row.id}
-                  className={`border-b border-border/40 ${
+                  className={`border-b border-border/50 ${
                     row.isDuplicate ? "opacity-60" : ""
                   }`}
                 >
-                  <td className="whitespace-nowrap px-5 py-1.5 text-fg-muted">
+                  <td className="whitespace-nowrap px-5 py-1.5 font-mono tabular-nums text-fg-muted">
                     {formatDate(row.buchungstag)}
                   </td>
                   <td className="max-w-[180px] truncate px-5 py-1.5 text-fg">
@@ -138,7 +142,7 @@ export default function CsvImportPreview({
                   </td>
                   <td className="px-5 py-1.5 text-fg-soft">{row.kategorie}</td>
                   <td
-                    className={`whitespace-nowrap px-5 py-1.5 text-right font-medium ${
+                    className={`whitespace-nowrap px-5 py-1.5 text-right font-mono tabular-nums font-medium ${
                       row.betrag >= 0 ? "text-positive" : "text-danger"
                     }`}
                   >
@@ -159,13 +163,13 @@ export default function CsvImportPreview({
       )}
 
       {total > preview.previewLimit && (
-        <p className="px-5 text-[11px] text-fg-subtle">
+        <p className="border-t border-border px-5 py-2 text-[11px] text-fg-subtle">
           Zeige erste {preview.previewLimit} von {total} Buchungen. Beim Import
           werden alle berücksichtigt.
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-border bg-bg-muted/30 px-5 py-3">
         <button
           onClick={onCancel}
           disabled={isImporting}
@@ -174,20 +178,51 @@ export default function CsvImportPreview({
           <X className="h-3.5 w-3.5" />
           Verwerfen
         </button>
-        <button
-          onClick={onConfirm}
-          disabled={isImporting || empty || allDuplicates}
-          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          {isImporting ? (
+        <div className="flex-1" />
+        {isImporting ? (
+          <span className="flex items-center gap-2 text-xs text-fg-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          )}
-          {isImporting
-            ? "Importiere…"
-            : `${newCount} Buchung${newCount === 1 ? "" : "en"} importieren`}
-        </button>
+            Importiere…
+          </span>
+        ) : (
+          <>
+            <button
+              onClick={() => onConfirm("none")}
+              disabled={disabled}
+              title="Buchungen mit Regel-Kategorisierung importieren; nicht erkannte bleiben 'Sonstiges'"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Importieren
+            </button>
+            <button
+              onClick={() => onConfirm("rulesThenAi")}
+              disabled={disabled || !aiStatus.enabled}
+              title={
+                aiStatus.enabled
+                  ? "Importieren + KI klassifiziert anschließend die 'Sonstiges'-Buchungen"
+                  : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+              }
+              className="flex items-center gap-1.5 rounded-lg border border-magic/40 bg-magic-soft px-3 py-1.5 text-xs font-medium text-magic hover:bg-magic/15 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              + KI für Sonstiges
+            </button>
+            <button
+              onClick={() => onConfirm("allAi")}
+              disabled={disabled || !aiStatus.enabled}
+              title={
+                aiStatus.enabled
+                  ? "Importieren + alle neuen Buchungen per KI klassifizieren (überschreibt Regel-Matches)"
+                  : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+              }
+              className="flex items-center gap-1.5 rounded-lg bg-magic px-3 py-1.5 text-xs font-medium text-magic-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              + Alles KI
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

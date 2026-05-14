@@ -10,6 +10,8 @@ import {
   Sparkles,
   Loader2,
   X,
+  Trash2,
+  Tag,
 } from "lucide-react";
 import { Kontogruppe, Transaction } from "../lib/types";
 import {
@@ -24,6 +26,9 @@ interface TransactionTableProps {
   kategorien: string[];
   onCategoryChange: (id: string, kategorie: string) => void;
   onUmbuchungToggle: (id: string, isUmbuchung: boolean) => void;
+  onBulkCategory?: (ids: string[], kategorie: string) => Promise<void> | void;
+  onBulkUmbuchung?: (ids: string[], isUmbuchung: boolean) => Promise<void> | void;
+  onBulkDelete?: (ids: string[]) => Promise<void> | void;
   onAiBulkDone?: () => void;
 }
 
@@ -52,6 +57,9 @@ export default function TransactionTable({
   kategorien,
   onCategoryChange,
   onUmbuchungToggle,
+  onBulkCategory,
+  onBulkUmbuchung,
+  onBulkDelete,
   onAiBulkDone,
 }: TransactionTableProps) {
   const allCategories = kategorien;
@@ -216,8 +224,8 @@ export default function TransactionTable({
       </div>
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-magic bg-magic-soft px-5 py-3">
-          <span className="text-sm text-magic">
+        <div className="flex flex-wrap items-center gap-3 border-b border-fg/10 bg-bg-muted/60 px-5 py-3">
+          <span className="text-sm font-medium text-fg">
             {selected.size} Buchung{selected.size === 1 ? "" : "en"} ausgewählt
           </span>
           <div className="flex-1" />
@@ -227,7 +235,58 @@ export default function TransactionTable({
               {aiProgress.done} / {aiProgress.total} – {aiProgress.matched} erkannt
             </span>
           ) : (
-            <>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Kategorie für alle setzen */}
+              {onBulkCategory && (
+                <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface pl-2.5 pr-1 py-0.5">
+                  <Tag className="h-3.5 w-3.5 text-fg-muted" />
+                  <select
+                    value=""
+                    onChange={async (e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      const ids = Array.from(selected);
+                      await onBulkCategory(ids, v);
+                      e.target.value = "";
+                    }}
+                    className="border-none bg-transparent py-1 text-xs text-fg outline-none cursor-pointer"
+                  >
+                    <option value="">Kategorie ändern…</option>
+                    {allCategories.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Umbuchungs-Toggle */}
+              {onBulkUmbuchung && (
+                <>
+                  <button
+                    onClick={async () => {
+                      await onBulkUmbuchung(Array.from(selected), true);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-fg cursor-pointer"
+                    title="Alle markierten als Umbuchung setzen"
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    Umbuchung
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await onBulkUmbuchung(Array.from(selected), false);
+                    }}
+                    className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-fg cursor-pointer"
+                    title="Umbuchungs-Markierung entfernen"
+                  >
+                    keine
+                  </button>
+                </>
+              )}
+
+              {/* AI */}
               <button
                 onClick={runAiOnSelection}
                 disabled={!aiStatus.enabled}
@@ -236,19 +295,36 @@ export default function TransactionTable({
                     ? `Auswahl mit ${aiStatus.model} neu kategorisieren`
                     : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
                 }
-                className="flex items-center gap-2 rounded-lg bg-magic px-3 py-1.5 text-xs font-medium text-magic-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-lg bg-magic px-2.5 py-1.5 text-xs font-medium text-magic-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                KI-Kategorisierung
+                KI
               </button>
+
+              {/* Löschen */}
+              {onBulkDelete && (
+                <button
+                  onClick={async () => {
+                    const n = selected.size;
+                    if (!confirm(`${n} Buchung${n === 1 ? "" : "en"} wirklich löschen?`)) return;
+                    await onBulkDelete(Array.from(selected));
+                    clearSelection();
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-danger/40 bg-danger-soft px-2.5 py-1.5 text-xs font-medium text-danger hover:bg-danger/15 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Löschen
+                </button>
+              )}
+
               <button
                 onClick={clearSelection}
                 className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
               >
                 <X className="h-3.5 w-3.5" />
-                Auswahl aufheben
+                Abbrechen
               </button>
-            </>
+            </div>
           )}
         </div>
       )}

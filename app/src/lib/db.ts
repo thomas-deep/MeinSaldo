@@ -680,6 +680,49 @@ export function clearAll(): number {
   return result.changes;
 }
 
+export function deleteTransactionsByIds(ids: string[]): number {
+  if (ids.length === 0) return 0;
+  const db = getDb();
+  const placeholders = ids.map(() => "?").join(",");
+  const result = db
+    .prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`)
+    .run(...ids);
+  if (result.changes > 0) recomputeUmbuchungen(db);
+  return result.changes;
+}
+
+export function bulkUpdateCategory(
+  ids: string[],
+  kategorie: string
+): number {
+  if (ids.length === 0) return 0;
+  const db = getDb();
+  const kategorieId = getKategorieId(db, kategorie);
+  const placeholders = ids.map(() => "?").join(",");
+  const result = db
+    .prepare(
+      `UPDATE transactions SET kategorie_id = ?, is_manual_override = 1 WHERE id IN (${placeholders})`
+    )
+    .run(kategorieId, ...ids);
+  return result.changes;
+}
+
+export function bulkSetUmbuchungOverride(
+  ids: string[],
+  override: boolean | null
+): number {
+  if (ids.length === 0) return 0;
+  const db = getDb();
+  const value = override === null ? null : override ? 1 : 0;
+  const placeholders = ids.map(() => "?").join(",");
+  const result = db
+    .prepare(
+      `UPDATE transactions SET umbuchung_override = ? WHERE id IN (${placeholders})`
+    )
+    .run(value, ...ids);
+  return result.changes;
+}
+
 export function getSetting(key: string): string | null {
   const db = getDb();
   const row = db

@@ -18,6 +18,7 @@ import { useChartTheme } from "../lib/chart-theme";
 
 interface MonthlyChartProps {
   transactions: Transaction[];
+  onMonthClick?: (yearMonth: string) => void;
 }
 
 function formatEuro(value: number): string {
@@ -28,10 +29,26 @@ function formatEuro(value: number): string {
   }).format(value);
 }
 
-export default function MonthlyChart({ transactions }: MonthlyChartProps) {
+interface MonthlyEntry extends MonthlyData {
+  monthKey: string;
+}
+
+function extractMonthKey(payload: unknown): string | null {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "monthKey" in payload &&
+    typeof (payload as { monthKey: unknown }).monthKey === "string"
+  ) {
+    return (payload as { monthKey: string }).monthKey;
+  }
+  return null;
+}
+
+export default function MonthlyChart({ transactions, onMonthClick }: MonthlyChartProps) {
   const ct = useChartTheme();
 
-  const data: MonthlyData[] = useMemo(() => {
+  const data: MonthlyEntry[] = useMemo(() => {
     const grouped: Record<string, { einnahmen: number; ausgaben: number }> = {};
 
     for (const tx of transactions) {
@@ -53,6 +70,7 @@ export default function MonthlyChart({ transactions }: MonthlyChartProps) {
           monatLabel = key;
         }
         return {
+          monthKey: key,
           monat: monatLabel,
           einnahmen: Math.round(einnahmen * 100) / 100,
           ausgaben: Math.round(ausgaben * 100) / 100,
@@ -90,7 +108,10 @@ export default function MonthlyChart({ transactions }: MonthlyChartProps) {
       </div>
 
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={data} margin={{ left: 8, right: 8 }}>
+        <BarChart
+          data={data}
+          margin={{ left: 8, right: 8 }}
+        >
           <XAxis
             dataKey="monat"
             tick={{ fill: ct.fgMuted, fontSize: 11 }}
@@ -131,12 +152,22 @@ export default function MonthlyChart({ transactions }: MonthlyChartProps) {
             fill={ct.positive}
             radius={[3, 3, 0, 0]}
             maxBarSize={36}
+            cursor={onMonthClick ? "pointer" : undefined}
+            onClick={(d) => {
+              const key = extractMonthKey(d);
+              if (key) onMonthClick?.(key);
+            }}
           />
           <Bar
             dataKey="ausgaben"
             fill={ct.danger}
             radius={[3, 3, 0, 0]}
             maxBarSize={36}
+            cursor={onMonthClick ? "pointer" : undefined}
+            onClick={(d) => {
+              const key = extractMonthKey(d);
+              if (key) onMonthClick?.(key);
+            }}
           />
         </BarChart>
       </ResponsiveContainer>

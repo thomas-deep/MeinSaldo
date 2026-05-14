@@ -1,10 +1,8 @@
 "use client";
 
-import { Upload, AlertCircle, Sparkles } from "lucide-react";
+import { Upload, AlertCircle } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Kontogruppe } from "../lib/types";
-import { useAiStatus } from "../lib/use-ai-categorize";
-import Toggle from "./Toggle";
 
 export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
 const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
@@ -16,8 +14,7 @@ interface CsvUploadProps {
   onFileSelected: (
     file: File,
     kontogruppeId: number | null,
-    encoding: EncodingChoice,
-    aiMode: AiImportMode
+    encoding: EncodingChoice
   ) => void;
 }
 
@@ -27,16 +24,13 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
   const [selectedKontogruppe, setSelectedKontogruppe] = useState<number | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [encoding, setEncoding] = useState<EncodingChoice>("auto");
-  const [aiMode, setAiMode] = useState<AiImportMode>("none");
-  const { status: aiStatus } = useAiStatus();
-  const effectiveMode: AiImportMode = aiStatus.enabled ? aiMode : "none";
 
   const submit = useCallback(
     (file: File, kontogruppeId: number | null) => {
       setFilename(file.name);
-      onFileSelected(file, kontogruppeId, encoding, effectiveMode);
+      onFileSelected(file, kontogruppeId, encoding);
     },
-    [onFileSelected, encoding, effectiveMode]
+    [onFileSelected, encoding]
   );
 
   const handleFile = useCallback(
@@ -80,116 +74,7 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
   };
 
   return (
-    <div className="space-y-3">
-      {kontogruppen.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-fg-muted">Upload-Ziel:</span>
-          <button
-            onClick={() => setSelectedKontogruppe(null)}
-            className={`rounded-lg border px-3 py-1 text-xs cursor-pointer ${
-              selectedKontogruppe === null
-                ? "border-border-strong bg-surface-active text-fg"
-                : "border-border bg-surface text-fg-subtle"
-            }`}
-          >
-            (nachfragen)
-          </button>
-          {kontogruppen.map((kg) => (
-            <button
-              key={kg.id}
-              onClick={() => setSelectedKontogruppe(kg.id)}
-              className="rounded-lg border px-3 py-1 text-xs cursor-pointer"
-              style={
-                selectedKontogruppe === kg.id
-                  ? {
-                      borderColor: kg.color,
-                      backgroundColor: kg.color + "22",
-                      color: kg.color,
-                    }
-                  : {
-                      borderColor: "rgb(51,65,85)",
-                      backgroundColor: "rgba(30,41,59,0.5)",
-                      color: "rgb(148,163,184)",
-                    }
-              }
-            >
-              <span
-                className="mr-1.5 inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: kg.color }}
-              />
-              {kg.name}
-              {kg.bank && (
-                <span className="ml-1.5 text-[10px] opacity-60">· {kg.bank}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-fg-muted">Encoding:</span>
-        {ENCODINGS.map((enc) => (
-          <button
-            key={enc}
-            onClick={() => setEncoding(enc)}
-            className={`rounded-lg border px-3 py-1 text-xs cursor-pointer ${
-              encoding === enc
-                ? "border-border-strong bg-surface-active text-fg"
-                : "border-border bg-surface text-fg-subtle"
-            }`}
-            title={
-              enc === "auto"
-                ? "Encoding aus Bank-Preset (Sparkasse: windows-1252, sonst utf-8)"
-                : enc
-            }
-          >
-            {enc}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-magic" />
-          <Toggle
-            checked={effectiveMode === "rulesThenAi"}
-            onChange={(v) => setAiMode(v ? "rulesThenAi" : "none")}
-            disabled={!aiStatus.enabled || effectiveMode === "allAi"}
-            accent="purple"
-            title={
-              !aiStatus.enabled
-                ? "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
-                : effectiveMode === "allAi"
-                  ? "Deaktiviert, weil 'Alle Buchungen über KI' aktiv ist"
-                  : "Regeln versuchen — Buchungen mit Kategorie 'Sonstiges' anschließend per KI klassifizieren"
-            }
-            label={
-              <>
-                Angelegte Kategorien versuchen zuzuordnen, danach KI
-                {aiStatus.enabled && aiStatus.model ? (
-                  <span className="ml-1 text-fg-subtle">({aiStatus.model})</span>
-                ) : null}
-              </>
-            }
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-magic" />
-          <Toggle
-            checked={effectiveMode === "allAi"}
-            onChange={(v) => setAiMode(v ? "allAi" : "none")}
-            disabled={!aiStatus.enabled}
-            accent="purple"
-            title={
-              aiStatus.enabled
-                ? "Alle neu importierten Buchungen per KI klassifizieren (überschreibt Regel-Matches)"
-                : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
-            }
-            label="Alle Buchungen über KI kategorisieren"
-          />
-        </div>
-      </div>
-
+    <div className="space-y-4">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -197,10 +82,10 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-colors duration-200 cursor-pointer ${
+        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-all duration-200 cursor-pointer ${
           isDragging
             ? "border-brand bg-brand-soft"
-            : "border-border-strong bg-surface hover:border-border-strong hover:bg-surface-hover"
+            : "border-border bg-surface hover:border-border-strong hover:bg-surface-hover"
         }`}
       >
         <input
@@ -209,23 +94,92 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
           onChange={handleChange}
           className="absolute inset-0 cursor-pointer opacity-0"
         />
-        <Upload className="mb-3 h-9 w-9 text-fg-muted" />
+        <div className="rounded-full border border-border bg-bg-muted p-3">
+          <Upload className="h-6 w-6 text-fg-muted" />
+        </div>
         {filename ? (
-          <p className="text-sm text-positive">{filename} geladen</p>
+          <>
+            <p className="mt-4 font-display text-2xl text-fg">{filename}</p>
+            <p className="mt-1 text-xs text-fg-subtle">geladen — andere Datei wählen</p>
+          </>
         ) : (
           <>
-            <p className="text-sm font-medium text-fg-soft">
-              CSV-Datei hierher ziehen oder klicken
+            <p className="mt-4 font-display text-2xl text-fg">
+              CSV-Datei hier ablegen
             </p>
             <p className="mt-1 text-xs text-fg-subtle">
-              Konto-Export im CSV-Format (.csv)
+              oder klicken zum Auswählen — Konto-Export (.csv)
             </p>
           </>
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-border bg-surface px-5 py-4">
+        {kontogruppen.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-fg-faint">
+              Konto
+            </span>
+            <button
+              onClick={() => setSelectedKontogruppe(null)}
+              className={`rounded-full border px-2.5 py-1 text-xs cursor-pointer transition-colors ${
+                selectedKontogruppe === null
+                  ? "border-border-strong bg-bg-muted text-fg"
+                  : "border-border bg-surface text-fg-subtle hover:text-fg"
+              }`}
+            >
+              (nachfragen)
+            </button>
+            {kontogruppen.map((kg) => {
+              const active = selectedKontogruppe === kg.id;
+              return (
+                <button
+                  key={kg.id}
+                  onClick={() => setSelectedKontogruppe(kg.id)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs cursor-pointer transition-colors ${
+                    active
+                      ? "border-border-strong bg-bg-muted text-fg"
+                      : "border-border bg-surface text-fg-muted hover:text-fg"
+                  }`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: kg.color }}
+                  />
+                  {kg.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-fg-faint">
+            Encoding
+          </span>
+          {ENCODINGS.map((enc) => (
+            <button
+              key={enc}
+              onClick={() => setEncoding(enc)}
+              className={`rounded-full border px-2.5 py-1 text-xs cursor-pointer transition-colors ${
+                encoding === enc
+                  ? "border-border-strong bg-bg-muted text-fg"
+                  : "border-border bg-surface text-fg-subtle hover:text-fg"
+              }`}
+              title={
+                enc === "auto"
+                  ? "Encoding aus Bank-Preset (Sparkasse: windows-1252, sonst utf-8)"
+                  : enc
+              }
+            >
+              {enc}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {pendingFile && (
-        <div className="rounded-xl border border-warn bg-warn-soft p-4">
+        <div className="rounded-2xl border border-warn bg-warn-soft p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warn" />
             <div className="flex-1">
@@ -237,7 +191,7 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
                   <button
                     key={kg.id}
                     onClick={() => handleConfirmPending(kg.id)}
-                    className="rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer"
+                    className="rounded-full border px-3 py-1.5 text-xs font-medium cursor-pointer"
                     style={{
                       borderColor: kg.color,
                       backgroundColor: kg.color + "22",
@@ -253,7 +207,7 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
                 ))}
                 <button
                   onClick={() => handleConfirmPending(null)}
-                  className="rounded-lg border border-border-strong bg-bg-muted px-3 py-1.5 text-xs font-medium text-fg-muted cursor-pointer hover:text-fg"
+                  className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted cursor-pointer hover:text-fg"
                 >
                   Ohne Zuordnung
                 </button>

@@ -152,7 +152,6 @@ export default function KontogruppenManager({
   kontogruppen,
   onChange,
 }: KontogruppenManagerProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>({
@@ -227,33 +226,21 @@ export default function KontogruppenManager({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left cursor-pointer"
-      >
+    <div className="rounded-2xl border border-border bg-surface">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-fg-muted" />
-          <span className="text-sm font-medium text-fg">
-            Kontoinhaber & Kontogruppen ({kontogruppen.length})
+          <Users className="h-4 w-4 text-fg-muted" />
+          <h3 className="text-sm font-medium text-fg">
+            Kontoinhaber &amp; Kontogruppen
+          </h3>
+          <span className="text-xs text-fg-subtle">
+            {kontogruppen.length}
           </span>
         </div>
-        <svg
-          className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </div>
 
-      {isOpen && (
-        <div className="space-y-3 border-t border-border px-5 py-4">
-          {kontogruppen.length === 0 && !showForm && (
+      <div className="space-y-3 px-5 py-4">
+        {kontogruppen.length === 0 && !showForm && (
             <p className="text-xs text-fg-subtle">
               Noch keine Kontogruppen angelegt. Lege eine an, um Uploads zuordnen zu können.
             </p>
@@ -370,8 +357,7 @@ export default function KontogruppenManager({
               </button>
             )
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

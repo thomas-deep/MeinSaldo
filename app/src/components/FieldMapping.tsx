@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings2 } from "lucide-react";
+import { Settings2, RefreshCw, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { bankPresets, fieldLabels } from "../lib/field-mapping";
 import { FieldMapping as FieldMappingType } from "../lib/types";
@@ -14,6 +14,8 @@ interface FieldMappingProps {
   onSeparatorChange: (sep: string) => void;
   onInvertAmountChange: (invert: boolean) => void;
   onPresetSelect: (presetIndex: number) => void;
+  onReparse?: () => void;
+  isReparseDisabled?: boolean;
 }
 
 export default function FieldMappingComponent({
@@ -25,32 +27,31 @@ export default function FieldMappingComponent({
   onSeparatorChange,
   onInvertAmountChange,
   onPresetSelect,
+  onReparse,
+  isReparseDisabled,
 }: FieldMappingProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const mappingKeys = Object.keys(fieldLabels) as (keyof FieldMappingType)[];
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="rounded-2xl border border-border bg-surface">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between px-5 py-4 text-left cursor-pointer"
       >
         <div className="flex items-center gap-3">
-          <Settings2 className="h-5 w-5 text-fg-muted" />
+          <Settings2 className="h-4 w-4 text-fg-muted" />
           <span className="text-sm font-medium text-fg">
-            Feld-Mapping & Bank-Vorlagen
+            Feld-Mapping &amp; Bank-Vorlagen
+          </span>
+          <span className="text-xs text-fg-subtle">
+            {isOpen ? "" : "optional anpassen"}
           </span>
         </div>
-        <svg
+        <ChevronDown
           className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        />
       </button>
 
       {isOpen && (
@@ -117,6 +118,19 @@ export default function FieldMappingComponent({
               </div>
             ))}
           </div>
+
+          {onReparse && (
+            <div className="mt-5 flex justify-end border-t border-border pt-4">
+              <button
+                onClick={onReparse}
+                disabled={isReparseDisabled}
+                className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Mit aktuellem Mapping neu parsen
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

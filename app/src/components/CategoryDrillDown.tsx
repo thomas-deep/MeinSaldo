@@ -158,20 +158,30 @@ export default function CategoryDrillDown({
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-white cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-soft hover:border-border-strong hover:text-fg cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
-          Zurück zum Dashboard
+          Zurück
         </button>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-fg-subtle">Dashboard</span>
+        <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+          <button
+            onClick={onBack}
+            className="text-fg-subtle hover:text-fg cursor-pointer transition-colors"
+          >
+            Dashboard
+          </button>
           <ChevronRight className="h-3 w-3 text-fg-faint" />
-          <span className="text-fg-muted">
+          <button
+            onClick={onBack}
+            className="text-fg-muted hover:text-fg cursor-pointer transition-colors"
+          >
             {type === "einnahmen" ? "Einnahmen" : "Ausgaben"}
-          </span>
+          </button>
           <ChevronRight className="h-3 w-3 text-fg-faint" />
-          <span className={`font-medium ${accentColor}`}>{kategorie}</span>
-        </div>
+          <span className={`font-medium ${accentColor}`} aria-current="page">
+            {kategorie}
+          </span>
+        </nav>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
