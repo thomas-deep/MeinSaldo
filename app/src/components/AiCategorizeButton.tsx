@@ -1,77 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
+import {
+  AiProgress,
+  runAiOnAllUncategorized,
+  useAiStatus,
+} from "../lib/use-ai-categorize";
 
 interface AiCategorizeButtonProps {
   onDone: () => void;
 }
 
 export default function AiCategorizeButton({ onDone }: AiCategorizeButtonProps) {
-  const [enabled, setEnabled] = useState(false);
-  const [model, setModel] = useState("");
-  const [uncategorizedCount, setUncategorizedCount] = useState(0);
-  const [progress, setProgress] = useState<{ done: number; total: number; matched: number } | null>(null);
-
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const [settingsRes, idsRes] = await Promise.all([
-        fetch("/api/settings", { signal }),
-        fetch("/api/ai/categorize", { signal }),
-      ]);
-      const settings = await settingsRes.json();
-      const ids = await idsRes.json();
-      if (signal?.aborted) return;
-      setEnabled(settings.ollamaEnabled && !!settings.ollamaModel);
-      setModel(settings.ollamaModel || "");
-      setUncategorizedCount(ids.count ?? 0);
-    } catch (e) {
-      if ((e as { name?: string })?.name !== "AbortError") {
-        console.error("AI status load failed:", e);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount mit Abort-Cleanup
-    refresh(ctrl.signal);
-    return () => ctrl.abort();
-  }, [refresh]);
+  const { status, refresh } = useAiStatus();
+  const [progress, setProgress] = useState<AiProgress | null>(null);
 
   const run = useCallback(async () => {
-    const idsRes = await fetch("/api/ai/categorize");
-    const idsData = await idsRes.json();
-    const allIds: string[] = idsData.ids ?? [];
-    if (allIds.length === 0) return;
-
-    const BATCH = 3;
-    let done = 0;
-    let matched = 0;
-    setProgress({ done: 0, total: allIds.length, matched: 0 });
-
-    for (let i = 0; i < allIds.length; i += BATCH) {
-      const slice = allIds.slice(i, i + BATCH);
-      const res = await fetch("/api/ai/categorize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: slice }),
-      });
-      if (!res.ok) break;
-      const data = (await res.json()) as {
-        results: { kategorie: string | null }[];
-      };
-      done += slice.length;
-      matched += data.results.filter((r) => r.kategorie !== null).length;
-      setProgress({ done, total: allIds.length, matched });
-    }
-
+    setProgress({ done: 0, total: status.uncategorizedCount, matched: 0 });
+    await runAiOnAllUncategorized((p) => setProgress(p));
     setProgress(null);
     onDone();
     refresh();
-  }, [onDone, refresh]);
+  }, [onDone, refresh, status.uncategorizedCount]);
 
-  if (!enabled || uncategorizedCount === 0) return null;
+  if (!status.enabled || status.uncategorizedCount === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-4 py-3">
@@ -79,10 +32,10 @@ export default function AiCategorizeButton({ onDone }: AiCategorizeButtonProps) 
         <Sparkles className="h-5 w-5 text-purple-400" />
         <div className="text-xs">
           <p className="font-medium text-purple-200">
-            {uncategorizedCount} Buchungen ohne klare Kategorie
+            {status.uncategorizedCount} Buchungen ohne klare Kategorie
           </p>
           <p className="text-purple-300/60">
-            Mit {model} klassifizieren lassen
+            Mit {status.model} klassifizieren lassen
           </p>
         </div>
       </div>

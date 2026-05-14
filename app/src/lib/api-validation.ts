@@ -157,4 +157,5 @@ export const settingsSchema = z
 
 export const aiCategorizeSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "ids array darf nicht leer sein"),
+  force: z.boolean().optional(),
 });

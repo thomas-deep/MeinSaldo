@@ -1,8 +1,9 @@
 "use client";
 
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, AlertCircle, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Kontogruppe } from "../lib/types";
+import { useAiStatus } from "../lib/use-ai-categorize";
 
 export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
 const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
@@ -12,7 +13,8 @@ interface CsvUploadProps {
   onFileSelected: (
     file: File,
     kontogruppeId: number | null,
-    encoding: EncodingChoice
+    encoding: EncodingChoice,
+    autoAiCategorize: boolean
   ) => void;
 }
 
@@ -22,13 +24,15 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
   const [selectedKontogruppe, setSelectedKontogruppe] = useState<number | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [encoding, setEncoding] = useState<EncodingChoice>("auto");
+  const [autoAi, setAutoAi] = useState(false);
+  const { status: aiStatus } = useAiStatus();
 
   const submit = useCallback(
     (file: File, kontogruppeId: number | null) => {
       setFilename(file.name);
-      onFileSelected(file, kontogruppeId, encoding);
+      onFileSelected(file, kontogruppeId, encoding, autoAi && aiStatus.enabled);
     },
-    [onFileSelected, encoding]
+    [onFileSelected, encoding, autoAi, aiStatus.enabled]
   );
 
   const handleFile = useCallback(
@@ -139,6 +143,32 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
           </button>
         ))}
       </div>
+
+      <label
+        className={`flex items-center gap-2 text-xs ${
+          aiStatus.enabled ? "cursor-pointer text-slate-300" : "cursor-not-allowed text-slate-500"
+        }`}
+        title={
+          aiStatus.enabled
+            ? `Direkt nach dem Import ${aiStatus.model} laufen lassen`
+            : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+        }
+      >
+        <input
+          type="checkbox"
+          checked={autoAi && aiStatus.enabled}
+          disabled={!aiStatus.enabled}
+          onChange={(e) => setAutoAi(e.target.checked)}
+          className="h-3.5 w-3.5 cursor-pointer accent-purple-500 disabled:cursor-not-allowed"
+        />
+        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+        <span>
+          Nach Import automatisch KI-kategorisieren
+          {aiStatus.enabled && aiStatus.model ? (
+            <span className="ml-1 text-slate-500">({aiStatus.model})</span>
+          ) : null}
+        </span>
+      </label>
 
       <div
         onDragOver={(e) => {

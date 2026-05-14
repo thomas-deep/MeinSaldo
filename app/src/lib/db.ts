@@ -377,14 +377,19 @@ export function updateCategory(id: string, kategorie: string): boolean {
   return result.changes > 0;
 }
 
-export function updateCategoryByAi(id: string, kategorie: string): boolean {
+export function updateCategoryByAi(
+  id: string,
+  kategorie: string,
+  force = false
+): boolean {
   const db = getDb();
   const kategorieId = getKategorieId(db, kategorie);
-  const result = db
-    .prepare(
-      "UPDATE transactions SET kategorie_id = ?, ai_classified = 1 WHERE id = ? AND is_manual_override = 0"
-    )
-    .run(kategorieId, id);
+  // Im Force-Modus wird is_manual_override zurückgesetzt — User-getriebene
+  // Mehrfach-Auswahl signalisiert explizit „AI soll übernehmen".
+  const sql = force
+    ? "UPDATE transactions SET kategorie_id = ?, ai_classified = 1, is_manual_override = 0 WHERE id = ?"
+    : "UPDATE transactions SET kategorie_id = ?, ai_classified = 1 WHERE id = ? AND is_manual_override = 0";
+  const result = db.prepare(sql).run(kategorieId, id);
   return result.changes > 0;
 }
 

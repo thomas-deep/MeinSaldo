@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   aiRunning = true;
+  const force = parsed.data.force === true;
   try {
     const transactions = getTransactionsByIds(parsed.data.ids);
     const categories = getAllowedCategories();
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
           req.signal
         );
         if (cat) {
-          updateCategoryByAi(tx.id, cat);
+          updateCategoryByAi(tx.id, cat, force);
           results.push({ id: tx.id, kategorie: cat });
         } else {
           results.push({ id: tx.id, kategorie: null, error: "no match" });

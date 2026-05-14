@@ -22,6 +22,10 @@ import {
 } from "../lib/types";
 import { defaultMapping, bankPresets } from "../lib/field-mapping";
 import { detectCsvHeaders } from "../lib/parse-csv";
+import {
+  AiProgress,
+  runAiOnAllUncategorized,
+} from "../lib/use-ai-categorize";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -68,6 +72,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
   const [filter, setFilter] = useState<number | "all">("all");
   const [drillDown, setDrillDown] = useState<{
     kategorie: string;
@@ -122,7 +127,8 @@ export default function Home() {
       activeSeparator: string,
       activeInvert: boolean,
       activeCurrency: string,
-      activePresetName: string | null
+      activePresetName: string | null,
+      autoAi: boolean
     ) => {
       setIsImporting(true);
       setImportError(null);
@@ -150,6 +156,18 @@ export default function Home() {
         }
         setLastImport({ inserted: result.inserted, skipped: result.skipped });
         await loadFromDb();
+
+        if (autoAi) {
+          try {
+            setAiProgress({ done: 0, total: 0, matched: 0 });
+            await runAiOnAllUncategorized((p) => setAiProgress(p));
+            await loadFromDb();
+          } catch (e) {
+            console.error("Auto-AI failed:", e);
+          } finally {
+            setAiProgress(null);
+          }
+        }
       } catch (e) {
         setImportError(e instanceof Error ? e.message : "Import fehlgeschlagen");
         console.error("Import failed:", e);
@@ -160,11 +178,19 @@ export default function Home() {
     [loadFromDb]
   );
 
+  const [pendingAutoAi, setPendingAutoAi] = useState(false);
+
   const handleFileSelected = useCallback(
-    async (file: File, kontogruppeId: number | null, encoding: EncodingChoice) => {
+    async (
+      file: File,
+      kontogruppeId: number | null,
+      encoding: EncodingChoice,
+      autoAi: boolean
+    ) => {
       setPendingFile(file);
       setPendingEncoding(encoding);
       setPendingKontogruppeId(kontogruppeId);
+      setPendingAutoAi(autoAi);
 
       let activeMapping = mapping;
       let activeSeparator = separator;
@@ -201,7 +227,8 @@ export default function Home() {
         activeSeparator,
         activeInvert,
         activeCurrency,
-        activePreset
+        activePreset,
+        autoAi
       );
     },
     [
@@ -260,7 +287,8 @@ export default function Home() {
       separator,
       invertAmount,
       defaultCurrency,
-      presetName
+      presetName,
+      pendingAutoAi
     );
   }, [
     pendingFile,
@@ -271,6 +299,7 @@ export default function Home() {
     invertAmount,
     defaultCurrency,
     presetName,
+    pendingAutoAi,
     postImport,
   ]);
 
@@ -389,9 +418,16 @@ export default function Home() {
         <div className="space-y-6">
           <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
 
-          {isImporting && (
+          {isImporting && !aiProgress && (
             <p className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2 text-sm text-blue-300">
               Import läuft – Datei wird serverseitig geparst…
+            </p>
+          )}
+
+          {aiProgress && (
+            <p className="rounded-lg border border-purple-500/30 bg-purple-500/5 px-4 py-2 text-sm text-purple-300">
+              KI-Kategorisierung läuft… {aiProgress.done} / {aiProgress.total}
+              {aiProgress.total > 0 && ` – ${aiProgress.matched} erkannt`}
             </p>
           )}
 
