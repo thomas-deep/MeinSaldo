@@ -707,6 +707,77 @@ export function bulkUpdateCategory(
   return result.changes;
 }
 
+export interface ImportBatch {
+  importedAt: string;
+  count: number;
+  kontogruppen: { id: number | null; name: string | null }[];
+  dateFrom: string | null;
+  dateTo: string | null;
+}
+
+export function getImportBatches(limit = 50): ImportBatch[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT
+         imported_at,
+         COUNT(*) AS count,
+         MIN(buchungstag) AS dateFrom,
+         MAX(buchungstag) AS dateTo
+       FROM transactions
+       WHERE imported_at IS NOT NULL AND imported_at != ''
+       GROUP BY imported_at
+       ORDER BY imported_at DESC
+       LIMIT ?`
+    )
+    .all(limit) as {
+    imported_at: string;
+    count: number;
+    dateFrom: string | null;
+    dateTo: string | null;
+  }[];
+
+  const kontoStmt = db.prepare(
+    `SELECT DISTINCT t.kontogruppe_id AS id, k.name AS name
+     FROM transactions t LEFT JOIN kontogruppen k ON k.id = t.kontogruppe_id
+     WHERE t.imported_at = ?`
+  );
+
+  return rows.map((r) => ({
+    importedAt: r.imported_at,
+    count: r.count,
+    dateFrom: r.dateFrom,
+    dateTo: r.dateTo,
+    kontogruppen: kontoStmt.all(r.imported_at) as {
+      id: number | null;
+      name: string | null;
+    }[],
+  }));
+}
+
+export function reassignImportBatch(
+  importedAt: string,
+  kontogruppeId: number | null
+): number {
+  const db = getDb();
+  const result = db
+    .prepare(
+      "UPDATE transactions SET kontogruppe_id = ? WHERE imported_at = ?"
+    )
+    .run(kontogruppeId, importedAt);
+  if (result.changes > 0) recomputeUmbuchungen(db);
+  return result.changes;
+}
+
+export function deleteImportBatch(importedAt: string): number {
+  const db = getDb();
+  const result = db
+    .prepare("DELETE FROM transactions WHERE imported_at = ?")
+    .run(importedAt);
+  if (result.changes > 0) recomputeUmbuchungen(db);
+  return result.changes;
+}
+
 export function bulkUpdateKontogruppe(
   ids: string[],
   kontogruppeId: number | null

@@ -35,6 +35,7 @@ import { isWithin, rangeFor, shiftByYear } from "../lib/date-range";
 import CsvImportPreview, {
   ImportPreview,
 } from "../components/CsvImportPreview";
+import ImportHistory from "../components/ImportHistory";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -690,6 +691,13 @@ export default function Home() {
               latest={dbStats.latest}
               lastImport={lastImport}
               onClear={handleClearDb}
+            />
+          )}
+
+          {dbStats.count > 0 && (
+            <ImportHistory
+              kontogruppen={kontogruppen}
+              onChange={loadFromDb}
             />
           )}
 
