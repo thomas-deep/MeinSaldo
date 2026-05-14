@@ -4,6 +4,8 @@ import {
   getTransactionsByIds,
   getUncategorizedIds,
   updateCategoryByAi,
+  logEvent,
+  trimLogs,
 } from "../../../../lib/db";
 import {
   categorizeWithOllama,
@@ -55,28 +57,60 @@ export async function POST(req: NextRequest) {
     const transactions = getTransactionsByIds(parsed.data.ids);
     const categories = getAllowedCategories();
     const results: { id: string; kategorie: string | null; error?: string }[] = [];
+    let matched = 0;
+    let failed = 0;
 
     for (const tx of transactions) {
       if (req.signal.aborted) break;
       try {
-        const cat = await categorizeWithOllama(
+        const r = await categorizeWithOllama(
           url,
           model,
           tx,
           categories,
           req.signal
         );
-        if (cat) {
-          updateCategoryByAi(tx.id, cat, force);
-          results.push({ id: tx.id, kategorie: cat });
+        if (r.match) {
+          updateCategoryByAi(tx.id, r.match, force);
+          results.push({ id: tx.id, kategorie: r.match });
+          matched++;
         } else {
           results.push({ id: tx.id, kategorie: null, error: "no match" });
         }
+        logEvent("info", "ai.classify", `${tx.id} → ${r.match ?? "(kein Match)"}`, {
+          tx: {
+            id: tx.id,
+            name: tx.nameZahlungsbeteiligter,
+            zweck: tx.verwendungszweck,
+            betrag: tx.betrag,
+          },
+          model,
+          force,
+          prompt: r.prompt,
+          answer: r.answer,
+          match: r.match,
+        });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "unknown";
         results.push({ id: tx.id, kategorie: null, error: msg });
+        failed++;
+        logEvent("error", "ai.classify", `${tx.id}: ${msg}`, {
+          tx: { id: tx.id, name: tx.nameZahlungsbeteiligter },
+          model,
+          error: msg,
+        });
       }
     }
+
+    logEvent(
+      "info",
+      "ai.run",
+      `KI-Lauf abgeschlossen: ${matched}/${transactions.length} erkannt${
+        failed ? `, ${failed} Fehler` : ""
+      }`,
+      { model, force, total: transactions.length, matched, failed }
+    );
+    trimLogs();
 
     return NextResponse.json({ results });
   } finally {

@@ -4,6 +4,7 @@ import { Upload, AlertCircle, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Kontogruppe } from "../lib/types";
 import { useAiStatus } from "../lib/use-ai-categorize";
+import Toggle from "./Toggle";
 
 export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
 const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
@@ -144,31 +145,28 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
         ))}
       </div>
 
-      <label
-        className={`flex items-center gap-2 text-xs ${
-          aiStatus.enabled ? "cursor-pointer text-slate-300" : "cursor-not-allowed text-slate-500"
-        }`}
-        title={
-          aiStatus.enabled
-            ? `Direkt nach dem Import ${aiStatus.model} laufen lassen`
-            : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
-        }
-      >
-        <input
-          type="checkbox"
-          checked={autoAi && aiStatus.enabled}
-          disabled={!aiStatus.enabled}
-          onChange={(e) => setAutoAi(e.target.checked)}
-          className="h-3.5 w-3.5 cursor-pointer accent-purple-500 disabled:cursor-not-allowed"
-        />
+      <div className="flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-        <span>
-          Nach Import automatisch KI-kategorisieren
-          {aiStatus.enabled && aiStatus.model ? (
-            <span className="ml-1 text-slate-500">({aiStatus.model})</span>
-          ) : null}
-        </span>
-      </label>
+        <Toggle
+          checked={autoAi && aiStatus.enabled}
+          onChange={setAutoAi}
+          disabled={!aiStatus.enabled}
+          accent="purple"
+          title={
+            aiStatus.enabled
+              ? `Direkt nach dem Import ${aiStatus.model} laufen lassen`
+              : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+          }
+          label={
+            <>
+              Nach Import automatisch KI-kategorisieren
+              {aiStatus.enabled && aiStatus.model ? (
+                <span className="ml-1 text-slate-500">({aiStatus.model})</span>
+              ) : null}
+            </>
+          }
+        />
+      </div>
 
       <div
         onDragOver={(e) => {

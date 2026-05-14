@@ -65,13 +65,110 @@ const SCHEMA_V1 = `
   );
 `;
 
+const SCHEMA_V2 = `
+  CREATE TABLE logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    level TEXT NOT NULL,
+    event TEXT NOT NULL,
+    message TEXT NOT NULL,
+    details TEXT
+  );
+  CREATE INDEX idx_logs_created ON logs(created_at);
+  CREATE INDEX idx_logs_event ON logs(event);
+`;
+
 const migrations: Migration[] = [
   {
     version: 1,
     description: "Initial schema (kategorien-FK, is_umbuchung materialisiert)",
     up: (db) => db.exec(SCHEMA_V1),
   },
+  {
+    version: 2,
+    description: "logs-Tabelle (Audit-Trail für KI-Prompts, Imports, Settings)",
+    up: (db) => db.exec(SCHEMA_V2),
+  },
 ];
+
+const MAX_LOG_ENTRIES = 5000;
+
+export type LogLevel = "info" | "warn" | "error";
+
+export interface LogEntry {
+  id: number;
+  createdAt: string;
+  level: LogLevel;
+  event: string;
+  message: string;
+  details: string | null;
+}
+
+export function logEvent(
+  level: LogLevel,
+  event: string,
+  message: string,
+  details?: unknown
+): void {
+  const db = getDb();
+  const detailsJson =
+    details === undefined ? null : JSON.stringify(details);
+  db.prepare(
+    "INSERT INTO logs (created_at, level, event, message, details) VALUES (?, ?, ?, ?, ?)"
+  ).run(new Date().toISOString(), level, event, message, detailsJson);
+}
+
+export function getLogs(limit = 200, offset = 0): LogEntry[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT id, created_at, level, event, message, details
+       FROM logs ORDER BY id DESC LIMIT ? OFFSET ?`
+    )
+    .all(limit, offset) as {
+    id: number;
+    created_at: string;
+    level: LogLevel;
+    event: string;
+    message: string;
+    details: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.created_at,
+    level: r.level,
+    event: r.event,
+    message: r.message,
+    details: r.details,
+  }));
+}
+
+export function countLogs(): number {
+  const db = getDb();
+  const row = db.prepare("SELECT COUNT(*) AS c FROM logs").get() as {
+    c: number;
+  };
+  return row.c;
+}
+
+export function clearLogs(): number {
+  const db = getDb();
+  const result = db.prepare("DELETE FROM logs").run();
+  return result.changes;
+}
+
+export function trimLogs(maxEntries = MAX_LOG_ENTRIES): void {
+  const db = getDb();
+  const row = db.prepare("SELECT COUNT(*) AS c FROM logs").get() as {
+    c: number;
+  };
+  if (row.c <= maxEntries) return;
+  db.prepare(
+    `DELETE FROM logs WHERE id IN (
+       SELECT id FROM logs ORDER BY id ASC LIMIT ?
+     )`
+  ).run(row.c - maxEntries);
+}
 
 function runMigrations(db: Database.Database): void {
   db.exec(

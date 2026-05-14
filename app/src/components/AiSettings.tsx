@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Sparkles, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import Toggle from "./Toggle";
 
 interface AiSettingsState {
   ollamaEnabled: boolean;
@@ -92,15 +93,16 @@ export default function AiSettings() {
       </div>
 
       <div className="space-y-4 px-5 py-4">
-        <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-200">
-          <input
-            type="checkbox"
-            checked={state.ollamaEnabled}
-            onChange={(e) => save({ ollamaEnabled: e.target.checked })}
-            className="h-4 w-4 cursor-pointer accent-purple-500"
-          />
-          Ollama-Integration aktivieren
-        </label>
+        <Toggle
+          checked={state.ollamaEnabled}
+          onChange={(v) => save({ ollamaEnabled: v })}
+          accent="purple"
+          label={
+            <span className="text-sm text-slate-200">
+              Ollama-Integration aktivieren
+            </span>
+          }
+        />
 
         <div>
           <label className="mb-1.5 block text-xs text-slate-400">

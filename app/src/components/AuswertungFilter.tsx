@@ -7,6 +7,7 @@ import {
   RangePreset,
   rangeFor,
 } from "../lib/date-range";
+import Toggle from "./Toggle";
 
 export type DirectionFilter = "alle" | "einnahmen" | "ausgaben";
 
@@ -143,25 +144,17 @@ export default function AuswertungFilter({ state, onChange }: Props) {
           />
         </div>
 
-        <label
-          className={`flex items-center gap-2 text-xs cursor-pointer ${
-            state.preset === "alle" ? "opacity-40 cursor-not-allowed" : "text-slate-300"
-          }`}
+        <Toggle
+          checked={state.compareVorjahr && state.preset !== "alle"}
+          onChange={(v) => onChange({ ...state, compareVorjahr: v })}
+          disabled={state.preset === "alle"}
           title={
             state.preset === "alle"
               ? "Vorjahresvergleich nur bei eingegrenztem Zeitraum"
               : "Gleichen Zeitraum im Vorjahr zum Vergleich anzeigen"
           }
-        >
-          <input
-            type="checkbox"
-            checked={state.compareVorjahr && state.preset !== "alle"}
-            disabled={state.preset === "alle"}
-            onChange={(e) => onChange({ ...state, compareVorjahr: e.target.checked })}
-            className="h-3.5 w-3.5 accent-blue-500 cursor-pointer disabled:cursor-not-allowed"
-          />
-          Vorjahresvergleich
-        </label>
+          label="Vorjahresvergleich"
+        />
       </div>
     </div>
   );

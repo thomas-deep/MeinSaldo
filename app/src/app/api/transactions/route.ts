@@ -4,6 +4,7 @@ import {
   insertTransactions,
   clearAll,
   getStats,
+  logEvent,
 } from "../../../lib/db";
 import { parseBody, transactionsPostSchema } from "../../../lib/api-validation";
 
@@ -27,5 +28,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const count = clearAll();
+  logEvent("warn", "db.clear", `Alle Transaktionen gelöscht (${count} Zeilen)`, {
+    deleted: count,
+  });
   return NextResponse.json({ deleted: count });
 }

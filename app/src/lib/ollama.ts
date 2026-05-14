@@ -51,13 +51,19 @@ function matchCategory(answer: string, categories: string[]): string | null {
   return inverse ?? null;
 }
 
+export interface OllamaResult {
+  prompt: string;
+  answer: string;
+  match: string | null;
+}
+
 export async function categorizeWithOllama(
   url: string,
   model: string,
   tx: Transaction,
   categories: string[],
   signal?: AbortSignal
-): Promise<string | null> {
+): Promise<OllamaResult> {
   const prompt = buildPrompt(tx, categories);
   const res = await fetch(`${url.replace(/\/$/, "")}/api/generate`, {
     method: "POST",
@@ -73,5 +79,5 @@ export async function categorizeWithOllama(
   if (!res.ok) throw new Error(`Ollama call failed: HTTP ${res.status}`);
   const data = (await res.json()) as { response?: string };
   const answer = data.response ?? "";
-  return matchCategory(answer, categories);
+  return { prompt, answer, match: matchCategory(answer, categories) };
 }

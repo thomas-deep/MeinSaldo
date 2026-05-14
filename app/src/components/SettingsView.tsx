@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Tag, Sparkles } from "lucide-react";
+import { Users, Tag, Sparkles, ScrollText } from "lucide-react";
 import KontogruppenManager from "./KontogruppenManager";
 import CategoriesView from "./CategoriesView";
 import AiSettings from "./AiSettings";
+import LogsView from "./LogsView";
 import { Kontogruppe } from "../lib/types";
 
 interface SettingsViewProps {
@@ -12,12 +13,13 @@ interface SettingsViewProps {
   onKontogruppenChange: () => void;
 }
 
-type Section = "kontogruppen" | "kategorien" | "ki";
+type Section = "kontogruppen" | "kategorien" | "ki" | "logs";
 
 const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
   { id: "kontogruppen", label: "Kontogruppen", icon: Users },
   { id: "kategorien", label: "Kategorien", icon: Tag },
   { id: "ki", label: "KI-Kategorisierung", icon: Sparkles },
+  { id: "logs", label: "Logs", icon: ScrollText },
 ];
 
 export default function SettingsView({
@@ -58,6 +60,7 @@ export default function SettingsView({
         )}
         {section === "kategorien" && <CategoriesView />}
         {section === "ki" && <AiSettings />}
+        {section === "logs" && <LogsView />}
       </div>
     </div>
   );

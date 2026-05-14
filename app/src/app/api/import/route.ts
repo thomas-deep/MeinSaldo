@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertTransactions } from "../../../lib/db";
+import { insertTransactions, logEvent, trimLogs } from "../../../lib/db";
 import { bankPresets, defaultMapping } from "../../../lib/field-mapping";
 import { parseCsvData } from "../../../lib/parse-csv";
 import { FieldMapping, PreprocessResult, RawRow } from "../../../lib/types";
@@ -142,6 +142,20 @@ export async function POST(req: NextRequest) {
   }
 
   const result = insertTransactions(transactions, kontogruppeId);
+  logEvent(
+    "info",
+    "import",
+    `${file.name}: ${result.inserted} importiert, ${result.skipped} übersprungen (${transactions.length} geparst)`,
+    {
+      filename: file.name,
+      size: file.size,
+      encoding,
+      preset: (form.get("preset") as string | null) ?? null,
+      kontogruppeId,
+      ...result,
+    }
+  );
+  trimLogs();
   return NextResponse.json({
     ...result,
     parsed: transactions.length,
