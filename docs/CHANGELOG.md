@@ -1,72 +1,129 @@
-# Wesentliche Iterationen
+# Changelog
 
 Reverse-chronologisch — neueste zuerst.
 
-## Iteration 8 — KI-Kategorisierung & Settings-Struktur
+## v0.1.0 — Erstes stabiles Release (2026-05-14)
 
-- **Top-Level-Navigation** „Daten" ↔ „Einstellungen" im Header
-- **Settings-View** mit Sidebar-Sektionen: Kontogruppen, Kategorien, KI-Kategorisierung, Daten
-- **Kategorien-Übersicht** (read-only): alle 23 Regeln aufklappbar mit Keywords + Patterns
-- **Kategorien massiv erweitert**: ~830 Erkennungs-Einträge (vorher ~80); neue Kategorien Reisen & Urlaub, Bank-Gebühren & Zinsen, Spenden, Familie & Kinder, Haustier, Geschenke & Blumen
-- **Ollama-Integration** für Sonstiges-Buchungen
-  - Settings: URL + Modell-Auswahl + Connection-Test
-  - Action-Button auf Daten-View „Mit KI kategorisieren" mit Progress
-  - Server-seitige Klassifikation in Batches von 3
-  - Treffer als Manual-Override gespeichert (überschreibt Regel-Logik bei Re-Imports nicht)
-- `settings`-Tabelle für Konfigurations-Persistenz
+Erste durchgängige, produktiv nutzbare Version. Daten-Modell, UI-System und
+Sicherheits-Posture sind gesetzt; alle bekannten Audit-Befunde der frühen
+Iterationen sind adressiert.
 
-## Iteration 7 — Bank ≠ Kontogruppe
+### Daten-Modell · Greenfield-Schema (`v1`-Migration)
+- **`inhaber`** als eigene Entität (privat / gemeinsam / firma) mit Farbe
+- **`kontogruppen`** gehören jetzt zu einem Inhaber (`inhaber_id` NOT NULL,
+  RESTRICT-Delete) und haben eine eigene Kontoart (`art`: Girokonto, Sparkonto,
+  Kreditkarte, Depot, Sonstiges). Bank-Preset bleibt als optionales Feld
+- **`kategorien`** mit FK von `transactions.kategorie_id`, plus editierbare
+  Regeln (`rule_order`, `keywords`, `name_patterns` als JSON-Spalten)
+- **`transactions`**: materialisiertes `is_umbuchung` plus `umbuchung_override`,
+  `is_manual_override`, `ai_classified` sauber getrennt; Dedup-Hash enthält
+  keine `kontogruppe_id` mehr (keine Duplikate bei wechselnder Zuordnung)
+- **`logs`** für Audit-Trail (KI-Prompts, Imports, Settings-Änderungen)
+- Versionierte Migrationen über `schema_migrations`
 
-- Kontogruppe bekommt optionales `bank`-Feld (Verweis auf BankPreset)
-- Beim Upload an eine Kontogruppe wird die Bank-Vorbelegung automatisch angewendet (Mapping, Separator, Hooks)
-- Bank wird in Manager-Liste und Upload-Chips angezeigt
-- Klare Trennung: mehrere Kontogruppen können dieselbe Bank teilen, eine Person kann mehrere Banken nutzen
+### Auswertung
+- **Editorial Light/Dark-Theme** mit Token-System (oklch-basiert, semantisch),
+  Theme-Toggle im Header, FOUC-frei dank Block-Script
+- **Instrument Serif** für Hero-Zahlen, Geist Sans + Geist Mono für UI/Tabular
+- **Filter-Leiste** collapsable: Zeitraum-Presets (lfd. Monat / Quartal / Jahr,
+  Vorjahre, „Letzte 12 Monate", Custom), Typ-Toggle, Min-Betrag, Volltext-Suche
+- **Vorjahresvergleich** in den SummaryCards mit Delta-Anzeige (lowerIsBetter
+  bei Ausgaben — Rückgang grün)
+- **Hierarchischer Kontogruppen-Filter**: Gesamt · pro Inhaber · pro Konto ·
+  Nicht zugeordnet
+- **Klickbarer MonthlyChart**: Klick auf Balken setzt Zeitraum-Filter auf
+  diesen Monat
+- **CategoryChart** mit theme-aware Donut, Mini-Slices (<1 %) zu „Übrige
+  Kleinposten" gebündelt, Beschriftung nur bei Hover
+- **DrillDown-Breadcrumbs** klickbar zurück
 
-## Iteration 6 — DKB & comdirect Support
+### Transaktionen-Tabelle
+- **Multiselect** mit Bulk-Aktionen: Kategorie wechseln · **Konto wechseln** ·
+  Umbuchung setzen/entfernen · KI-Klassifikation (force) · Löschen
+- Paginierung statt stillem `slice(0,200)`, lokalisierte Sortierung
+  (`Intl.Collator('de-DE')`)
+- Multiselect-Banner mit Live-Counter
 
-- `BankPreset` um `preprocess` und `rowTransform` Hooks erweitert
-- **DKB-Preset**: überspringt Header-Metadaten, extrahiert eigene IBAN, wählt Counterparty aus Sender/Empfänger basierend auf Selbst-Tokens
-- **comdirect-Preset**: parst konkatenierten Buchungstext per Regex in Name, IBAN, Verwendungszweck
-- Date-Parser unterstützt 2-stelliges Jahr (`30.12.25` → 2025)
-- Number-Parser-Heuristik für gemischte DE/US-Formate
+### Daten-Import
+- **Serverseitiges Parsen** (`POST /api/import` multipart) — Client lädt nur
+  das File hoch, Decode + Parse + Insert läuft auf dem Server
+- **CSV-Encoding** wählbar (auto / utf-8 / windows-1252); `auto` zieht aus dem
+  Bank-Preset (Sparkasse → windows-1252)
+- **Preview** vor dem Insert: parsed Buchungen, neue vs. bereits vorhandene,
+  Datums-Range
+- **Drei Import-Modi** als Buttons in der Preview: Standard · „+ KI für
+  Sonstiges" · „+ Alles KI" (force, ignoriert Regel-Match)
+- **Import-Historie** in der Daten-Seite: pro Import-Batch (gleicher
+  `imported_at`) ein Eintrag mit Konto-Wechseln und Import-Löschen
+- Feld-Mapping collapsable mit „neu parsen"-Button intern
 
-## Iteration 5 — Kreditkarten-Settlement
+### Kategorien-Editor
+- Vollständig editierbar: Name, Keywords (Chip-Liste), Namens-Patterns,
+  Reihenfolge; eigene Kategorien anlegbar
+- Fallback-Kategorien (Sonstiges / Sonstige Einnahmen) gesperrt
+- Beim Löschen einer Kategorie werden Buchungen auf Sonstiges zurückgesetzt
 
-- Neuer Kontogruppen-Typ `kreditkarte`
-- Automatische Settlement-Erkennung: wenn Kreditkarten-Gruppe existiert und Bank-Buchung „AMERICAN EXPRESS", „VISA", „MASTERCARD" etc. im Namen hat → Umbuchung
-- Manueller Umbuchungs-Toggle pro Transaktion (Badge in der Tabelle)
-- `umbuchung_override` Spalte für Force-on / Force-off
+### KI-Kategorisierung
+- Drei Eintrittspunkte: Auswertung-Banner (Sonstiges), Multiselect-Bulk in der
+  Tabelle (force), Auto-Run nach Import
+- AbortSignal durchgereicht bis in den Ollama-Fetch
+- In-Memory-Concurrency-Lock — parallele Läufe bekommen 429
+- Prompts + Antworten + Match-Resultat werden in `logs` mit
+  `event = 'ai.classify'` mitgeschrieben
 
-## Iteration 4 — American Express
+### Sicherheit
+- **CSRF-Schutz** via Middleware (Origin-Allowlist, konfigurierbar über
+  `ALLOWED_ORIGINS`)
+- **SSRF-Härtung** für `ollamaUrl`: Loopback-Hosts nur, erweiterbar via
+  `ALLOWED_OLLAMA_HOSTS`
+- **Zod-Validierung** auf allen mutierenden API-Routes mit aussagekräftigen
+  400-Antworten
+- **Rate-Limit** / Concurrency-Cap auf `/api/ai/categorize`
 
-- AmEx-CSV-Preset (Komma-Separator, eigenes Spalten-Layout)
-- `invertAmount`-Option für CSVs mit positiven Belastungen
-- Date-Parser für `TT/MM/JJJJ`-Format
-- Number-Parser-Verbesserung: erkennt US- vs. DE-Format an Position des Punkts
+### Umbuchungs-Erkennung
+- Paarweise: negative Buchung sucht passende positive Buchung auf einer
+  anderen Kontogruppe mit gleichem absoluten Betrag innerhalb ±3 Tagen
+  (greedy, nearest date wins)
+- Plus IBAN-Match (Counterparty-IBAN ist eigene IBAN) und
+  Kreditkarten-Settlement (Kontoart `kreditkarte` → KK-Buchungen sind
+  Umbuchungen)
+- `is_umbuchung` materialisiert, nach jedem Insert / Bulk-Update / Inhaber-
+  oder Kontogruppen-Änderung neu berechnet
 
-## Iteration 3 — Kontogruppen & Drill-Down
+### Tooling & Tests
+- **Vitest** mit 68 Unit-Tests: parser, categories, field-mapping,
+  umbuchung-detection, date-range, api-validation
+- TypeScript strict, ESLint clean
+- `.env.example` mit dokumentierten Variablen
 
-- Entität `Kontogruppen` (Name, Typ privat/gemeinsam/firma, Farbe, Icon)
-- Pro-Kontogruppen-Filter mit Counts
-- Automatische Umbuchungserkennung über IBAN-Matching (eigene IBAN vs. Counterparty-IBAN)
-- Umbuchungen aus KPIs/Charts ausgeschlossen
-- Edit-Form: Name, Typ, Farbe, Icon (20 Lucide-Icons zur Auswahl)
-- **Drill-Down**: Klick auf Kategorie → Detail-View mit KPIs, Monatsverlauf, Empfänger-Aggregation und Buchungs-Liste pro Empfänger
+### Einstellungen-Bereich
+- Sidebar-Navigation: Inhaber & Konten · Kategorien · KI-Kategorisierung · Logs
+- Konsistenter Header-Pattern (Icon-Box + Titel + Subtitle + Aktionen) auf
+  allen vier Sektionen
+- **Logs-View** mit Event-Filter, expandierbaren JSON-Details, Auto-Trim
+  bei >5000 Einträgen
 
-## Iteration 2 — SQLite-Persistenz
+---
 
-- `better-sqlite3` als embedded DB unter `app/data/finanzen.db`
-- Dedup über sha256-Hash (Datum + Betrag + IBAN + Verwendungszweck + Saldo)
-- API-Routes für Transactions und Kontogruppen (REST)
-- DB-Status-Banner mit Zeitraum + Import-Statistik
-- Manuelle Kategorie-Änderungen als `is_manual_override` gespeichert (überschreiben Auto-Logik)
+## Frühe Iterationen (vor v0.1.0)
 
-## Iteration 1 — MVP
+Die ursprüngliche Iterations-Historie ist in [AUDIT.md](AUDIT.md) und in der
+Git-Historie nachvollziehbar. Stichpunkte zur Entwicklung:
 
-- Next.js 16 mit App Router, Tailwind, Recharts, PapaParse
-- CSV-Upload (Drag & Drop)
-- 17 Kategorien mit Keyword-Matching
-- Field-Mapping mit 4 Bank-Vorlagen
-- Summary-Cards, Monatschart, Kategorie-Charts (Bar/Pie)
-- Transaktions-Tabelle mit Suche, Filter, Sortierung
-- Dark-Theme im Fintech-Stil
+- **Iteration 1 — MVP**: Next.js 16 + Tailwind + Recharts, Drag&Drop-Upload,
+  17 Kategorien, Dark-Theme
+- **Iteration 2 — SQLite-Persistenz**: `better-sqlite3`, Dedup-Hash, REST-API
+- **Iteration 3 — Kontogruppen & Drill-Down**: Pro-Konto-Filter, automatische
+  Umbuchungserkennung via IBAN, kategoriespezifischer DrillDown
+- **Iteration 4 — American Express**: AmEx-Preset, `invertAmount`,
+  Number-Parser-Heuristik
+- **Iteration 5 — Kreditkarten-Settlement**: KK-Typ + Settlement-Erkennung,
+  manueller Umbuchungs-Toggle
+- **Iteration 6 — DKB & comdirect**: `preprocess`/`rowTransform` Hooks im
+  `BankPreset`
+- **Iteration 7 — Bank ≠ Kontogruppe**: `bank`-Feld als Verweis auf Preset
+- **Iteration 8 — KI-Kategorisierung & Settings-Struktur**: erste
+  Ollama-Integration, Settings-Sidebar
+- **AUDIT-Sprint** (Mai 2026): externer Bug-Report, alle hochpriorisierten
+  Befunde adressiert (Dedup-Hash-Bug, Encoding, AI-Override-Konflikt,
+  Zod-Validierung, Unit-Tests)

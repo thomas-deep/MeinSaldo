@@ -2,117 +2,147 @@
 
 ## Grundkonzept
 
-Die App arbeitet mit zwei unabhängigen Konzepten:
+Die App arbeitet mit drei sauber getrennten Konzepten:
 
-- **Kontogruppe** = *wer / was* (Privat, Familie, Firma A, Firma B, AmEx Privat …). Trägt Typ, Farbe, Icon und optional eine Bank-Voreinstellung.
-- **Bank-Preset** = *wie eine CSV zu parsen ist* (Trennzeichen, Spalten-Mapping, Vorzeichen-Logik, Header-Skipping). Pro Bank fest hinterlegt.
+- **Inhaber** = *wem gehört's* (Thomas, Gemeinsam, GmbH X). Trägt Typ (privat / gemeinsam / firma) und Farbe.
+- **Kontogruppe** = *welches konkrete Konto* (Giro, Visa, Tagesgeld, Depot). Gehört zu einem Inhaber, hat eine Kontoart (Girokonto / Sparkonto / Kreditkarte / Depot / Sonstiges) und optional eine Bank-Voreinstellung.
+- **Bank-Preset** = *wie eine CSV zu parsen ist* (Trennzeichen, Spalten-Mapping, Encoding, Vorzeichen). Pro Bank fest hinterlegt.
 
-Eine Kontogruppe kann eine Bank-Voreinstellung tragen, dann wird beim Upload automatisch der richtige Parser benutzt. Mehrere Kontogruppen können dieselbe Bank teilen (z.B. 3 Firmenkonten bei der Volksbank), und eine Person kann Kontogruppen bei verschiedenen Banken haben (z.B. DKB + AmEx).
+Ein Inhaber kann beliebig viele Kontogruppen haben. Mehrere Kontogruppen können dieselbe Bank teilen (z.B. drei Firmenkonten bei der Volksbank). Eine Person kann Konten bei verschiedenen Banken haben (DKB + AmEx).
 
 ## Erstmaliger Setup
 
-1. **Kontogruppen anlegen** (rechts oben „Einstellungen" → „Kontogruppen")
-   - Pro echtem Konto eine Gruppe — z.B. „Privat (DKB)", „Gemeinsam (DKB)", „Firma A (Volksbank)", „AmEx Privat", „AmEx Firma"
-   - Bank-Vorbelegung im Dropdown wählen
-   - Typ (privat / gemeinsam / firma / kreditkarte), Farbe und Icon sind frei wählbar
-2. **Erste CSV hochladen** (zurück auf „Daten")
-   - Upload-Ziel-Chip oben wählen (passende Kontogruppe)
-   - CSV per Drag & Drop oder Klick hochladen
-   - Bei Bank-Voreinstellung läuft der richtige Parser automatisch
-3. **Optional: KI aktivieren** (Einstellungen → KI-Kategorisierung)
-   - Ollama lokal installieren ([ollama.com/download](https://ollama.com/download))
+1. **Inhaber anlegen** (rechts oben → **Einstellungen → Inhaber & Konten**)
+   - Z.B. „Thomas", „Gemeinsam", „Firma X"
+   - Typ und Farbe wählen
+2. **Kontogruppen anlegen** (gleiche Seite, untere Sektion)
+   - Klick auf „+ Konto" am Inhaber-Header
+   - Name (z.B. „Giro", „Visa", „Tagesgeld"), Kontoart und Bank-Vorbelegung wählen
+   - Farbe und Icon sind frei wählbar
+3. **Erste CSV importieren** (Top-Nav: **Daten**)
+   - Datei per Drag & Drop oder Klick wählen
+   - Upload-Ziel und Encoding wählen (Encoding `auto` zieht aus dem Bank-Preset)
+   - **Vorschau** öffnet sich — Buchungen werden angezeigt mit Status `neu` / `bereits vorhanden`
+   - Klick auf einen der drei Import-Buttons:
+     - **Importieren** — Regelbasiert (keine KI)
+     - **+ KI für Sonstiges** — Regeln zuerst, KI für die `Sonstiges`-Reste
+     - **+ Alles KI** — KI klassifiziert alles neu (überschreibt Regel-Match)
+4. **Optional: KI aktivieren** (Einstellungen → KI-Kategorisierung)
+   - [Ollama](https://ollama.com/download) lokal installieren
    - Modell ziehen, z.B. `ollama pull llama3.2:3b`
-   - „Verbindung testen & Modelle laden", Modell auswählen
-   - Auf der Daten-Seite erscheint ein Button „Sonstiges mit KI füllen", sobald es unklare Buchungen gibt
+   - In der App: „Verbindung testen & Modelle laden", Modell wählen, Toggle an
 
 ## Daten-Ansicht
 
-### Upload-Bereich
-- **Upload-Ziel-Chips** zeigen alle Kontogruppen + die zugeordnete Bank
-- Wird vor dem Drop keine Gruppe gewählt, kommt ein gelber Rückfrage-Dialog nach dem Drop
-- Nach dem Upload zeigt der **DB-Status** Anzahl + Zeitraum gespeicherter Buchungen sowie das Ergebnis des letzten Imports (X neu, Y Duplikate übersprungen)
+### 1. Dropzone
+CSV per Drag & Drop oder Klick auswählen. Editorial-Headline zeigt den Dateinamen nach Auswahl.
 
-### Feld-Mapping (ausklappbar)
-Wird sichtbar, sobald eine CSV geladen ist. Hier kann man:
-- Ein anderes Bank-Preset wählen
+### 2. Settings-Bar
+Kompakte Pills: **Konto** (welche Kontogruppe) und **Encoding** (auto / utf-8 / windows-1252). `auto` nimmt das Encoding aus dem Bank-Preset der gewählten Kontogruppe.
+
+### 3. Feld-Mapping (collapsable)
+- Bank-Vorlage wechseln
 - Trennzeichen anpassen
-- „Vorzeichen umkehren" für CSV-Formate mit positiven Beträgen bei Ausgaben (AmEx-Pattern)
+- „Vorzeichen umkehren" für AmEx-artige Formate
 - Einzelne Spalten manuell zuordnen
-- Mit „Neu importieren" werden die Daten mit der angepassten Konfiguration nochmal verarbeitet
+- „Mit aktuellem Mapping neu parsen" lädt die Vorschau neu — ohne nochmal hochzuladen
 
-### Filter
-Falls Kontogruppen existieren, erscheint eine Filterleiste mit Counts:
-- „Gesamt (N)" zeigt alle Daten
-- Pro Gruppe ein eigener Tab
-- „Nicht zugeordnet" für historische Imports ohne Gruppe
+### 4. Vorschau
+Zeigt **vor dem Insert**: Anzahl geparster Buchungen, Datums-Range, Encoding, die ersten 30 Zeilen mit erkannter Kategorie. Status pro Zeile: `neu` (grün, voll) oder `bereits vorhanden` (grau, ausgeblendet).
 
-Alle Auswertungen unten reagieren auf den Filter.
+Drei Import-Modi als Buttons:
+- **Importieren** (Standard): Regelbasiert, Buchungen ohne Match landen in „Sonstiges"
+- **+ KI für Sonstiges**: Nach Import läuft die KI über alle Sonstiges-Buchungen
+- **+ Alles KI**: Nach Import klassifiziert die KI alle neuen Buchungen (force-Modus überschreibt Regel-Match)
 
-### KPIs (Summary-Cards)
-- **Einnahmen** / **Ausgaben** / **Saldo** / **Sparquote**
-- Umbuchungen zwischen eigenen Konten werden **automatisch ausgeschlossen** und unten ausgewiesen ("N Umbuchungen, X € Volumen")
+### 5. DB-Status
+Anzahl gespeicherter Transaktionen, Zeitraum, Ergebnis des letzten Imports, **„DB leeren"**.
+
+### 6. Import-Historie
+**Pro Import-Batch** ein Eintrag: Anzahl, relative Zeit („vor 9 Min."), Zeitraum, aktuelles Konto. Aktionen:
+- **„Konto wechseln…"** — verschiebt alle Buchungen dieses Imports auf eine andere Kontogruppe (falls beim Upload falsch zugeordnet)
+- **„Import löschen"** — entfernt den gesamten Batch aus der DB
+
+## Auswertung
+
+### Filter (collapsable)
+**Zeitraum**: Alle Zeit / Lfd. Monat / Vormonat / Lfd. Quartal / Vorquartal / Lfd. Jahr / Vorjahr / Letzte 12 Monate / Benutzerdefiniert (von/bis-Picker).
+
+**Weitere Filter**: Typ (Alle / Einnahmen / Ausgaben), Min-Betrag, Volltext-Suche.
+
+**Vorjahresvergleich** (Toggle, nur bei eingegrenztem Zeitraum): die SummaryCards zeigen Delta zum gleichen Zeitraum im Vorjahr (Ausgaben-Rückgang grün, Anstieg rot).
+
+### Kontogruppen-Filter (hierarchisch)
+- **Gesamt** — alle Buchungen
+- Pro Inhaber ein Container mit: Inhaber-Button (aggregiert alle Konten) + die einzelnen Konto-Pills
+- **Nicht zugeordnet** für historische Imports ohne Gruppe
+
+### SummaryCards
+**Einnahmen / Ausgaben / Saldo / Sparquote** mit Editorial-Display-Font. Umbuchungen sind aus den Summen ausgeschlossen, werden separat ausgewiesen. Bei Vorjahresvergleich: Delta-Reihe unten mit Pfeil-Icons.
 
 ### Dashboard
-- **Monatliche Übersicht** (Balken: Einnahmen vs. Ausgaben pro Monat)
-- **Ausgaben nach Kategorie** und **Einnahmen nach Kategorie** (Balken oder Kreis)
-- Klick auf eine Kategorie → **Drill-Down**:
-  - KPIs der Kategorie
-  - Monatsverlauf für nur diese Kategorie
-  - Liste der Gegenparteien (Empfänger/Absender), gruppiert nach Name + IBAN, sortierbar
-  - Pro Gegenpartei aufklappbar → einzelne Buchungen
-  - Breadcrumb „Dashboard › Ausgaben › Lebensmittel"
+- **Monatliche Übersicht** — Balken pro Monat. **Klick auf einen Monat** setzt den Zeitraum-Filter auf diesen Monat.
+- **Ausgaben/Einnahmen nach Kategorie** — Balken oder Donut. Mini-Slices < 1 % zu „Übrige Kleinposten" zusammengefasst.
+- **Drill-Down** bei Klick auf eine Kategorie: KPIs, Monatsverlauf für die Kategorie, gruppierte Gegenparteien-Liste mit einzelnen Buchungen. Breadcrumb (klickbar zurück).
 
 ### Transaktionen
-- Volltextsuche
-- Filter nach Typ (Einnahmen / Ausgaben) und Kategorie
-- Sortierbar nach Datum, Name, Kategorie, Betrag
-- **Manuelle Kategorie-Änderung** per Dropdown — wird persistiert und bei Re-Imports nicht überschrieben
-- **Manueller Umbuchungs-Toggle** (kleines Badge "Umbuchen?") zum Markieren/Aufheben einzelner Buchungen
-- **Kontogruppen-Badge** mit Farbe pro Zeile
+Volltextsuche, Typ-/Kategorie-Filter, sortierbar nach Datum/Name/Kategorie/Betrag, paginiert (200/Seite).
+
+**Pro Zeile**: manueller Umbuchungs-Toggle (gelbes Badge), Kontogruppen-Badge mit Farbe, Kategorie-Dropdown.
+
+**Multiselect mit Bulk-Aktionen** (Checkbox-Spalte + Header-Checkbox „alle dieser Seite"):
+- **Kategorie ändern…** — Dropdown
+- **Konto wechseln…** — Dropdown (alle Kontogruppen + „keine Zuordnung")
+- **Umbuchung** / **keine** — markieren oder Markierung entfernen
+- **KI** — Re-Klassifikation der Auswahl (force-Modus)
+- **Löschen** — mit Bestätigungs-Dialog
 
 ## Einstellungen
 
-### Kontogruppen
-- Anlegen, Bearbeiten (Stift-Icon), Löschen (Mülleimer)
-- Beim Löschen bleiben Transaktionen erhalten, werden aber zur Gruppe entkoppelt
-- Bank-Vorbelegung kann nachträglich geändert werden
+### Inhaber & Konten
+- **Inhaber** anlegen / bearbeiten / löschen (Löschen blockiert, solange noch Konten dranhängen)
+- **Kontogruppen** gruppiert nach Inhaber. Pro Inhaber „+ Konto"-Button. Konkrete Konten mit Art (Giro/Spar/Kreditkarte/Depot) + Bank.
 
 ### Kategorien
-- Übersicht aller eingebauten Klassifikations-Regeln (23 Kategorien)
-- Pro Kategorie aufklappbar: alle Keywords und Namens-Patterns
-- Hilft zu verstehen, *warum* eine Buchung in einer bestimmten Kategorie gelandet ist
+- Voll editierbar: Name, Keywords-Chips, Namens-Patterns-Chips
+- Reihenfolge entscheidet (erste passende Regel gewinnt)
+- „+ Neue Kategorie" für eigene Kategorien
+- Fallback-Kategorien (Sonstiges / Sonstige Einnahmen) sind gesperrt
+- Beim Löschen einer Kategorie werden Buchungen auf „Sonstiges" zurückgesetzt
 
 ### KI-Kategorisierung
-- Ollama-Aktivierung an/aus
-- URL (Default `http://localhost:11434`)
+- Ollama-Toggle (Toggle-Slider)
+- URL (Default `http://localhost:11434`, nur Loopback-Hosts erlaubt)
 - Modell-Auswahl nach Verbindungstest
-- Empfehlung: `llama3.2:3b` (schnell, ausreichend gut) oder `qwen2.5:7b` (genauer, langsamer)
-- KI wird nur für Buchungen mit Kategorie „Sonstiges" / „Sonstige Einnahmen" eingesetzt, die nicht manuell überschrieben wurden
+- Empfehlung: `llama3.2:3b` (schnell) oder `qwen2.5:7b` (genauer, langsamer)
+- Drei Eintrittspunkte für die KI:
+  1. **Banner auf der Auswertung** — klassifiziert alle Buchungen mit Kategorie Sonstiges/Sonstige Einnahmen (ohne manuellen Override)
+  2. **Multiselect-Bulk in der Tabelle** — force-Modus, überschreibt alles
+  3. **Bei Import** — automatisch über die zwei Import-Buttons mit Sparkle-Icon
 
-### Daten
-- DB-Status (Anzahl, Zeitraum)
-- Letztes Import-Ergebnis
-- **„DB leeren"** löscht alle Transaktionen (Kontogruppen bleiben). Mit Bestätigungs-Dialog.
+### Logs
+Audit-Trail für KI-Klassifikationen (mit Prompt + Antwort), Imports, DB-Operationen und Settings-Änderungen. Filter nach Event-Typ, klickbare Zeilen klappen JSON-Details aus. Auto-Trim bei >5000 Einträgen.
 
 ## Umbuchungs-Logik im Detail
 
 Eine Buchung gilt als Umbuchung wenn:
 
-1. Die Gegen-IBAN zu einer eigenen IBAN passt (irgendwo in der DB als `iban_konto` vorhanden), **oder**
-2. Eine Kontogruppe vom Typ `kreditkarte` existiert UND der Gegenparteien-Name auf eine Kreditkarten-Marke matcht (American Express, AmEx, Visa Europe, Mastercard, Diners Club), **oder**
-3. Die Buchung wurde manuell als Umbuchung markiert
+1. **Paar-Match** (greedy): es gibt eine Buchung mit gleichem absoluten Betrag, anderer Kontogruppe und ≤3 Tagen Abstand. Beide Seiten werden markiert.
+2. **IBAN-Match**: die Gegen-IBAN passt zu einer eigenen IBAN aus der DB.
+3. **Kreditkarten-Settlement**: eine Kontogruppe mit Art `kreditkarte` existiert UND der Gegenparteien-Name enthält „MASTERCARD" / „VISA" / „AMEX" / …
+4. **Manueller Override** über das Umbuchungs-Badge in der Tabelle
 
-Umbuchungen werden überall aus Summen, Charts und Drill-Downs ausgeschlossen, bleiben aber in der Tabelle sichtbar (mit gelbem Badge).
+Umbuchungen werden aus Summen und Charts ausgeschlossen, bleiben aber in der Tabelle sichtbar (gelbes Badge).
 
 **Beispiel Kreditkartenflow**:
-- AmEx-CSV in Kontogruppe „AmEx Privat" hochladen → 50 Einzelbuchungen werden importiert (Spotify, Amazon, …)
-- Bank-CSV in „Privat (DKB)" hochladen → die monatliche AmEx-Sammelabbuchung von z.B. 280 € wird automatisch als Umbuchung erkannt (da Kontogruppe vom Typ Kreditkarte existiert und Name „AMERICAN EXPRESS" enthält)
+- AmEx-CSV in Kontogruppe „Thomas · Visa" (Art: Kreditkarte) hochladen → 50 Einzelbuchungen (Spotify, Amazon, …)
+- Bank-CSV in „Thomas · Giro" hochladen → die monatliche AmEx-Sammelabbuchung von 280 € wird automatisch als Umbuchung erkannt
 - Im Filter „Gesamt": echte Ausgaben aus AmEx-CSV werden gezählt, Sammelabbuchung wird ignoriert → keine Doppelzählung
 
 ## Tipps
 
-- **Manuelle Kategorien sind gold wert**: einmal korrigiert, bleibt der Override stehen — auch bei Re-Import
-- **KI-Lauf nach jedem Import**: einfach Button drücken, der LLM klassifiziert nur Sonstiges-Buchungen
-- **Mehrere CSVs derselben Bank**: einfach hintereinander hochladen, Dedup verhindert Doppelung
-- **Datum-Range pro Konto**: lade alte CSVs nochmal hoch, um lückenlose Historie zu bauen
-- **Falsche Umbuchung erkannt?**: einfach das gelbe Badge in der Tabelle anklicken, dann zählt sie wieder als normale Ausgabe/Einnahme
+- **Falsche Konto-Zuordnung beim Import?** Daten-Seite → **Import-Historie** → „Konto wechseln…" oder „Import löschen"
+- **Manuelle Kategorien sind robust** — einmal korrigiert, überschreibt das auch ein späterer KI-Lauf nicht (außer im force-Modus aus der Tabelle)
+- **Mehrere CSVs derselben Bank** kannst du hintereinander hochladen — Dedup verhindert Doppelung
+- **Vorjahresvergleich** wird interessant, sobald du einen festen Zeitraum gewählt hast (Lfd. Jahr, Lfd. Monat, …)
+- **Light/Dark-Toggle** oben rechts (☀ / ▭ / ☾), respektiert auch dein System-Theme
