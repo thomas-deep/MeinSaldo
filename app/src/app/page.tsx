@@ -623,8 +623,8 @@ export default function Home() {
             aria-hidden
             className="inline-block h-4 w-1 translate-y-[3px] bg-fg"
           />
-          <h1 className="font-display text-3xl font-medium tracking-tight text-fg">
-            <span className="font-display-italic">Finanz</span>
+          <h1 className="font-editorial text-3xl font-medium tracking-tight text-fg">
+            <span className="font-editorial-italic">Finanz</span>
             <span className="text-fg-muted">·</span>
             Auswertung
           </h1>

@@ -121,7 +121,7 @@
   /* Fonts */
   --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
-  --font-display: var(--font-display), "Iowan Old Style", "Apple Garamond",
+  --font-editorial: var(--font-editorial), "Iowan Old Style", "Apple Garamond",
     Baskerville, "Times New Roman", serif;
 
   /* Semantic colors (Tailwind utility class names) */
@@ -206,12 +206,12 @@
 }
 
 /* Editorial Display für Hero-Zahlen und große Headlines */
-.font-display {
-  font-family: var(--font-display);
+.font-editorial {
+  font-family: var(--font-editorial);
   letter-spacing: -0.015em;
 }
-.font-display-italic {
-  font-family: var(--font-display);
+.font-editorial-italic {
+  font-family: var(--font-editorial);
   font-style: italic;
   letter-spacing: -0.01em;
 }

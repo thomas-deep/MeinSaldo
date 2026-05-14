@@ -113,7 +113,7 @@ function StatCard({
         {label}
       </p>
       <p
-        className={`mt-3 font-display text-[44px] leading-[0.95] tracking-tight ${valueColor}`}
+        className={`mt-3 font-editorial text-[44px] leading-[0.95] tracking-tight ${valueColor}`}
       >
         <span className="tabular-nums">{value}</span>
       </p>

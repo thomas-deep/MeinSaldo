@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 const displaySerif = Instrument_Serif({
-  variable: "--font-display",
+  variable: "--font-editorial",
   subsets: ["latin"],
   weight: "400",
   style: ["normal", "italic"],

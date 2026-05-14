@@ -60,7 +60,7 @@ export default function CsvImportPreview({
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-4 px-5 py-4">
         <div>
-          <h3 className="font-display text-xl text-fg">
+          <h3 className="font-editorial text-xl text-fg">
             Vorschau – noch nicht importiert
           </h3>
           <p className="mt-1 text-xs text-fg-muted">

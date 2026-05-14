@@ -99,12 +99,12 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
         </div>
         {filename ? (
           <>
-            <p className="mt-4 font-display text-2xl text-fg">{filename}</p>
+            <p className="mt-4 font-editorial text-2xl text-fg">{filename}</p>
             <p className="mt-1 text-xs text-fg-subtle">geladen — andere Datei wählen</p>
           </>
         ) : (
           <>
-            <p className="mt-4 font-display text-2xl text-fg">
+            <p className="mt-4 font-editorial text-2xl text-fg">
               CSV-Datei hier ablegen
             </p>
             <p className="mt-1 text-xs text-fg-subtle">
