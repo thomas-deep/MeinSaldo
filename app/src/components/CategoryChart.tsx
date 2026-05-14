@@ -80,7 +80,7 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
       {}
     );
 
-    return Object.entries(grouped)
+    const all = Object.entries(grouped)
       .map(([kategorie, { betrag, anzahl }]) => ({
         kategorie,
         betrag: Math.round(betrag * 100) / 100,
@@ -88,6 +88,22 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
         prozent: total > 0 ? Math.round((betrag / total) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.betrag - a.betrag);
+
+    // Kategorien unter 1 % zu 'Übrige Kleinposten' zusammenfassen
+    const main = all.filter((c) => c.prozent >= 1);
+    const small = all.filter((c) => c.prozent < 1);
+    if (small.length <= 1) return all;
+    const sumBetrag = small.reduce((s, c) => s + c.betrag, 0);
+    const sumAnzahl = small.reduce((s, c) => s + c.anzahl, 0);
+    return [
+      ...main,
+      {
+        kategorie: `Übrige Kleinposten (${small.length})`,
+        betrag: Math.round(sumBetrag * 100) / 100,
+        anzahl: sumAnzahl,
+        prozent: total > 0 ? Math.round((sumBetrag / total) * 1000) / 10 : 0,
+      },
+    ];
   }, [transactions, type]);
 
   const title = type === "einnahmen" ? "Einnahmen" : "Ausgaben";
@@ -182,7 +198,9 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               cy="50%"
               innerRadius={70}
               outerRadius={120}
-              paddingAngle={2}
+              paddingAngle={1}
+              stroke={chartTheme.bg}
+              strokeWidth={resolved === "dark" ? 1 : 2}
               cursor={onCategoryClick ? "pointer" : undefined}
               onClick={(d) => {
                 const k = extractKategorie(d);

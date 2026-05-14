@@ -8,6 +8,7 @@ import {
   Info,
   AlertTriangle,
   XCircle,
+  ScrollText,
 } from "lucide-react";
 
 interface LogEntry {
@@ -123,43 +124,49 @@ export default function LogsView() {
     : logs;
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-        <div>
-          <h3 className="text-sm font-medium text-fg">Logs</h3>
-          <p className="text-xs text-fg-subtle">
-            {data ? `${data.total} Einträge gesamt` : "lade…"} – KI-Prompts,
-            Imports, DB-Operationen, Settings-Änderungen
-          </p>
+    <div className="rounded-2xl border border-border bg-surface">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-lg bg-bg-muted p-2">
+            <ScrollText className="h-5 w-5 text-fg-muted" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-medium text-fg">Logs</h3>
+            <p className="text-xs text-fg-subtle">
+              {data ? `${data.total} Einträge gesamt` : "lade…"} — KI-Prompts,
+              Imports, DB-Operationen, Settings-Änderungen
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={eventFilter}
+              onChange={(e) => setEventFilter(e.target.value)}
+              className="rounded-lg border border-border-strong bg-surface-active px-3 py-1.5 text-xs text-fg"
+            >
+              <option value="">Alle Events</option>
+              {events.map((ev) => (
+                <option key={ev} value={ev}>
+                  {EVENT_LABELS[ev] ?? ev}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => load()}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              Aktualisieren
+            </button>
+            <button
+              onClick={handleClear}
+              disabled={!data || data.total === 0}
+              className="flex items-center gap-1.5 rounded-lg border border-danger/40 bg-danger-soft px-2.5 py-1.5 text-xs text-danger hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Logs löschen
+            </button>
+          </div>
         </div>
-        <div className="flex-1" />
-        <select
-          value={eventFilter}
-          onChange={(e) => setEventFilter(e.target.value)}
-          className="rounded-lg border border-border-strong bg-surface-active px-3 py-1.5 text-xs text-fg"
-        >
-          <option value="">Alle Events</option>
-          {events.map((ev) => (
-            <option key={ev} value={ev}>
-              {EVENT_LABELS[ev] ?? ev}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={() => load()}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Aktualisieren
-        </button>
-        <button
-          onClick={handleClear}
-          disabled={!data || data.total === 0}
-          className="flex items-center gap-1.5 rounded-lg border border-danger bg-danger-soft px-2.5 py-1.5 text-xs text-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Logs löschen
-        </button>
       </div>
 
       {filtered.length === 0 ? (

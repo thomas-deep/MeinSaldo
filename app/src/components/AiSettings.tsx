@@ -74,7 +74,7 @@ export default function AiSettings() {
   }, [state.ollamaUrl, state.ollamaModel, save]);
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="rounded-2xl border border-border bg-surface">
       <div className="border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-magic-soft p-2">

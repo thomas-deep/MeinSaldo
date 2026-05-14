@@ -227,15 +227,20 @@ export default function KontogruppenManager({
 
   return (
     <div className="rounded-2xl border border-border bg-surface">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
-          <Users className="h-4 w-4 text-fg-muted" />
-          <h3 className="text-sm font-medium text-fg">
-            Kontoinhaber &amp; Kontogruppen
-          </h3>
-          <span className="text-xs text-fg-subtle">
-            {kontogruppen.length}
-          </span>
+          <div className="rounded-lg bg-info-soft p-2">
+            <Users className="h-5 w-5 text-info" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-fg">
+              Kontoinhaber &amp; Kontogruppen
+            </h3>
+            <p className="text-xs text-fg-subtle">
+              Konten organisieren — z. B. nach Inhaber, Verwendung oder
+              Kartentyp. Wird beim CSV-Import als Upload-Ziel angeboten.
+            </p>
+          </div>
         </div>
       </div>
 

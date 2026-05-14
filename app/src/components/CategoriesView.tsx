@@ -355,36 +355,41 @@ export default function CategoriesView() {
   }, [newDraft, load]);
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-        <Tag className="h-5 w-5 text-fg-muted" />
-        <div>
-          <h3 className="text-sm font-medium text-fg">
-            Kategorisierungs-Regeln ({rules.length})
-          </h3>
-          <p className="text-xs text-fg-subtle">
-            Regeln werden auf Verwendungszweck, Zahlungsbeteiligten und
-            Buchungstext angewendet (case-insensitive). Reihenfolge entscheidet:
-            erste passende Regel gewinnt.
-          </p>
+    <div className="rounded-2xl border border-border bg-surface">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-lg bg-accent-soft p-2">
+            <Tag className="h-5 w-5 text-accent" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-medium text-fg">
+              Kategorisierungs-Regeln{" "}
+              <span className="text-fg-subtle">({rules.length})</span>
+            </h3>
+            <p className="text-xs text-fg-subtle">
+              Regeln werden auf Verwendungszweck, Zahlungsbeteiligten und
+              Buchungstext angewendet — erste passende Regel gewinnt.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => load()}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              Aktualisieren
+            </button>
+            <button
+              onClick={() => setShowNewForm((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Neue Kategorie
+            </button>
+          </div>
         </div>
-        <div className="flex-1" />
-        <button
-          onClick={() => load()}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-          />
-          Aktualisieren
-        </button>
-        <button
-          onClick={() => setShowNewForm((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-brand-fg hover:opacity-90 cursor-pointer"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Neue Kategorie
-        </button>
       </div>
 
       {showNewForm && (
