@@ -13,21 +13,30 @@ export default function AiCategorizeButton({ onDone }: AiCategorizeButtonProps) 
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
   const [progress, setProgress] = useState<{ done: number; total: number; matched: number } | null>(null);
 
-  const refresh = useCallback(async () => {
-    const [settingsRes, idsRes] = await Promise.all([
-      fetch("/api/settings"),
-      fetch("/api/ai/categorize"),
-    ]);
-    const settings = await settingsRes.json();
-    const ids = await idsRes.json();
-    setEnabled(settings.ollamaEnabled && !!settings.ollamaModel);
-    setModel(settings.ollamaModel || "");
-    setUncategorizedCount(ids.count ?? 0);
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const [settingsRes, idsRes] = await Promise.all([
+        fetch("/api/settings", { signal }),
+        fetch("/api/ai/categorize", { signal }),
+      ]);
+      const settings = await settingsRes.json();
+      const ids = await idsRes.json();
+      if (signal?.aborted) return;
+      setEnabled(settings.ollamaEnabled && !!settings.ollamaModel);
+      setModel(settings.ollamaModel || "");
+      setUncategorizedCount(ids.count ?? 0);
+    } catch (e) {
+      if ((e as { name?: string })?.name !== "AbortError") {
+        console.error("AI status load failed:", e);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount
-    refresh();
+    const ctrl = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount mit Abort-Cleanup
+    refresh(ctrl.signal);
+    return () => ctrl.abort();
   }, [refresh]);
 
   const run = useCallback(async () => {

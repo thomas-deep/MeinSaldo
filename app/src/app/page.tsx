@@ -50,27 +50,31 @@ export default function Home() {
     type: "einnahmen" | "ausgaben";
   } | null>(null);
 
-  const loadFromDb = useCallback(async () => {
+  const loadFromDb = useCallback(async (signal?: AbortSignal) => {
     try {
       const [txRes, kgRes] = await Promise.all([
-        fetch("/api/transactions"),
-        fetch("/api/kontogruppen"),
+        fetch("/api/transactions", { signal }),
+        fetch("/api/kontogruppen", { signal }),
       ]);
       const txData = await txRes.json();
       const kgData = await kgRes.json();
+      if (signal?.aborted) return;
       setTransactions(txData.transactions);
       setDbStats(txData.stats);
       setKontogruppen(kgData.kontogruppen);
     } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return;
       console.error("Load failed:", e);
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount
-    loadFromDb();
+    const ctrl = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount mit Abort-Cleanup
+    loadFromDb(ctrl.signal);
+    return () => ctrl.abort();
   }, [loadFromDb]);
 
   const importToDb = useCallback(

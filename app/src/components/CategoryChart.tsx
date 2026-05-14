@@ -14,6 +14,29 @@ import {
 } from "recharts";
 import { Transaction, CategorySummary } from "../lib/types";
 
+function extractKategorie(payload: unknown): string | null {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "kategorie" in payload &&
+    typeof (payload as { kategorie: unknown }).kategorie === "string"
+  ) {
+    return (payload as { kategorie: string }).kategorie;
+  }
+  return null;
+}
+
+function extractKategoriePercent(
+  payload: unknown
+): { kategorie: string; prozent: number } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as { kategorie?: unknown; prozent?: unknown };
+  if (typeof p.kategorie === "string" && typeof p.prozent === "number") {
+    return { kategorie: p.kategorie, prozent: p.prozent };
+  }
+  return null;
+}
+
 interface CategoryChartProps {
   transactions: Transaction[];
   type: "einnahmen" | "ausgaben";
@@ -136,8 +159,8 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               barSize={24}
               cursor={onCategoryClick ? "pointer" : undefined}
               onClick={(d) => {
-                const item = d as unknown as { kategorie?: string };
-                if (item.kategorie) onCategoryClick?.(item.kategorie);
+                const k = extractKategorie(d);
+                if (k) onCategoryClick?.(k);
               }}
             >
               {data.map((_, i) => (
@@ -159,14 +182,14 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               outerRadius={110}
               paddingAngle={2}
               label={(props) => {
-                const p = props as unknown as { kategorie?: string; prozent?: number };
-                return `${p.kategorie ?? ""} (${p.prozent ?? 0}%)`;
+                const p = extractKategoriePercent(props);
+                return p ? `${p.kategorie} (${p.prozent}%)` : "";
               }}
               labelLine={{ stroke: "#475569" }}
               cursor={onCategoryClick ? "pointer" : undefined}
               onClick={(d) => {
-                const item = d as unknown as { kategorie?: string };
-                if (item.kategorie) onCategoryClick?.(item.kategorie);
+                const k = extractKategorie(d);
+                if (k) onCategoryClick?.(k);
               }}
             >
               {data.map((_, i) => (

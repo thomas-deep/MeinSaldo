@@ -19,16 +19,21 @@ export default function AiSettings() {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const load = useCallback(async () => {
-    const res = await fetch("/api/settings");
-    const data = (await res.json()) as AiSettingsState;
-    setState(data);
-  }, []);
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch on mount
-    load();
-  }, [load]);
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch("/api/settings", { signal: ctrl.signal });
+        const data = (await res.json()) as AiSettingsState;
+        if (!ctrl.signal.aborted) setState(data);
+      } catch (e) {
+        if ((e as { name?: string })?.name !== "AbortError") {
+          console.error("Settings load failed:", e);
+        }
+      }
+    })();
+    return () => ctrl.abort();
+  }, []);
 
   const save = useCallback(async (next: Partial<AiSettingsState>) => {
     const merged = { ...state, ...next };

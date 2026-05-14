@@ -20,6 +20,56 @@ function ensureColumn(
   }
 }
 
+interface Migration {
+  version: number;
+  description: string;
+  up: (db: Database.Database) => void;
+}
+
+const migrations: Migration[] = [
+  {
+    version: 1,
+    description: "ensureColumn-Setup (kontogruppe_id, umbuchung_override, icon, bank)",
+    up: (db) => {
+      ensureColumn(db, "transactions", "kontogruppe_id", "INTEGER REFERENCES kontogruppen(id)");
+      ensureColumn(db, "transactions", "umbuchung_override", "INTEGER");
+      ensureColumn(db, "kontogruppen", "icon", "TEXT DEFAULT 'user'");
+      ensureColumn(db, "kontogruppen", "bank", "TEXT");
+    },
+  },
+  {
+    version: 2,
+    description: "ai_classified column (trennt AI- von manuellen Kategorisierungen)",
+    up: (db) => {
+      ensureColumn(db, "transactions", "ai_classified", "INTEGER DEFAULT 0");
+    },
+  },
+];
+
+function runMigrations(db: Database.Database): void {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
+  );
+  const applied = new Set(
+    (
+      db
+        .prepare("SELECT version FROM schema_migrations")
+        .all() as { version: number }[]
+    ).map((r) => r.version)
+  );
+  const record = db.prepare(
+    "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)"
+  );
+  for (const m of migrations) {
+    if (applied.has(m.version)) continue;
+    const tx = db.transaction(() => {
+      m.up(db);
+      record.run(m.version, new Date().toISOString());
+    });
+    tx();
+  }
+}
+
 function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
@@ -65,11 +115,7 @@ function getDb(): Database.Database {
     );
   `);
 
-  ensureColumn(db, "transactions", "kontogruppe_id", "INTEGER REFERENCES kontogruppen(id)");
-  ensureColumn(db, "transactions", "umbuchung_override", "INTEGER");
-  ensureColumn(db, "transactions", "ai_classified", "INTEGER DEFAULT 0");
-  ensureColumn(db, "kontogruppen", "icon", "TEXT DEFAULT 'user'");
-  ensureColumn(db, "kontogruppen", "bank", "TEXT");
+  runMigrations(db);
 
   dbInstance = db;
   return db;
