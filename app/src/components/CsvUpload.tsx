@@ -3,70 +3,47 @@
 import { Upload, AlertCircle } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Kontogruppe } from "../lib/types";
-import { bankPresets } from "../lib/field-mapping";
+
+export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
+const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
 
 interface CsvUploadProps {
   kontogruppen: Kontogruppe[];
-  onFileLoaded: (content: string, filename: string, kontogruppeId: number | null) => void;
+  onFileSelected: (
+    file: File,
+    kontogruppeId: number | null,
+    encoding: EncodingChoice
+  ) => void;
 }
 
-const ENCODINGS = ["auto", "utf-8", "windows-1252"] as const;
-type EncodingChoice = (typeof ENCODINGS)[number];
-
-function resolveEncoding(choice: EncodingChoice, kg: Kontogruppe | undefined): string {
-  if (choice !== "auto") return choice;
-  if (kg?.bank) {
-    const preset = bankPresets.find((p) => p.name === kg.bank);
-    if (preset?.encoding) return preset.encoding;
-  }
-  return "utf-8";
-}
-
-function decodeBuffer(buffer: ArrayBuffer, encoding: string): string {
-  try {
-    return new TextDecoder(encoding, { fatal: false }).decode(buffer);
-  } catch {
-    return new TextDecoder("utf-8", { fatal: false }).decode(buffer);
-  }
-}
-
-export default function CsvUpload({ kontogruppen, onFileLoaded }: CsvUploadProps) {
+export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [filename, setFilename] = useState<string | null>(null);
   const [selectedKontogruppe, setSelectedKontogruppe] = useState<number | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [encoding, setEncoding] = useState<EncodingChoice>("auto");
 
-  const processFile = useCallback(
+  const submit = useCallback(
     (file: File, kontogruppeId: number | null) => {
       setFilename(file.name);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const buf = e.target?.result;
-        if (!(buf instanceof ArrayBuffer)) return;
-        const kg = kontogruppen.find((k) => k.id === kontogruppeId);
-        const enc = resolveEncoding(encoding, kg);
-        const text = decodeBuffer(buf, enc);
-        onFileLoaded(text, file.name, kontogruppeId);
-      };
-      reader.readAsArrayBuffer(file);
+      onFileSelected(file, kontogruppeId, encoding);
     },
-    [onFileLoaded, kontogruppen, encoding]
+    [onFileSelected, encoding]
   );
 
   const handleFile = useCallback(
     (file: File) => {
       if (kontogruppen.length === 0) {
-        processFile(file, null);
+        submit(file, null);
         return;
       }
       if (selectedKontogruppe !== null) {
-        processFile(file, selectedKontogruppe);
+        submit(file, selectedKontogruppe);
         return;
       }
       setPendingFile(file);
     },
-    [kontogruppen, selectedKontogruppe, processFile]
+    [kontogruppen, selectedKontogruppe, submit]
   );
 
   const handleDrop = useCallback(
@@ -89,7 +66,7 @@ export default function CsvUpload({ kontogruppen, onFileLoaded }: CsvUploadProps
 
   const handleConfirmPending = (kontogruppeId: number | null) => {
     if (pendingFile) {
-      processFile(pendingFile, kontogruppeId);
+      submit(pendingFile, kontogruppeId);
       setPendingFile(null);
     }
   };

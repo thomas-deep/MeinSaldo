@@ -3,22 +3,12 @@ import path from "path";
 import fs from "fs";
 import { createHash } from "crypto";
 import { Kontogruppe, KontogruppeType, Transaction } from "./types";
+import { categoryRules } from "./categories";
+import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 
 const DB_PATH = path.join(process.cwd(), "data", "finanzen.db");
 
 let dbInstance: Database.Database | null = null;
-
-function ensureColumn(
-  db: Database.Database,
-  table: string,
-  column: string,
-  definition: string
-): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-}
 
 interface Migration {
   version: number;
@@ -26,23 +16,60 @@ interface Migration {
   up: (db: Database.Database) => void;
 }
 
+const SCHEMA_V1 = `
+  CREATE TABLE kontogruppen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL,
+    color TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT 'user',
+    bank TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE kategorien (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+  );
+
+  CREATE TABLE transactions (
+    id TEXT PRIMARY KEY,
+    konto_bezeichnung TEXT NOT NULL DEFAULT '',
+    iban_konto TEXT NOT NULL DEFAULT '',
+    buchungstag TEXT NOT NULL,
+    valutadatum TEXT NOT NULL DEFAULT '',
+    name_zahlungsbeteiligter TEXT NOT NULL DEFAULT '',
+    iban_zahlungsbeteiligter TEXT NOT NULL DEFAULT '',
+    buchungstext TEXT NOT NULL DEFAULT '',
+    verwendungszweck TEXT NOT NULL DEFAULT '',
+    betrag REAL NOT NULL,
+    waehrung TEXT NOT NULL DEFAULT 'EUR',
+    saldo_nach_buchung REAL NOT NULL DEFAULT 0,
+    kategorie_id INTEGER REFERENCES kategorien(id),
+    kontogruppe_id INTEGER REFERENCES kontogruppen(id),
+    is_manual_override INTEGER NOT NULL DEFAULT 0,
+    ai_classified INTEGER NOT NULL DEFAULT 0,
+    is_umbuchung INTEGER NOT NULL DEFAULT 0,
+    umbuchung_override INTEGER,
+    imported_at TEXT NOT NULL
+  );
+
+  CREATE INDEX idx_transactions_buchungstag ON transactions(buchungstag);
+  CREATE INDEX idx_transactions_kategorie ON transactions(kategorie_id);
+  CREATE INDEX idx_transactions_kontogruppe ON transactions(kontogruppe_id);
+  CREATE INDEX idx_transactions_betrag ON transactions(betrag);
+
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+`;
+
 const migrations: Migration[] = [
   {
     version: 1,
-    description: "ensureColumn-Setup (kontogruppe_id, umbuchung_override, icon, bank)",
-    up: (db) => {
-      ensureColumn(db, "transactions", "kontogruppe_id", "INTEGER REFERENCES kontogruppen(id)");
-      ensureColumn(db, "transactions", "umbuchung_override", "INTEGER");
-      ensureColumn(db, "kontogruppen", "icon", "TEXT DEFAULT 'user'");
-      ensureColumn(db, "kontogruppen", "bank", "TEXT");
-    },
-  },
-  {
-    version: 2,
-    description: "ai_classified column (trennt AI- von manuellen Kategorisierungen)",
-    up: (db) => {
-      ensureColumn(db, "transactions", "ai_classified", "INTEGER DEFAULT 0");
-    },
+    description: "Initial schema (kategorien-FK, is_umbuchung materialisiert)",
+    up: (db) => db.exec(SCHEMA_V1),
   },
 ];
 
@@ -70,6 +97,18 @@ function runMigrations(db: Database.Database): void {
   }
 }
 
+function syncKategorien(db: Database.Database): void {
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO kategorien (name) VALUES (?)"
+  );
+  const tx = db.transaction(() => {
+    for (const rule of categoryRules) insert.run(rule.kategorie);
+    insert.run("Sonstige Einnahmen");
+    insert.run("Sonstiges");
+  });
+  tx();
+}
+
 function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
@@ -78,50 +117,18 @@ function getDb(): Database.Database {
 
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      konto_bezeichnung TEXT,
-      iban_konto TEXT,
-      buchungstag TEXT,
-      valutadatum TEXT,
-      name_zahlungsbeteiligter TEXT,
-      iban_zahlungsbeteiligter TEXT,
-      buchungstext TEXT,
-      verwendungszweck TEXT,
-      betrag REAL,
-      waehrung TEXT,
-      saldo_nach_buchung REAL,
-      kategorie TEXT,
-      is_manual_override INTEGER DEFAULT 0,
-      imported_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS kontogruppen (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL,
-      color TEXT NOT NULL,
-      created_at TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_buchungstag ON transactions(buchungstag);
-    CREATE INDEX IF NOT EXISTS idx_kategorie ON transactions(kategorie);
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
-  `);
+  db.pragma("foreign_keys = ON");
 
   runMigrations(db);
+  syncKategorien(db);
 
   dbInstance = db;
   return db;
 }
 
-export function computeTransactionHash(tx: Omit<Transaction, "id" | "kategorie">): string {
+export function computeTransactionHash(
+  tx: Omit<Transaction, "id" | "kategorie">
+): string {
   const key = [
     tx.buchungstag,
     tx.valutadatum,
@@ -148,46 +155,25 @@ interface DbRow {
   betrag: number;
   waehrung: string;
   saldo_nach_buchung: number;
-  kategorie: string;
-  is_manual_override: number;
-  imported_at: string;
+  kategorie: string | null;
   kontogruppe_id: number | null;
+  is_umbuchung: number;
   umbuchung_override: number | null;
 }
 
-const CREDIT_CARD_NAME_PATTERNS = [
-  "american express",
-  "amex",
-  "visa europe",
-  "visa card",
-  "mastercard",
-  "master card",
-  "diners club",
-  "diners international",
-];
+const SELECT_COLS = `
+  t.id, t.konto_bezeichnung, t.iban_konto, t.buchungstag, t.valutadatum,
+  t.name_zahlungsbeteiligter, t.iban_zahlungsbeteiligter, t.buchungstext,
+  t.verwendungszweck, t.betrag, t.waehrung, t.saldo_nach_buchung,
+  k.name AS kategorie,
+  t.kontogruppe_id, t.is_umbuchung, t.umbuchung_override
+`;
 
-function detectCreditCardSettlement(row: DbRow): boolean {
-  if (row.betrag >= 0) return false;
-  const name = (row.name_zahlungsbeteiligter || "").toLowerCase();
-  return CREDIT_CARD_NAME_PATTERNS.some((p) => name.includes(p));
-}
-
-function rowToTransaction(
-  row: DbRow,
-  ownIbans: Set<string>,
-  hasKreditkarteGroup: boolean
-): Transaction {
-  let isUmbuchung: boolean;
-  if (row.umbuchung_override === 1) {
-    isUmbuchung = true;
-  } else if (row.umbuchung_override === 0) {
-    isUmbuchung = false;
-  } else {
-    const counterIban = (row.iban_zahlungsbeteiligter || "").trim();
-    const ibanMatch = counterIban.length > 0 && ownIbans.has(counterIban);
-    const cardSettlement = hasKreditkarteGroup && detectCreditCardSettlement(row);
-    isUmbuchung = ibanMatch || cardSettlement;
-  }
+function rowToTransaction(row: DbRow): Transaction {
+  const isUmbuchung =
+    row.umbuchung_override === null
+      ? row.is_umbuchung === 1
+      : row.umbuchung_override === 1;
   return {
     id: row.id,
     kontoBezeichnung: row.konto_bezeichnung,
@@ -201,34 +187,93 @@ function rowToTransaction(
     betrag: row.betrag,
     waehrung: row.waehrung,
     saldoNachBuchung: row.saldo_nach_buchung,
-    kategorie: row.kategorie,
+    kategorie: row.kategorie ?? "Sonstiges",
     kontogruppeId: row.kontogruppe_id,
     isUmbuchung,
   };
 }
 
-function getOwnIbans(db: Database.Database): Set<string> {
-  const rows = db
-    .prepare("SELECT DISTINCT iban_konto FROM transactions WHERE iban_konto != ''")
-    .all() as { iban_konto: string }[];
-  return new Set(rows.map((r) => r.iban_konto.trim()).filter(Boolean));
+function getKategorieId(db: Database.Database, name: string): number {
+  const row = db
+    .prepare("SELECT id FROM kategorien WHERE name = ?")
+    .get(name) as { id: number } | undefined;
+  if (row) return row.id;
+  const result = db
+    .prepare("INSERT INTO kategorien (name) VALUES (?)")
+    .run(name);
+  return result.lastInsertRowid as number;
 }
 
-function hasKreditkarteKontogruppe(db: Database.Database): boolean {
-  const row = db
-    .prepare("SELECT COUNT(*) as c FROM kontogruppen WHERE type = 'kreditkarte'")
-    .get() as { c: number };
-  return row.c > 0;
+export function getAllKategorien(): { id: number; name: string }[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT id, name FROM kategorien ORDER BY name")
+    .all() as { id: number; name: string }[];
+}
+
+interface UmbuchungRow {
+  id: string;
+  buchungstag: string;
+  betrag: number;
+  iban_konto: string;
+  iban_zahlungsbeteiligter: string;
+  name_zahlungsbeteiligter: string;
+  kontogruppe_id: number | null;
+}
+
+function recomputeUmbuchungen(db: Database.Database): void {
+  const rows = db
+    .prepare(
+      `SELECT id, buchungstag, betrag, iban_konto, iban_zahlungsbeteiligter,
+              name_zahlungsbeteiligter, kontogruppe_id
+       FROM transactions`
+    )
+    .all() as UmbuchungRow[];
+
+  const inputs: UmbuchungInput[] = rows.map((r) => ({
+    id: r.id,
+    buchungstag: r.buchungstag,
+    betrag: r.betrag,
+    ibanKonto: r.iban_konto,
+    ibanZahlungsbeteiligter: r.iban_zahlungsbeteiligter,
+    nameZahlungsbeteiligter: r.name_zahlungsbeteiligter,
+    kontogruppeId: r.kontogruppe_id,
+  }));
+
+  const hasKreditkarte =
+    (
+      db
+        .prepare(
+          "SELECT COUNT(*) AS c FROM kontogruppen WHERE type = 'kreditkarte'"
+        )
+        .get() as { c: number }
+    ).c > 0;
+
+  const matched = detectUmbuchungen(inputs, {
+    hasKreditkarteGroup: hasKreditkarte,
+  });
+
+  const reset = db.prepare("UPDATE transactions SET is_umbuchung = 0");
+  const mark = db.prepare(
+    "UPDATE transactions SET is_umbuchung = 1 WHERE id = ?"
+  );
+  const tx = db.transaction(() => {
+    reset.run();
+    for (const id of matched) mark.run(id);
+  });
+  tx();
 }
 
 export function getAllTransactions(): Transaction[] {
   const db = getDb();
-  const ownIbans = getOwnIbans(db);
-  const hasKK = hasKreditkarteKontogruppe(db);
   const rows = db
-    .prepare("SELECT * FROM transactions ORDER BY buchungstag DESC")
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       ORDER BY t.buchungstag DESC, t.id DESC`
+    )
     .all() as DbRow[];
-  return rows.map((r) => rowToTransaction(r, ownIbans, hasKK));
+  return rows.map(rowToTransaction);
 }
 
 export function setUmbuchungOverride(
@@ -256,23 +301,30 @@ export function insertTransactions(
   const db = getDb();
 
   const checkExisting = db.prepare("SELECT id FROM transactions WHERE id = ?");
-
+  const updateGroup = db.prepare(
+    "UPDATE transactions SET kontogruppe_id = ? WHERE id = ? AND kontogruppe_id IS NULL"
+  );
   const insert = db.prepare(`
     INSERT OR IGNORE INTO transactions (
       id, konto_bezeichnung, iban_konto, buchungstag, valutadatum,
       name_zahlungsbeteiligter, iban_zahlungsbeteiligter, buchungstext,
       verwendungszweck, betrag, waehrung, saldo_nach_buchung,
-      kategorie, is_manual_override, imported_at, kontogruppe_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      kategorie_id, kontogruppe_id, imported_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+
+  const kategorieCache = new Map<string, number>();
+  function resolveKategorie(name: string): number {
+    const cached = kategorieCache.get(name);
+    if (cached !== undefined) return cached;
+    const id = getKategorieId(db, name);
+    kategorieCache.set(name, id);
+    return id;
+  }
 
   const now = new Date().toISOString();
   let inserted = 0;
   let skipped = 0;
-
-  const updateGroup = db.prepare(
-    "UPDATE transactions SET kontogruppe_id = ? WHERE id = ? AND kontogruppe_id IS NULL"
-  );
 
   const tx = db.transaction((items: Transaction[]) => {
     for (const t of items) {
@@ -284,6 +336,7 @@ export function insertTransactions(
         continue;
       }
 
+      const kategorieId = resolveKategorie(t.kategorie || "Sonstiges");
       const result = insert.run(
         hashId,
         t.kontoBezeichnung,
@@ -297,9 +350,9 @@ export function insertTransactions(
         t.betrag,
         t.waehrung,
         t.saldoNachBuchung,
-        t.kategorie,
-        now,
-        kontogruppeId
+        kategorieId,
+        kontogruppeId,
+        now
       );
 
       if (result.changes > 0) inserted++;
@@ -308,27 +361,30 @@ export function insertTransactions(
   });
 
   tx(transactions);
+  recomputeUmbuchungen(db);
 
   return { inserted, skipped, total: transactions.length };
 }
 
 export function updateCategory(id: string, kategorie: string): boolean {
   const db = getDb();
+  const kategorieId = getKategorieId(db, kategorie);
   const result = db
     .prepare(
-      "UPDATE transactions SET kategorie = ?, is_manual_override = 1 WHERE id = ?"
+      "UPDATE transactions SET kategorie_id = ?, is_manual_override = 1 WHERE id = ?"
     )
-    .run(kategorie, id);
+    .run(kategorieId, id);
   return result.changes > 0;
 }
 
 export function updateCategoryByAi(id: string, kategorie: string): boolean {
   const db = getDb();
+  const kategorieId = getKategorieId(db, kategorie);
   const result = db
     .prepare(
-      "UPDATE transactions SET kategorie = ?, ai_classified = 1 WHERE id = ? AND is_manual_override = 0"
+      "UPDATE transactions SET kategorie_id = ?, ai_classified = 1 WHERE id = ? AND is_manual_override = 0"
     )
-    .run(kategorie, id);
+    .run(kategorieId, id);
   return result.changes > 0;
 }
 
@@ -369,20 +425,26 @@ export function getAllSettings(): Record<string, string> {
 export function getTransactionsByIds(ids: string[]): Transaction[] {
   if (ids.length === 0) return [];
   const db = getDb();
-  const ownIbans = getOwnIbans(db);
-  const hasKK = hasKreditkarteKontogruppe(db);
   const placeholders = ids.map(() => "?").join(",");
   const rows = db
-    .prepare(`SELECT * FROM transactions WHERE id IN (${placeholders})`)
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       WHERE t.id IN (${placeholders})`
+    )
     .all(...ids) as DbRow[];
-  return rows.map((r) => rowToTransaction(r, ownIbans, hasKK));
+  return rows.map(rowToTransaction);
 }
 
 export function getUncategorizedIds(): string[] {
   const db = getDb();
   const rows = db
     .prepare(
-      "SELECT id FROM transactions WHERE kategorie IN ('Sonstiges', 'Sonstige Einnahmen') AND is_manual_override = 0 ORDER BY buchungstag DESC"
+      `SELECT t.id FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       WHERE (k.name IN ('Sonstiges', 'Sonstige Einnahmen') OR k.name IS NULL)
+         AND t.is_manual_override = 0
+       ORDER BY t.buchungstag DESC`
     )
     .all() as { id: string }[];
   return rows.map((r) => r.id);
@@ -448,17 +510,22 @@ export function createKontogruppe(
   const row = db
     .prepare("SELECT * FROM kontogruppen WHERE id = ?")
     .get(result.lastInsertRowid) as KontogruppeRow;
+  recomputeUmbuchungen(db);
   return rowToKontogruppe(row);
 }
 
 export function deleteKontogruppe(id: number): boolean {
   const db = getDb();
   const tx = db.transaction(() => {
-    db.prepare("UPDATE transactions SET kontogruppe_id = NULL WHERE kontogruppe_id = ?").run(id);
+    db.prepare(
+      "UPDATE transactions SET kontogruppe_id = NULL WHERE kontogruppe_id = ?"
+    ).run(id);
     const result = db.prepare("DELETE FROM kontogruppen WHERE id = ?").run(id);
     return result.changes > 0;
   });
-  return tx() as boolean;
+  const ok = tx() as boolean;
+  if (ok) recomputeUmbuchungen(db);
+  return ok;
 }
 
 export function updateKontogruppe(
@@ -475,5 +542,6 @@ export function updateKontogruppe(
       "UPDATE kontogruppen SET name = ?, type = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
     )
     .run(name, type, color, icon, bank, id);
+  if (result.changes > 0) recomputeUmbuchungen(db);
   return result.changes > 0;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, LineChart, Database, Settings as SettingsIcon } from "lucide-react";
-import CsvUpload from "../components/CsvUpload";
+import CsvUpload, { EncodingChoice } from "../components/CsvUpload";
 import FieldMappingComponent from "../components/FieldMapping";
 import SummaryCards from "../components/SummaryCards";
 import CategoryChart from "../components/CategoryChart";
@@ -13,9 +13,15 @@ import DbStatus from "../components/DbStatus";
 import KontogruppeFilter from "../components/KontogruppeFilter";
 import SettingsView from "../components/SettingsView";
 import AiCategorizeButton from "../components/AiCategorizeButton";
-import { FieldMapping, Kontogruppe, PreprocessResult, RawRow, Transaction } from "../lib/types";
+import {
+  FieldMapping,
+  Kontogruppe,
+  PreprocessResult,
+  RawRow,
+  Transaction,
+} from "../lib/types";
 import { defaultMapping, bankPresets } from "../lib/field-mapping";
-import { parseCsvData, detectCsvHeaders } from "../lib/parse-csv";
+import { detectCsvHeaders } from "../lib/parse-csv";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -28,9 +34,25 @@ interface DbStats {
   latest: string | null;
 }
 
+function presetEncoding(name: string | null): string {
+  if (!name) return "utf-8";
+  return bankPresets.find((p) => p.name === name)?.encoding ?? "utf-8";
+}
+
+async function decodeFile(file: File, encoding: string): Promise<string> {
+  const buf = await file.arrayBuffer();
+  try {
+    return new TextDecoder(encoding, { fatal: false }).decode(buf);
+  } catch {
+    return new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  }
+}
+
 export default function Home() {
-  const [csvText, setCsvText] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingEncoding, setPendingEncoding] = useState<EncodingChoice>("auto");
   const [pendingKontogruppeId, setPendingKontogruppeId] = useState<number | null>(null);
+  const [presetName, setPresetName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kontogruppen, setKontogruppen] = useState<Kontogruppe[]>([]);
   const [mapping, setMapping] = useState<FieldMapping>({ ...defaultMapping });
@@ -44,6 +66,8 @@ export default function Home() {
   const [dbStats, setDbStats] = useState<DbStats>({ count: 0, earliest: null, latest: null });
   const [lastImport, setLastImport] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [filter, setFilter] = useState<number | "all">("all");
   const [drillDown, setDrillDown] = useState<{
     kategorie: string;
@@ -77,44 +101,77 @@ export default function Home() {
     return () => ctrl.abort();
   }, [loadFromDb]);
 
-  const importToDb = useCallback(
-    async (parsed: Transaction[], kontogruppeId: number | null) => {
-      try {
-        const res = await fetch("/api/transactions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transactions: parsed, kontogruppeId }),
-        });
-        const result = await res.json();
-        setLastImport({ inserted: result.inserted, skipped: result.skipped });
-        await loadFromDb();
-      } catch (e) {
-        console.error("Import failed:", e);
-      }
-    },
-    [loadFromDb]
-  );
-
   const applyPreset = useCallback((preset: (typeof bankPresets)[number]) => {
     setMapping({ ...preset.mapping });
     setSeparator(preset.separator);
     setInvertAmount(preset.invertAmount ?? false);
     setDefaultCurrency(preset.defaultCurrency ?? "EUR");
+    setPresetName(preset.name);
     presetHooksRef.current = {
       preprocess: preset.preprocess,
       rowTransform: preset.rowTransform,
     };
   }, []);
 
-  const handleFileLoaded = useCallback(
-    (content: string, _filename: string, kontogruppeId: number | null) => {
-      setCsvText(content);
+  const postImport = useCallback(
+    async (
+      file: File,
+      kontogruppeId: number | null,
+      encoding: EncodingChoice,
+      activeMapping: FieldMapping,
+      activeSeparator: string,
+      activeInvert: boolean,
+      activeCurrency: string,
+      activePresetName: string | null
+    ) => {
+      setIsImporting(true);
+      setImportError(null);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("encoding", encoding);
+        if (kontogruppeId !== null) {
+          form.append("kontogruppeId", String(kontogruppeId));
+        }
+        form.append("mapping", JSON.stringify(activeMapping));
+        form.append("separator", activeSeparator);
+        form.append("invertAmount", activeInvert ? "1" : "0");
+        form.append("defaultCurrency", activeCurrency);
+        if (activePresetName) form.append("preset", activePresetName);
+
+        const res = await fetch("/api/import", {
+          method: "POST",
+          body: form,
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          setImportError(result.error ?? "Unbekannter Fehler beim Import");
+          return;
+        }
+        setLastImport({ inserted: result.inserted, skipped: result.skipped });
+        await loadFromDb();
+      } catch (e) {
+        setImportError(e instanceof Error ? e.message : "Import fehlgeschlagen");
+        console.error("Import failed:", e);
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [loadFromDb]
+  );
+
+  const handleFileSelected = useCallback(
+    async (file: File, kontogruppeId: number | null, encoding: EncodingChoice) => {
+      setPendingFile(file);
+      setPendingEncoding(encoding);
       setPendingKontogruppeId(kontogruppeId);
 
       let activeMapping = mapping;
       let activeSeparator = separator;
       let activeInvert = invertAmount;
       let activeCurrency = defaultCurrency;
+      let activePreset: string | null = presetName;
+
       if (kontogruppeId != null) {
         const kg = kontogruppen.find((k) => k.id === kontogruppeId);
         if (kg?.bank) {
@@ -125,67 +182,97 @@ export default function Home() {
             activeSeparator = preset.separator;
             activeInvert = preset.invertAmount ?? false;
             activeCurrency = preset.defaultCurrency ?? "EUR";
+            activePreset = preset.name;
           }
         }
       }
 
-      const hooks = presetHooksRef.current;
-      const headers = detectCsvHeaders(content, activeSeparator, hooks);
+      const decodeEnc =
+        encoding === "auto" ? presetEncoding(activePreset) : encoding;
+      const text = await decodeFile(file, decodeEnc);
+      const headers = detectCsvHeaders(text, activeSeparator, presetHooksRef.current);
       setCsvHeaders(headers);
-      const parsed = parseCsvData(content, activeMapping, activeSeparator, {
-        invertAmount: activeInvert,
-        defaultCurrency: activeCurrency,
-        ...hooks,
-      });
-      importToDb(parsed, kontogruppeId);
+
+      await postImport(
+        file,
+        kontogruppeId,
+        encoding,
+        activeMapping,
+        activeSeparator,
+        activeInvert,
+        activeCurrency,
+        activePreset
+      );
     },
     [
       mapping,
       separator,
       invertAmount,
       defaultCurrency,
-      importToDb,
+      presetName,
       kontogruppen,
       applyPreset,
+      postImport,
     ]
+  );
+
+  const refreshHeaders = useCallback(
+    async (sep: string) => {
+      if (!pendingFile) return;
+      const decodeEnc =
+        pendingEncoding === "auto" ? presetEncoding(presetName) : pendingEncoding;
+      const text = await decodeFile(pendingFile, decodeEnc);
+      setCsvHeaders(detectCsvHeaders(text, sep, presetHooksRef.current));
+    },
+    [pendingFile, pendingEncoding, presetName]
   );
 
   const handleMappingChange = useCallback((newMapping: FieldMapping) => {
     setMapping(newMapping);
+    setPresetName(null);
   }, []);
 
   const handleSeparatorChange = useCallback(
     (newSep: string) => {
       setSeparator(newSep);
-      if (csvText) {
-        const headers = detectCsvHeaders(csvText, newSep, presetHooksRef.current);
-        setCsvHeaders(headers);
-      }
+      setPresetName(null);
+      void refreshHeaders(newSep);
     },
-    [csvText]
+    [refreshHeaders]
   );
 
   const handlePresetSelect = useCallback(
     (index: number) => {
       const preset = bankPresets[index];
       applyPreset(preset);
-      if (csvText) {
-        const headers = detectCsvHeaders(csvText, preset.separator, presetHooksRef.current);
-        setCsvHeaders(headers);
-      }
+      void refreshHeaders(preset.separator);
     },
-    [csvText, applyPreset]
+    [applyPreset, refreshHeaders]
   );
 
   const handleReimport = useCallback(() => {
-    if (!csvText) return;
-    const parsed = parseCsvData(csvText, mapping, separator, {
+    if (!pendingFile) return;
+    void postImport(
+      pendingFile,
+      pendingKontogruppeId,
+      pendingEncoding,
+      mapping,
+      separator,
       invertAmount,
       defaultCurrency,
-      ...presetHooksRef.current,
-    });
-    importToDb(parsed, pendingKontogruppeId);
-  }, [csvText, mapping, separator, invertAmount, defaultCurrency, importToDb, pendingKontogruppeId]);
+      presetName
+    );
+  }, [
+    pendingFile,
+    pendingKontogruppeId,
+    pendingEncoding,
+    mapping,
+    separator,
+    invertAmount,
+    defaultCurrency,
+    presetName,
+    postImport,
+  ]);
 
   const handleUmbuchungToggle = useCallback(
     async (id: string, isUmbuchung: boolean) => {
@@ -300,7 +387,19 @@ export default function Home() {
 
       {view === "daten" && (
         <div className="space-y-6">
-          <CsvUpload kontogruppen={kontogruppen} onFileLoaded={handleFileLoaded} />
+          <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
+
+          {isImporting && (
+            <p className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2 text-sm text-blue-300">
+              Import läuft – Datei wird serverseitig geparst…
+            </p>
+          )}
+
+          {importError && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-2 text-sm text-red-300">
+              {importError}
+            </p>
+          )}
 
           {dbStats.count > 0 && (
             <DbStatus
@@ -326,7 +425,8 @@ export default function Home() {
               />
               <button
                 onClick={handleReimport}
-                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
+                disabled={isImporting}
+                className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer disabled:opacity-50"
               >
                 ↻ Mit aktuellem Mapping neu importieren
               </button>
