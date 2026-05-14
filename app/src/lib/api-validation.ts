@@ -99,14 +99,53 @@ export const kontogruppeCreateSchema = z.object({
 
 export const kontogruppeUpdateSchema = kontogruppeCreateSchema;
 
+function allowedOllamaHosts(): string[] {
+  const env = process.env.ALLOWED_OLLAMA_HOSTS;
+  if (env && env.trim()) {
+    return env
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return ["localhost", "127.0.0.1", "::1"];
+}
+
+export function isAllowedOllamaUrl(value: string): {
+  ok: boolean;
+  reason?: string;
+} {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return { ok: false, reason: "ollamaUrl ist keine gültige URL" };
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, reason: "ollamaUrl muss http(s) sein" };
+  }
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!allowedOllamaHosts().includes(host)) {
+    return {
+      ok: false,
+      reason: `Host '${host}' nicht erlaubt — nur ${allowedOllamaHosts().join(", ")} (per ALLOWED_OLLAMA_HOSTS erweiterbar)`,
+    };
+  }
+  return { ok: true };
+}
+
 export const settingsSchema = z
   .object({
     ollamaEnabled: z.boolean().optional(),
     ollamaUrl: z
       .string()
-      .url("ollamaUrl ist keine gültige URL")
-      .refine((u) => u.startsWith("http://") || u.startsWith("https://"), {
-        message: "ollamaUrl muss http(s) sein",
+      .superRefine((v, ctx) => {
+        const check = isAllowedOllamaUrl(v);
+        if (!check.ok) {
+          ctx.addIssue({
+            code: "custom",
+            message: check.reason ?? "ungültige ollamaUrl",
+          });
+        }
       })
       .optional(),
     ollamaModel: z.string().max(128).optional(),
