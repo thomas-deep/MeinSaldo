@@ -26,6 +26,10 @@ import {
   AiProgress,
   runAiOnAllUncategorized,
 } from "../lib/use-ai-categorize";
+import AuswertungFilter, {
+  AuswertungFilterState,
+} from "../components/AuswertungFilter";
+import { isWithin, rangeFor, shiftByYear } from "../lib/date-range";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -74,6 +78,14 @@ export default function Home() {
   const [importError, setImportError] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
   const [filter, setFilter] = useState<number | "all">("all");
+  const [auswertungFilter, setAuswertungFilter] = useState<AuswertungFilterState>(() => ({
+    preset: "alle",
+    range: rangeFor("alle", new Date()),
+    direction: "alle",
+    minBetrag: 0,
+    search: "",
+    compareVorjahr: false,
+  }));
   const [drillDown, setDrillDown] = useState<{
     kategorie: string;
     type: "einnahmen" | "ausgaben";
@@ -356,11 +368,56 @@ export default function Home() {
     return counts;
   }, [transactions]);
 
-  const filteredTransactions = useMemo(() => {
+  const kontogruppenFiltered = useMemo(() => {
     if (filter === "all") return transactions;
     if (filter === -1) return transactions.filter((t) => t.kontogruppeId == null);
     return transactions.filter((t) => t.kontogruppeId === filter);
   }, [transactions, filter]);
+
+  const applyAuswertungFilter = useCallback(
+    (rows: Transaction[], range: typeof auswertungFilter.range) => {
+      const q = auswertungFilter.search.trim().toLowerCase();
+      const min = auswertungFilter.minBetrag;
+      return rows.filter((t) => {
+        if (!isWithin(t.buchungstag, range)) return false;
+        if (auswertungFilter.direction === "einnahmen" && t.betrag <= 0) return false;
+        if (auswertungFilter.direction === "ausgaben" && t.betrag >= 0) return false;
+        if (min > 0 && Math.abs(t.betrag) < min) return false;
+        if (q) {
+          const hay = (
+            t.nameZahlungsbeteiligter +
+            " " +
+            t.verwendungszweck +
+            " " +
+            t.kategorie +
+            " " +
+            t.buchungstext
+          ).toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    },
+    [auswertungFilter]
+  );
+
+  const filteredTransactions = useMemo(
+    () => applyAuswertungFilter(kontogruppenFiltered, auswertungFilter.range),
+    [kontogruppenFiltered, auswertungFilter.range, applyAuswertungFilter]
+  );
+
+  const compareEnabled =
+    auswertungFilter.compareVorjahr && auswertungFilter.preset !== "alle";
+  const comparisonTransactions = useMemo(() => {
+    if (!compareEnabled) return undefined;
+    const prevRange = shiftByYear(auswertungFilter.range, 1);
+    return applyAuswertungFilter(kontogruppenFiltered, prevRange);
+  }, [
+    compareEnabled,
+    auswertungFilter.range,
+    kontogruppenFiltered,
+    applyAuswertungFilter,
+  ]);
 
   const hasData = transactions.length > 0;
 
@@ -510,7 +567,15 @@ export default function Home() {
                 />
               )}
 
-              <SummaryCards transactions={filteredTransactions} />
+              <AuswertungFilter
+                state={auswertungFilter}
+                onChange={setAuswertungFilter}
+              />
+
+              <SummaryCards
+                transactions={filteredTransactions}
+                comparison={comparisonTransactions}
+              />
 
               <div className="flex gap-1 rounded-xl bg-slate-800/50 p-1 border border-slate-700">
                 <button
