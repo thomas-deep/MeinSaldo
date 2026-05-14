@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllSettings, setSetting } from "../../../lib/db";
+import { parseBody, settingsSchema } from "../../../lib/api-validation";
 
 export async function GET() {
   const settings = getAllSettings();
@@ -11,42 +12,18 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  const parsed = await parseBody(req, settingsSchema);
+  if (!parsed.ok) return parsed.response;
+  const { ollamaEnabled, ollamaUrl, ollamaModel } = parsed.data;
+
+  if (ollamaEnabled !== undefined) {
+    setSetting("ollama_enabled", ollamaEnabled ? "1" : "0");
   }
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  if (ollamaUrl !== undefined) {
+    setSetting("ollama_url", ollamaUrl);
   }
-  const data = body as {
-    ollamaEnabled?: unknown;
-    ollamaUrl?: unknown;
-    ollamaModel?: unknown;
-  };
-  if (typeof data.ollamaEnabled === "boolean") {
-    setSetting("ollama_enabled", data.ollamaEnabled ? "1" : "0");
-  }
-  if (typeof data.ollamaUrl === "string") {
-    try {
-      const u = new URL(data.ollamaUrl);
-      if (u.protocol !== "http:" && u.protocol !== "https:") {
-        return NextResponse.json(
-          { error: "ollamaUrl muss http(s) sein" },
-          { status: 400 }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { error: "ollamaUrl ist keine gültige URL" },
-        { status: 400 }
-      );
-    }
-    setSetting("ollama_url", data.ollamaUrl);
-  }
-  if (typeof data.ollamaModel === "string") {
-    setSetting("ollama_model", data.ollamaModel);
+  if (ollamaModel !== undefined) {
+    setSetting("ollama_model", ollamaModel);
   }
   return NextResponse.json({ ok: true });
 }

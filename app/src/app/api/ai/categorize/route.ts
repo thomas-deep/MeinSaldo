@@ -9,6 +9,7 @@ import {
   categorizeWithOllama,
   getAllowedCategories,
 } from "../../../../lib/ollama";
+import { parseBody, aiCategorizeSchema } from "../../../../lib/api-validation";
 
 export async function GET() {
   const ids = getUncategorizedIds();
@@ -16,15 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
-  }
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, aiCategorizeSchema);
+  if (!parsed.ok) return parsed.response;
+
   const url = getSetting("ollama_url") || "http://localhost:11434";
   const model = getSetting("ollama_model");
   if (!model) {
@@ -34,21 +29,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const bodyData = body as { ids?: unknown };
-  const ids: string[] = Array.isArray(bodyData.ids)
-    ? bodyData.ids.filter((v): v is string => typeof v === "string")
-    : [];
-  if (ids.length === 0) {
-    return NextResponse.json({ error: "ids array required" }, { status: 400 });
-  }
-
-  const transactions = getTransactionsByIds(ids);
+  const transactions = getTransactionsByIds(parsed.data.ids);
   const categories = getAllowedCategories();
   const results: { id: string; kategorie: string | null; error?: string }[] = [];
 
   for (const tx of transactions) {
+    if (req.signal.aborted) break;
     try {
-      const cat = await categorizeWithOllama(url, model, tx, categories);
+      const cat = await categorizeWithOllama(
+        url,
+        model,
+        tx,
+        categories,
+        req.signal
+      );
       if (cat) {
         updateCategoryByAi(tx.id, cat);
         results.push({ id: tx.id, kategorie: cat });

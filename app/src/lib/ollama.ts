@@ -55,7 +55,8 @@ export async function categorizeWithOllama(
   url: string,
   model: string,
   tx: Transaction,
-  categories: string[]
+  categories: string[],
+  signal?: AbortSignal
 ): Promise<string | null> {
   const prompt = buildPrompt(tx, categories);
   const res = await fetch(`${url.replace(/\/$/, "")}/api/generate`, {
@@ -67,6 +68,7 @@ export async function categorizeWithOllama(
       stream: false,
       options: { temperature: 0, num_predict: 32 },
     }),
+    signal,
   });
   if (!res.ok) throw new Error(`Ollama call failed: HTTP ${res.status}`);
   const data = (await res.json()) as { response?: string };
