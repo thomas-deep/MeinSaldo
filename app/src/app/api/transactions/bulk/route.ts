@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   bulkSetUmbuchungOverride,
   bulkUpdateCategory,
+  bulkUpdateKontogruppe,
   deleteTransactionsByIds,
   logEvent,
   trimLogs,
@@ -16,6 +17,7 @@ const baseSchema = z.object({
 const patchSchema = baseSchema.extend({
   kategorie: z.string().min(1).max(64).optional(),
   umbuchung: z.union([z.boolean(), z.null()]).optional(),
+  kontogruppeId: z.union([z.number().int(), z.null()]).optional(),
 });
 
 const deleteSchema = baseSchema;
@@ -23,11 +25,15 @@ const deleteSchema = baseSchema;
 export async function PATCH(req: NextRequest) {
   const parsed = await parseBody(req, patchSchema);
   if (!parsed.ok) return parsed.response;
-  const { ids, kategorie, umbuchung } = parsed.data;
+  const { ids, kategorie, umbuchung, kontogruppeId } = parsed.data;
 
-  if (kategorie === undefined && umbuchung === undefined) {
+  if (
+    kategorie === undefined &&
+    umbuchung === undefined &&
+    kontogruppeId === undefined
+  ) {
     return NextResponse.json(
-      { error: "Mindestens 'kategorie' oder 'umbuchung' angeben" },
+      { error: "Mindestens 'kategorie', 'umbuchung' oder 'kontogruppeId' angeben" },
       { status: 400 }
     );
   }
@@ -50,6 +56,16 @@ export async function PATCH(req: NextRequest) {
       "bulk.umbuchung",
       `${u} Buchungen Umbuchung=${umbuchung}`,
       { count: u, umbuchung }
+    );
+  }
+  if (kontogruppeId !== undefined) {
+    const k = bulkUpdateKontogruppe(ids, kontogruppeId);
+    updated = Math.max(updated, k);
+    logEvent(
+      "info",
+      "bulk.kontogruppe",
+      `${k} Buchungen → Kontogruppe ${kontogruppeId ?? "(keine)"}`,
+      { count: k, kontogruppeId }
     );
   }
   trimLogs();

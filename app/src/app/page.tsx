@@ -485,6 +485,18 @@ export default function Home() {
     [loadFromDb]
   );
 
+  const handleBulkKontogruppe = useCallback(
+    async (ids: string[], kontogruppeId: number | null) => {
+      await fetch("/api/transactions/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, kontogruppeId }),
+      });
+      await loadFromDb();
+    },
+    [loadFromDb]
+  );
+
   const handleBulkUmbuchung = useCallback(
     async (ids: string[], isUmbuchung: boolean) => {
       await fetch("/api/transactions/bulk", {
@@ -817,6 +829,7 @@ export default function Home() {
                   onCategoryChange={handleCategoryChange}
                   onUmbuchungToggle={handleUmbuchungToggle}
                   onBulkCategory={handleBulkCategory}
+                  onBulkKontogruppe={handleBulkKontogruppe}
                   onBulkUmbuchung={handleBulkUmbuchung}
                   onBulkDelete={handleBulkDelete}
                   onAiBulkDone={() => loadFromDb()}

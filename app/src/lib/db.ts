@@ -707,6 +707,22 @@ export function bulkUpdateCategory(
   return result.changes;
 }
 
+export function bulkUpdateKontogruppe(
+  ids: string[],
+  kontogruppeId: number | null
+): number {
+  if (ids.length === 0) return 0;
+  const db = getDb();
+  const placeholders = ids.map(() => "?").join(",");
+  const result = db
+    .prepare(
+      `UPDATE transactions SET kontogruppe_id = ? WHERE id IN (${placeholders})`
+    )
+    .run(kontogruppeId, ...ids);
+  if (result.changes > 0) recomputeUmbuchungen(db);
+  return result.changes;
+}
+
 export function bulkSetUmbuchungOverride(
   ids: string[],
   override: boolean | null

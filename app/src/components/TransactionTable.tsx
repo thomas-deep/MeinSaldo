@@ -12,6 +12,7 @@ import {
   X,
   Trash2,
   Tag,
+  Wallet,
 } from "lucide-react";
 import { Kontogruppe, Transaction } from "../lib/types";
 import {
@@ -27,6 +28,7 @@ interface TransactionTableProps {
   onCategoryChange: (id: string, kategorie: string) => void;
   onUmbuchungToggle: (id: string, isUmbuchung: boolean) => void;
   onBulkCategory?: (ids: string[], kategorie: string) => Promise<void> | void;
+  onBulkKontogruppe?: (ids: string[], kontogruppeId: number | null) => Promise<void> | void;
   onBulkUmbuchung?: (ids: string[], isUmbuchung: boolean) => Promise<void> | void;
   onBulkDelete?: (ids: string[]) => Promise<void> | void;
   onAiBulkDone?: () => void;
@@ -58,6 +60,7 @@ export default function TransactionTable({
   onCategoryChange,
   onUmbuchungToggle,
   onBulkCategory,
+  onBulkKontogruppe,
   onBulkUmbuchung,
   onBulkDelete,
   onAiBulkDone,
@@ -257,6 +260,33 @@ export default function TransactionTable({
                         {k}
                       </option>
                     ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Kontogruppe für alle setzen */}
+              {onBulkKontogruppe && kontogruppen.length > 0 && (
+                <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface pl-2.5 pr-1 py-0.5">
+                  <Wallet className="h-3.5 w-3.5 text-fg-muted" />
+                  <select
+                    value=""
+                    onChange={async (e) => {
+                      const v = e.target.value;
+                      if (v === "") return;
+                      const ids = Array.from(selected);
+                      const kgId = v === "null" ? null : Number(v);
+                      await onBulkKontogruppe(ids, kgId);
+                      e.target.value = "";
+                    }}
+                    className="border-none bg-transparent py-1 text-xs text-fg outline-none cursor-pointer"
+                  >
+                    <option value="">Konto wechseln…</option>
+                    {kontogruppen.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.name}
+                      </option>
+                    ))}
+                    <option value="null">(keine Zuordnung)</option>
                   </select>
                 </div>
               )}
