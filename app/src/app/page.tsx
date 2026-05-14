@@ -574,6 +574,7 @@ export default function Home() {
                   kontogruppen={kontogruppen}
                   onCategoryChange={handleCategoryChange}
                   onUmbuchungToggle={handleUmbuchungToggle}
+                  onAiBulkDone={() => loadFromDb()}
                 />
               )}
             </>

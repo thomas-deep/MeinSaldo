@@ -1,15 +1,30 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Search, ChevronDown, ChevronUp, Filter, ArrowLeftRight } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  ArrowLeftRight,
+  Sparkles,
+  Loader2,
+  X,
+} from "lucide-react";
 import { Kontogruppe, Transaction } from "../lib/types";
 import { categoryRules } from "../lib/categories";
+import {
+  AiProgress,
+  runAiOnIds,
+  useAiStatus,
+} from "../lib/use-ai-categorize";
 
 interface TransactionTableProps {
   transactions: Transaction[];
   kontogruppen: Kontogruppe[];
   onCategoryChange: (id: string, kategorie: string) => void;
   onUmbuchungToggle: (id: string, isUmbuchung: boolean) => void;
+  onAiBulkDone?: () => void;
 }
 
 function formatEuro(value: number): string {
@@ -42,6 +57,7 @@ export default function TransactionTable({
   kontogruppen,
   onCategoryChange,
   onUmbuchungToggle,
+  onAiBulkDone,
 }: TransactionTableProps) {
   const kontogruppenById = useMemo(
     () => Object.fromEntries(kontogruppen.map((k) => [k.id, k])),
@@ -54,6 +70,10 @@ export default function TransactionTable({
   const [filterType, setFilterType] = useState<"alle" | "einnahmen" | "ausgaben">("alle");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 200;
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
+  const { status: aiStatus } = useAiStatus();
 
   const filtered = useMemo(() => {
     let result = [...transactions];
@@ -92,6 +112,50 @@ export default function TransactionTable({
   const pageStart = currentPage * PAGE_SIZE;
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const pageRows = filtered.slice(pageStart, pageEnd);
+
+  const allOnPageSelected =
+    pageRows.length > 0 && pageRows.every((r) => selected.has(r.id));
+  const someOnPageSelected =
+    !allOnPageSelected && pageRows.some((r) => selected.has(r.id));
+
+  const togglePageSelection = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allSelected = pageRows.every((r) => next.has(r.id));
+      if (allSelected) pageRows.forEach((r) => next.delete(r.id));
+      else pageRows.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }, [pageRows]);
+
+  const toggleRow = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  const runAiOnSelection = useCallback(async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    setAiProgress({ done: 0, total: ids.length, matched: 0 });
+    try {
+      await runAiOnIds(ids, {
+        force: true,
+        onProgress: (p) => setAiProgress(p),
+      });
+      clearSelection();
+      onAiBulkDone?.();
+    } catch (e) {
+      console.error("Bulk AI failed:", e);
+    } finally {
+      setAiProgress(null);
+    }
+  }, [selected, clearSelection, onAiBulkDone]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDesc(!sortDesc);
@@ -155,10 +219,64 @@ export default function TransactionTable({
         </span>
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-purple-500/30 bg-purple-500/5 px-5 py-3">
+          <span className="text-sm text-purple-200">
+            {selected.size} Buchung{selected.size === 1 ? "" : "en"} ausgewählt
+          </span>
+          <div className="flex-1" />
+          {aiProgress ? (
+            <span className="flex items-center gap-2 text-xs text-purple-200">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {aiProgress.done} / {aiProgress.total} – {aiProgress.matched} erkannt
+            </span>
+          ) : (
+            <>
+              <button
+                onClick={runAiOnSelection}
+                disabled={!aiStatus.enabled}
+                title={
+                  aiStatus.enabled
+                    ? `Auswahl mit ${aiStatus.model} neu kategorisieren`
+                    : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+                }
+                className="flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                KI-Kategorisierung
+              </button>
+              <button
+                onClick={clearSelection}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:border-slate-500 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+                Auswahl aufheben
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-left text-xs text-slate-400">
+              <th className="px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someOnPageSelected;
+                  }}
+                  onChange={togglePageSelection}
+                  title={
+                    allOnPageSelected
+                      ? "Auswahl auf dieser Seite aufheben"
+                      : "Alle Buchungen dieser Seite auswählen"
+                  }
+                  className="h-3.5 w-3.5 cursor-pointer accent-purple-500"
+                />
+              </th>
               <th
                 className="cursor-pointer px-5 py-3 hover:text-slate-200"
                 onClick={() => handleSort("buchungstag")}
@@ -188,82 +306,100 @@ export default function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((tx) => (
-              <tr
-                key={tx.id}
-                className="border-b border-slate-700/50 transition-colors hover:bg-slate-700/20"
-              >
-                <td className="whitespace-nowrap px-5 py-3 text-slate-400">
-                  {formatDate(tx.buchungstag)}
-                </td>
-                <td className="max-w-[200px] truncate px-5 py-3 text-slate-200">
-                  {tx.nameZahlungsbeteiligter}
-                </td>
-                <td className="max-w-[280px] truncate px-5 py-3 text-slate-400">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUmbuchungToggle(tx.id, !tx.isUmbuchung);
-                      }}
-                      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-colors ${
-                        tx.isUmbuchung
-                          ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                          : "border border-slate-700 text-slate-600 hover:border-amber-500/50 hover:text-amber-500"
-                      }`}
-                      title={
-                        tx.isUmbuchung
-                          ? "Als Umbuchung markiert (klicken zum Aufheben)"
-                          : "Als Umbuchung markieren"
-                      }
-                    >
-                      <ArrowLeftRight className="h-3 w-3" />
-                      {tx.isUmbuchung ? "Umbuchung" : "Umbuchen?"}
-                    </button>
-                    <span className="truncate">{tx.verwendungszweck}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3">
-                  {tx.kontogruppeId && kontogruppenById[tx.kontogruppeId] ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs"
-                      style={{
-                        backgroundColor: kontogruppenById[tx.kontogruppeId].color + "22",
-                        color: kontogruppenById[tx.kontogruppeId].color,
-                      }}
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: kontogruppenById[tx.kontogruppeId].color }}
-                      />
-                      {kontogruppenById[tx.kontogruppeId].name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-600">–</span>
-                  )}
-                </td>
-                <td className="px-5 py-3">
-                  <select
-                    value={tx.kategorie}
-                    onChange={(e) => onCategoryChange(tx.id, e.target.value)}
-                    className="rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-slate-300"
-                  >
-                    {allCategories.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td
-                  className={`whitespace-nowrap px-5 py-3 text-right font-medium ${
-                    tx.betrag >= 0 ? "text-emerald-400" : "text-red-400"
+            {pageRows.map((tx) => {
+              const isSelected = selected.has(tx.id);
+              return (
+                <tr
+                  key={tx.id}
+                  className={`border-b border-slate-700/50 transition-colors ${
+                    isSelected
+                      ? "bg-purple-500/5 hover:bg-purple-500/10"
+                      : "hover:bg-slate-700/20"
                   }`}
                 >
-                  {formatEuro(tx.betrag)}
-                </td>
-              </tr>
-            ))}
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleRow(tx.id)}
+                      className="h-3.5 w-3.5 cursor-pointer accent-purple-500"
+                    />
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-slate-400">
+                    {formatDate(tx.buchungstag)}
+                  </td>
+                  <td className="max-w-[200px] truncate px-5 py-3 text-slate-200">
+                    {tx.nameZahlungsbeteiligter}
+                  </td>
+                  <td className="max-w-[280px] truncate px-5 py-3 text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUmbuchungToggle(tx.id, !tx.isUmbuchung);
+                        }}
+                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-colors ${
+                          tx.isUmbuchung
+                            ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                            : "border border-slate-700 text-slate-600 hover:border-amber-500/50 hover:text-amber-500"
+                        }`}
+                        title={
+                          tx.isUmbuchung
+                            ? "Als Umbuchung markiert (klicken zum Aufheben)"
+                            : "Als Umbuchung markieren"
+                        }
+                      >
+                        <ArrowLeftRight className="h-3 w-3" />
+                        {tx.isUmbuchung ? "Umbuchung" : "Umbuchen?"}
+                      </button>
+                      <span className="truncate">{tx.verwendungszweck}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    {tx.kontogruppeId && kontogruppenById[tx.kontogruppeId] ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs"
+                        style={{
+                          backgroundColor:
+                            kontogruppenById[tx.kontogruppeId].color + "22",
+                          color: kontogruppenById[tx.kontogruppeId].color,
+                        }}
+                      >
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{
+                            backgroundColor: kontogruppenById[tx.kontogruppeId].color,
+                          }}
+                        />
+                        {kontogruppenById[tx.kontogruppeId].name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-600">–</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <select
+                      value={tx.kategorie}
+                      onChange={(e) => onCategoryChange(tx.id, e.target.value)}
+                      className="rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-slate-300"
+                    >
+                      {allCategories.map((k) => (
+                        <option key={k} value={k}>
+                          {k}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td
+                    className={`whitespace-nowrap px-5 py-3 text-right font-medium ${
+                      tx.betrag >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {formatEuro(tx.betrag)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
