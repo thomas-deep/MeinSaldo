@@ -9,13 +9,15 @@ import Toggle from "./Toggle";
 export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
 const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
 
+export type AiImportMode = "none" | "rulesThenAi" | "allAi";
+
 interface CsvUploadProps {
   kontogruppen: Kontogruppe[];
   onFileSelected: (
     file: File,
     kontogruppeId: number | null,
     encoding: EncodingChoice,
-    autoAiCategorize: boolean
+    aiMode: AiImportMode
   ) => void;
 }
 
@@ -25,15 +27,16 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
   const [selectedKontogruppe, setSelectedKontogruppe] = useState<number | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [encoding, setEncoding] = useState<EncodingChoice>("auto");
-  const [autoAi, setAutoAi] = useState(false);
+  const [aiMode, setAiMode] = useState<AiImportMode>("none");
   const { status: aiStatus } = useAiStatus();
+  const effectiveMode: AiImportMode = aiStatus.enabled ? aiMode : "none";
 
   const submit = useCallback(
     (file: File, kontogruppeId: number | null) => {
       setFilename(file.name);
-      onFileSelected(file, kontogruppeId, encoding, autoAi && aiStatus.enabled);
+      onFileSelected(file, kontogruppeId, encoding, effectiveMode);
     },
-    [onFileSelected, encoding, autoAi, aiStatus.enabled]
+    [onFileSelected, encoding, effectiveMode]
   );
 
   const handleFile = useCallback(
@@ -145,27 +148,46 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-        <Toggle
-          checked={autoAi && aiStatus.enabled}
-          onChange={setAutoAi}
-          disabled={!aiStatus.enabled}
-          accent="purple"
-          title={
-            aiStatus.enabled
-              ? `Direkt nach dem Import ${aiStatus.model} laufen lassen`
-              : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
-          }
-          label={
-            <>
-              Nach Import automatisch KI-kategorisieren
-              {aiStatus.enabled && aiStatus.model ? (
-                <span className="ml-1 text-slate-500">({aiStatus.model})</span>
-              ) : null}
-            </>
-          }
-        />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+          <Toggle
+            checked={effectiveMode === "rulesThenAi"}
+            onChange={(v) => setAiMode(v ? "rulesThenAi" : "none")}
+            disabled={!aiStatus.enabled || effectiveMode === "allAi"}
+            accent="purple"
+            title={
+              !aiStatus.enabled
+                ? "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+                : effectiveMode === "allAi"
+                  ? "Deaktiviert, weil 'Alle Buchungen über KI' aktiv ist"
+                  : "Regeln versuchen — Buchungen mit Kategorie 'Sonstiges' anschließend per KI klassifizieren"
+            }
+            label={
+              <>
+                Angelegte Kategorien versuchen zuzuordnen, danach KI
+                {aiStatus.enabled && aiStatus.model ? (
+                  <span className="ml-1 text-slate-500">({aiStatus.model})</span>
+                ) : null}
+              </>
+            }
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+          <Toggle
+            checked={effectiveMode === "allAi"}
+            onChange={(v) => setAiMode(v ? "allAi" : "none")}
+            disabled={!aiStatus.enabled}
+            accent="purple"
+            title={
+              aiStatus.enabled
+                ? "Alle neu importierten Buchungen per KI klassifizieren (überschreibt Regel-Matches)"
+                : "Erst in den Einstellungen → KI-Kategorisierung Ollama aktivieren"
+            }
+            label="Alle Buchungen über KI kategorisieren"
+          />
+        </div>
       </div>
 
       <div

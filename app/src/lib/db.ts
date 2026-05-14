@@ -389,6 +389,7 @@ export interface InsertResult {
   inserted: number;
   skipped: number;
   total: number;
+  insertedIds: string[];
 }
 
 export function insertTransactions(
@@ -422,6 +423,7 @@ export function insertTransactions(
   const now = new Date().toISOString();
   let inserted = 0;
   let skipped = 0;
+  const insertedIds: string[] = [];
 
   const tx = db.transaction((items: Transaction[]) => {
     for (const t of items) {
@@ -452,15 +454,19 @@ export function insertTransactions(
         now
       );
 
-      if (result.changes > 0) inserted++;
-      else skipped++;
+      if (result.changes > 0) {
+        inserted++;
+        insertedIds.push(hashId);
+      } else {
+        skipped++;
+      }
     }
   });
 
   tx(transactions);
   recomputeUmbuchungen(db);
 
-  return { inserted, skipped, total: transactions.length };
+  return { inserted, skipped, total: transactions.length, insertedIds };
 }
 
 export function updateCategory(id: string, kategorie: string): boolean {

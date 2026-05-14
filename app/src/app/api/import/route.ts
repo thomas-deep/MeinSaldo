@@ -191,12 +191,17 @@ export async function POST(req: NextRequest) {
       encoding,
       preset: (form.get("preset") as string | null) ?? null,
       kontogruppeId,
-      ...result,
+      inserted: result.inserted,
+      skipped: result.skipped,
+      total: result.total,
     }
   );
   trimLogs();
   return NextResponse.json({
-    ...result,
+    inserted: result.inserted,
+    skipped: result.skipped,
+    total: result.total,
+    insertedIds: result.insertedIds,
     parsed: transactions.length,
     encoding,
   });

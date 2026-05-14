@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, LineChart, Database, Settings as SettingsIcon } from "lucide-react";
-import CsvUpload, { EncodingChoice } from "../components/CsvUpload";
+import CsvUpload, { AiImportMode, EncodingChoice } from "../components/CsvUpload";
 import FieldMappingComponent from "../components/FieldMapping";
 import SummaryCards from "../components/SummaryCards";
 import CategoryChart from "../components/CategoryChart";
@@ -25,6 +25,7 @@ import { detectCsvHeaders } from "../lib/parse-csv";
 import {
   AiProgress,
   runAiOnAllUncategorized,
+  runAiOnIds,
 } from "../lib/use-ai-categorize";
 import AuswertungFilter, {
   AuswertungFilterState,
@@ -213,7 +214,7 @@ export default function Home() {
       activeInvert: boolean,
       activeCurrency: string,
       activePresetName: string | null,
-      autoAi: boolean
+      aiMode: AiImportMode
     ) => {
       setIsImporting(true);
       setImportError(null);
@@ -229,7 +230,12 @@ export default function Home() {
           activePresetName
         );
         const res = await fetch("/api/import", { method: "POST", body: form });
-        const result = await res.json();
+        const result = (await res.json()) as {
+          error?: string;
+          inserted: number;
+          skipped: number;
+          insertedIds?: string[];
+        };
         if (!res.ok) {
           setImportError(result.error ?? "Unbekannter Fehler beim Import");
           return;
@@ -238,10 +244,18 @@ export default function Home() {
         setImportPreview(null);
         await loadFromDb();
 
-        if (autoAi) {
+        const insertedIds = result.insertedIds ?? [];
+        if (aiMode !== "none" && insertedIds.length > 0) {
           try {
             setAiProgress({ done: 0, total: 0, matched: 0 });
-            await runAiOnAllUncategorized((p) => setAiProgress(p));
+            if (aiMode === "allAi") {
+              await runAiOnIds(insertedIds, {
+                force: true,
+                onProgress: (p) => setAiProgress(p),
+              });
+            } else {
+              await runAiOnAllUncategorized((p) => setAiProgress(p));
+            }
             await loadFromDb();
           } catch (e) {
             console.error("Auto-AI failed:", e);
@@ -259,19 +273,19 @@ export default function Home() {
     [loadFromDb]
   );
 
-  const [pendingAutoAi, setPendingAutoAi] = useState(false);
+  const [pendingAiMode, setPendingAiMode] = useState<AiImportMode>("none");
 
   const handleFileSelected = useCallback(
     async (
       file: File,
       kontogruppeId: number | null,
       encoding: EncodingChoice,
-      autoAi: boolean
+      aiMode: AiImportMode
     ) => {
       setPendingFile(file);
       setPendingEncoding(encoding);
       setPendingKontogruppeId(kontogruppeId);
-      setPendingAutoAi(autoAi);
+      setPendingAiMode(aiMode);
 
       let activeMapping = mapping;
       let activeSeparator = separator;
@@ -392,7 +406,7 @@ export default function Home() {
       invertAmount,
       defaultCurrency,
       presetName,
-      pendingAutoAi
+      pendingAiMode
     );
   }, [
     pendingFile,
@@ -403,7 +417,7 @@ export default function Home() {
     invertAmount,
     defaultCurrency,
     presetName,
-    pendingAutoAi,
+    pendingAiMode,
     confirmImport,
   ]);
 
