@@ -37,6 +37,7 @@ import CsvImportPreview, {
   ImportPreview,
 } from "../components/CsvImportPreview";
 import ImportHistory from "../components/ImportHistory";
+import { KontogruppeFilterValue } from "../components/KontogruppeFilter";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -88,7 +89,7 @@ export default function Home() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
-  const [filter, setFilter] = useState<number | "all">("all");
+  const [filter, setFilter] = useState<KontogruppeFilterValue>({ kind: "all" });
   const [auswertungFilter, setAuswertungFilter] = useState<AuswertungFilterState>(() => ({
     preset: "alle",
     range: rangeFor("alle", new Date()),
@@ -528,19 +529,38 @@ export default function Home() {
   );
 
   const filterCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: transactions.length, null: 0 };
+    const perKontogruppe: Record<number, number> = {};
+    let none = 0;
     for (const tx of transactions) {
-      const key = tx.kontogruppeId == null ? "null" : String(tx.kontogruppeId);
-      counts[key] = (counts[key] ?? 0) + 1;
+      if (tx.kontogruppeId == null) none++;
+      else perKontogruppe[tx.kontogruppeId] = (perKontogruppe[tx.kontogruppeId] ?? 0) + 1;
     }
-    return counts;
+    return { total: transactions.length, perKontogruppe, none };
   }, [transactions]);
 
+  const kontogruppenByInhaber = useMemo(() => {
+    const map = new Map<number, Set<number>>();
+    for (const kg of kontogruppen) {
+      const set = map.get(kg.inhaberId) ?? new Set<number>();
+      set.add(kg.id);
+      map.set(kg.inhaberId, set);
+    }
+    return map;
+  }, [kontogruppen]);
+
   const kontogruppenFiltered = useMemo(() => {
-    if (filter === "all") return transactions;
-    if (filter === -1) return transactions.filter((t) => t.kontogruppeId == null);
-    return transactions.filter((t) => t.kontogruppeId === filter);
-  }, [transactions, filter]);
+    if (filter.kind === "all") return transactions;
+    if (filter.kind === "none")
+      return transactions.filter((t) => t.kontogruppeId == null);
+    if (filter.kind === "kontogruppe")
+      return transactions.filter((t) => t.kontogruppeId === filter.id);
+    // inhaber
+    const kgIds = kontogruppenByInhaber.get(filter.id);
+    if (!kgIds) return [];
+    return transactions.filter(
+      (t) => t.kontogruppeId != null && kgIds.has(t.kontogruppeId)
+    );
+  }, [transactions, filter, kontogruppenByInhaber]);
 
   const applyAuswertungFilter = useCallback(
     (rows: Transaction[], range: typeof auswertungFilter.range) => {
@@ -742,6 +762,7 @@ export default function Home() {
               {kontogruppen.length > 0 && (
                 <KontogruppeFilter
                   kontogruppen={kontogruppen}
+                  inhaber={inhaber}
                   selected={filter}
                   onSelect={setFilter}
                   counts={filterCounts}
