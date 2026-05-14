@@ -312,7 +312,10 @@ export const categoryRules: CategoryRule[] = [
   },
 ];
 
-export function categorizeTransaction(tx: Transaction): string {
+export function categorizeTransaction(
+  tx: Transaction,
+  rules: CategoryRule[] = categoryRules
+): string {
   const searchText = [
     tx.verwendungszweck,
     tx.nameZahlungsbeteiligter,
@@ -323,13 +326,15 @@ export function categorizeTransaction(tx: Transaction): string {
 
   const counterpartyText = tx.nameZahlungsbeteiligter.toLowerCase();
 
-  for (const rule of categoryRules) {
+  for (const rule of rules) {
     for (const keyword of rule.keywords) {
+      if (!keyword) continue;
       if (searchText.includes(keyword.toLowerCase())) {
         return rule.kategorie;
       }
     }
     for (const pattern of rule.namePatterns) {
+      if (!pattern) continue;
       const p = pattern.toLowerCase();
       if (counterpartyText.includes(p) || searchText.includes(p)) {
         return rule.kategorie;

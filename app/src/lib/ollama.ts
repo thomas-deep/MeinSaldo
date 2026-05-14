@@ -1,5 +1,5 @@
 import { Transaction } from "./types";
-import { categoryRules } from "./categories";
+import { getAllKategorien } from "./db";
 
 export interface OllamaModel {
   name: string;
@@ -14,11 +14,7 @@ export async function listOllamaModels(url: string): Promise<OllamaModel[]> {
 }
 
 export function getAllowedCategories(): string[] {
-  return [
-    ...categoryRules.map((r) => r.kategorie),
-    "Sonstige Einnahmen",
-    "Sonstiges",
-  ];
+  return getAllKategorien().map((k) => k.name);
 }
 
 function buildPrompt(tx: Transaction, categories: string[]): string {

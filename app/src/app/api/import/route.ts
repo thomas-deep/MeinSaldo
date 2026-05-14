@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   computeTransactionHash,
   existingHashes,
+  getKategorieRules,
   insertTransactions,
   logEvent,
   trimLogs,
@@ -136,11 +137,20 @@ export async function POST(req: NextRequest) {
 
   let transactions;
   try {
+    const dbRules = getKategorieRules();
+    const rules = dbRules
+      .filter((r) => !r.isFallback)
+      .map((r) => ({
+        kategorie: r.name,
+        keywords: r.keywords,
+        namePatterns: r.namePatterns,
+      }));
     transactions = parseCsvData(text, config.mapping, config.separator, {
       invertAmount: config.invertAmount,
       defaultCurrency: config.defaultCurrency,
       preprocess: config.preprocess,
       rowTransform: config.rowTransform,
+      rules,
     });
   } catch (e) {
     return NextResponse.json(

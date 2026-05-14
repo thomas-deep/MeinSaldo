@@ -67,6 +67,7 @@ export default function Home() {
   const [presetName, setPresetName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kontogruppen, setKontogruppen] = useState<Kontogruppe[]>([]);
+  const [kategorienNames, setKategorienNames] = useState<string[]>([]);
   const [mapping, setMapping] = useState<FieldMapping>({ ...defaultMapping });
   const [separator, setSeparator] = useState(";");
   const [invertAmount, setInvertAmount] = useState(false);
@@ -99,16 +100,21 @@ export default function Home() {
 
   const loadFromDb = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [txRes, kgRes] = await Promise.all([
+      const [txRes, kgRes, katRes] = await Promise.all([
         fetch("/api/transactions", { signal }),
         fetch("/api/kontogruppen", { signal }),
+        fetch("/api/kategorien", { signal }),
       ]);
       const txData = await txRes.json();
       const kgData = await kgRes.json();
+      const katData = (await katRes.json()) as {
+        kategorien: { name: string }[];
+      };
       if (signal?.aborted) return;
       setTransactions(txData.transactions);
       setDbStats(txData.stats);
       setKontogruppen(kgData.kontogruppen);
+      setKategorienNames(katData.kategorien.map((k) => k.name));
     } catch (e) {
       if ((e as { name?: string })?.name === "AbortError") return;
       console.error("Load failed:", e);
@@ -758,6 +764,7 @@ export default function Home() {
                 <TransactionTable
                   transactions={filteredTransactions}
                   kontogruppen={kontogruppen}
+                  kategorien={kategorienNames}
                   onCategoryChange={handleCategoryChange}
                   onUmbuchungToggle={handleUmbuchungToggle}
                   onAiBulkDone={() => loadFromDb()}

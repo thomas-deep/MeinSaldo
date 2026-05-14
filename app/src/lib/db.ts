@@ -78,6 +78,12 @@ const SCHEMA_V2 = `
   CREATE INDEX idx_logs_event ON logs(event);
 `;
 
+const SCHEMA_V3 = `
+  ALTER TABLE kategorien ADD COLUMN rule_order INTEGER NOT NULL DEFAULT 999;
+  ALTER TABLE kategorien ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE kategorien ADD COLUMN name_patterns TEXT NOT NULL DEFAULT '[]';
+`;
+
 const migrations: Migration[] = [
   {
     version: 1,
@@ -88,6 +94,35 @@ const migrations: Migration[] = [
     version: 2,
     description: "logs-Tabelle (Audit-Trail für KI-Prompts, Imports, Settings)",
     up: (db) => db.exec(SCHEMA_V2),
+  },
+  {
+    version: 3,
+    description: "kategorien: rule_order, keywords, name_patterns für Editor",
+    up: (db) => db.exec(SCHEMA_V3),
+  },
+  {
+    version: 4,
+    description:
+      "Backfill der Default-Rules in leere kategorien-Zeilen (legacy DBs)",
+    up: (db) => {
+      const update = db.prepare(
+        "UPDATE kategorien SET keywords = ?, name_patterns = ?, rule_order = ? WHERE name = ? AND keywords = '[]' AND name_patterns = '[]'"
+      );
+      categoryRules.forEach((rule, idx) => {
+        update.run(
+          JSON.stringify(rule.keywords),
+          JSON.stringify(rule.namePatterns),
+          idx,
+          rule.kategorie
+        );
+      });
+      db.prepare(
+        "UPDATE kategorien SET rule_order = 9000 WHERE name = 'Sonstige Einnahmen' AND rule_order = 999"
+      ).run();
+      db.prepare(
+        "UPDATE kategorien SET rule_order = 9001 WHERE name = 'Sonstiges' AND rule_order = 999"
+      ).run();
+    },
   },
 ];
 
@@ -196,12 +231,20 @@ function runMigrations(db: Database.Database): void {
 
 function syncKategorien(db: Database.Database): void {
   const insert = db.prepare(
-    "INSERT OR IGNORE INTO kategorien (name) VALUES (?)"
+    "INSERT OR IGNORE INTO kategorien (name, rule_order, keywords, name_patterns) VALUES (?, ?, ?, ?)"
   );
   const tx = db.transaction(() => {
-    for (const rule of categoryRules) insert.run(rule.kategorie);
-    insert.run("Sonstige Einnahmen");
-    insert.run("Sonstiges");
+    categoryRules.forEach((rule, idx) => {
+      insert.run(
+        rule.kategorie,
+        idx,
+        JSON.stringify(rule.keywords),
+        JSON.stringify(rule.namePatterns)
+      );
+    });
+    // Fallback-Kategorien — keine Rules, hohe Ordnung (immer am Ende)
+    insert.run("Sonstige Einnahmen", 9000, "[]", "[]");
+    insert.run("Sonstiges", 9001, "[]", "[]");
   });
   tx();
 }
@@ -304,8 +347,143 @@ function getKategorieId(db: Database.Database, name: string): number {
 export function getAllKategorien(): { id: number; name: string }[] {
   const db = getDb();
   return db
-    .prepare("SELECT id, name FROM kategorien ORDER BY name")
+    .prepare(
+      "SELECT id, name FROM kategorien ORDER BY rule_order ASC, name ASC"
+    )
     .all() as { id: number; name: string }[];
+}
+
+export interface KategorieRule {
+  id: number;
+  name: string;
+  ruleOrder: number;
+  keywords: string[];
+  namePatterns: string[];
+  isFallback: boolean;
+}
+
+function parseJsonArray(value: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((v): v is string => typeof v === "string");
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+const FALLBACK_NAMES = new Set(["Sonstiges", "Sonstige Einnahmen"]);
+
+export function getKategorieRules(): KategorieRule[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      "SELECT id, name, rule_order, keywords, name_patterns FROM kategorien ORDER BY rule_order ASC, id ASC"
+    )
+    .all() as {
+    id: number;
+    name: string;
+    rule_order: number;
+    keywords: string | null;
+    name_patterns: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    ruleOrder: r.rule_order,
+    keywords: parseJsonArray(r.keywords),
+    namePatterns: parseJsonArray(r.name_patterns),
+    isFallback: FALLBACK_NAMES.has(r.name),
+  }));
+}
+
+export function updateKategorieRule(
+  id: number,
+  patch: {
+    name?: string;
+    keywords?: string[];
+    namePatterns?: string[];
+    ruleOrder?: number;
+  }
+): boolean {
+  const db = getDb();
+  const fields: string[] = [];
+  const values: (string | number)[] = [];
+  if (patch.name !== undefined) {
+    fields.push("name = ?");
+    values.push(patch.name);
+  }
+  if (patch.keywords !== undefined) {
+    fields.push("keywords = ?");
+    values.push(JSON.stringify(patch.keywords));
+  }
+  if (patch.namePatterns !== undefined) {
+    fields.push("name_patterns = ?");
+    values.push(JSON.stringify(patch.namePatterns));
+  }
+  if (patch.ruleOrder !== undefined) {
+    fields.push("rule_order = ?");
+    values.push(patch.ruleOrder);
+  }
+  if (fields.length === 0) return false;
+  values.push(id);
+  const result = db
+    .prepare(`UPDATE kategorien SET ${fields.join(", ")} WHERE id = ?`)
+    .run(...values);
+  return result.changes > 0;
+}
+
+export function createKategorieRule(
+  name: string,
+  keywords: string[] = [],
+  namePatterns: string[] = []
+): KategorieRule {
+  const db = getDb();
+  // Neue User-Kategorien werden ans Ende sortiert, aber vor die Fallbacks
+  const max = db
+    .prepare(
+      "SELECT MAX(rule_order) AS m FROM kategorien WHERE name NOT IN ('Sonstiges', 'Sonstige Einnahmen')"
+    )
+    .get() as { m: number | null };
+  const order = (max.m ?? -1) + 1;
+  const result = db
+    .prepare(
+      "INSERT INTO kategorien (name, rule_order, keywords, name_patterns) VALUES (?, ?, ?, ?)"
+    )
+    .run(name, order, JSON.stringify(keywords), JSON.stringify(namePatterns));
+  return {
+    id: result.lastInsertRowid as number,
+    name,
+    ruleOrder: order,
+    keywords,
+    namePatterns,
+    isFallback: false,
+  };
+}
+
+export function deleteKategorieRule(id: number): boolean {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT name FROM kategorien WHERE id = ?")
+    .get(id) as { name: string } | undefined;
+  if (!row) return false;
+  if (FALLBACK_NAMES.has(row.name)) {
+    throw new Error("Fallback-Kategorien können nicht gelöscht werden");
+  }
+  // Setze betroffene Transactions auf Sonstiges/Sonstige Einnahmen — Modell-Frage
+  // simplify: setze kategorie_id auf NULL → rowToTransaction macht 'Sonstiges'
+  const tx = db.transaction(() => {
+    db.prepare(
+      "UPDATE transactions SET kategorie_id = NULL WHERE kategorie_id = ?"
+    ).run(id);
+    return (
+      db.prepare("DELETE FROM kategorien WHERE id = ?").run(id).changes > 0
+    );
+  });
+  return tx() as boolean;
 }
 
 interface UmbuchungRow {

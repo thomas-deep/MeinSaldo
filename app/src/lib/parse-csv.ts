@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import {
+  CategoryRule,
   FieldMapping,
   PreprocessResult,
   RawRow,
@@ -57,6 +58,7 @@ export interface ParseOptions {
   skipRows?: number;
   preprocess?: (rawText: string) => PreprocessResult;
   rowTransform?: (row: RawRow) => RawRow;
+  rules?: CategoryRule[];
 }
 
 function applyPreprocessing(
@@ -114,7 +116,7 @@ export function parseCsvData(
         saldoNachBuchung: parseGermanNumber(row[mapping.saldoNachBuchung] || "0"),
         kategorie: "",
       };
-      tx.kategorie = categorizeTransaction(tx);
+      tx.kategorie = categorizeTransaction(tx, options.rules);
       return tx;
     });
 }

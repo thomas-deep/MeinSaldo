@@ -12,7 +12,6 @@ import {
   X,
 } from "lucide-react";
 import { Kontogruppe, Transaction } from "../lib/types";
-import { categoryRules } from "../lib/categories";
 import {
   AiProgress,
   runAiOnIds,
@@ -22,6 +21,7 @@ import {
 interface TransactionTableProps {
   transactions: Transaction[];
   kontogruppen: Kontogruppe[];
+  kategorien: string[];
   onCategoryChange: (id: string, kategorie: string) => void;
   onUmbuchungToggle: (id: string, isUmbuchung: boolean) => void;
   onAiBulkDone?: () => void;
@@ -46,19 +46,15 @@ function formatDate(dateStr: string): string {
 
 type SortKey = "buchungstag" | "betrag" | "kategorie" | "nameZahlungsbeteiligter";
 
-const allCategories = [
-  ...categoryRules.map((r) => r.kategorie),
-  "Sonstige Einnahmen",
-  "Sonstiges",
-];
-
 export default function TransactionTable({
   transactions,
   kontogruppen,
+  kategorien,
   onCategoryChange,
   onUmbuchungToggle,
   onAiBulkDone,
 }: TransactionTableProps) {
+  const allCategories = kategorien;
   const kontogruppenById = useMemo(
     () => Object.fromEntries(kontogruppen.map((k) => [k.id, k])),
     [kontogruppen]
