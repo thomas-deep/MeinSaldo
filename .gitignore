@@ -1,0 +1,41 @@
+# Dependencies
+**/node_modules/
+
+# Build artefacts
+**/.next/
+**/out/
+**/build/
+**/dist/
+
+# Persistente Datenbank
+app/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local env / secrets
+.env
+.env.local
+.env*.local
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test-Daten
+app/test-data.csv
+
+# Skill-Installationsverzeichnisse
+.agents/
+skills-lock.json
+
+# Lokale Claude-Code-Konfiguration
+.claude/
