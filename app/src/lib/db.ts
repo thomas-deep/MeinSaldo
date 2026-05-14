@@ -524,6 +524,20 @@ export function getAllSettings(): Record<string, string> {
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
+/**
+ * Liefert die Teilmenge der übergebenen Hash-IDs, die bereits in der DB liegen.
+ * Wird vom Import-Preview genutzt, um Dubletten vor dem Insert auszuweisen.
+ */
+export function existingHashes(ids: string[]): Set<string> {
+  if (ids.length === 0) return new Set();
+  const db = getDb();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db
+    .prepare(`SELECT id FROM transactions WHERE id IN (${placeholders})`)
+    .all(...ids) as { id: string }[];
+  return new Set(rows.map((r) => r.id));
+}
+
 export function getTransactionsByIds(ids: string[]): Transaction[] {
   if (ids.length === 0) return [];
   const db = getDb();

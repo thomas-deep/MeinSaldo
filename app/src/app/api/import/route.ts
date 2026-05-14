@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertTransactions, logEvent, trimLogs } from "../../../lib/db";
+import {
+  computeTransactionHash,
+  existingHashes,
+  insertTransactions,
+  logEvent,
+  trimLogs,
+} from "../../../lib/db";
 import { bankPresets, defaultMapping } from "../../../lib/field-mapping";
 import { parseCsvData } from "../../../lib/parse-csv";
 import { FieldMapping, PreprocessResult, RawRow } from "../../../lib/types";
+
+const PREVIEW_LIMIT = 30;
 
 const SUPPORTED_ENCODINGS = ["utf-8", "windows-1252"] as const;
 type Encoding = (typeof SUPPORTED_ENCODINGS)[number];
@@ -139,6 +147,37 @@ export async function POST(req: NextRequest) {
       { error: e instanceof Error ? e.message : "Parse-Fehler" },
       { status: 400 }
     );
+  }
+
+  const dryRun = form.get("dryRun") === "1" || form.get("dryRun") === "true";
+
+  if (dryRun) {
+    const hashes = transactions.map((t) => computeTransactionHash(t));
+    const existing = existingHashes(hashes);
+    const dates = transactions
+      .map((t) => t.buchungstag)
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort();
+    const preview = transactions.slice(0, PREVIEW_LIMIT).map((t, i) => ({
+      id: hashes[i],
+      buchungstag: t.buchungstag,
+      nameZahlungsbeteiligter: t.nameZahlungsbeteiligter,
+      verwendungszweck: t.verwendungszweck,
+      betrag: t.betrag,
+      kategorie: t.kategorie,
+      isDuplicate: existing.has(hashes[i]),
+    }));
+    return NextResponse.json({
+      dryRun: true,
+      total: transactions.length,
+      newCount: hashes.filter((h) => !existing.has(h)).length,
+      duplicateCount: existing.size,
+      dateFrom: dates[0] ?? null,
+      dateTo: dates[dates.length - 1] ?? null,
+      preview,
+      previewLimit: PREVIEW_LIMIT,
+      encoding,
+    });
   }
 
   const result = insertTransactions(transactions, kontogruppeId);

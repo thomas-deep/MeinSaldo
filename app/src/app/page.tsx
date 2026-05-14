@@ -30,6 +30,9 @@ import AuswertungFilter, {
   AuswertungFilterState,
 } from "../components/AuswertungFilter";
 import { isWithin, rangeFor, shiftByYear } from "../lib/date-range";
+import CsvImportPreview, {
+  ImportPreview,
+} from "../components/CsvImportPreview";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -75,6 +78,8 @@ export default function Home() {
   const [lastImport, setLastImport] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
   const [filter, setFilter] = useState<number | "all">("all");
@@ -130,7 +135,75 @@ export default function Home() {
     };
   }, []);
 
-  const postImport = useCallback(
+  const buildFormData = (
+    file: File,
+    kontogruppeId: number | null,
+    encoding: EncodingChoice,
+    activeMapping: FieldMapping,
+    activeSeparator: string,
+    activeInvert: boolean,
+    activeCurrency: string,
+    activePresetName: string | null
+  ): FormData => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("encoding", encoding);
+    if (kontogruppeId !== null) {
+      form.append("kontogruppeId", String(kontogruppeId));
+    }
+    form.append("mapping", JSON.stringify(activeMapping));
+    form.append("separator", activeSeparator);
+    form.append("invertAmount", activeInvert ? "1" : "0");
+    form.append("defaultCurrency", activeCurrency);
+    if (activePresetName) form.append("preset", activePresetName);
+    return form;
+  };
+
+  const fetchPreview = useCallback(
+    async (
+      file: File,
+      kontogruppeId: number | null,
+      encoding: EncodingChoice,
+      activeMapping: FieldMapping,
+      activeSeparator: string,
+      activeInvert: boolean,
+      activeCurrency: string,
+      activePresetName: string | null
+    ) => {
+      setIsPreviewing(true);
+      setImportError(null);
+      try {
+        const form = buildFormData(
+          file,
+          kontogruppeId,
+          encoding,
+          activeMapping,
+          activeSeparator,
+          activeInvert,
+          activeCurrency,
+          activePresetName
+        );
+        form.append("dryRun", "1");
+        const res = await fetch("/api/import", { method: "POST", body: form });
+        const result = await res.json();
+        if (!res.ok) {
+          setImportError(result.error ?? "Unbekannter Fehler beim Parsen");
+          setImportPreview(null);
+          return;
+        }
+        setImportPreview(result as ImportPreview);
+      } catch (e) {
+        setImportError(e instanceof Error ? e.message : "Parsen fehlgeschlagen");
+        setImportPreview(null);
+        console.error("Preview failed:", e);
+      } finally {
+        setIsPreviewing(false);
+      }
+    },
+    []
+  );
+
+  const confirmImport = useCallback(
     async (
       file: File,
       kontogruppeId: number | null,
@@ -145,28 +218,24 @@ export default function Home() {
       setIsImporting(true);
       setImportError(null);
       try {
-        const form = new FormData();
-        form.append("file", file);
-        form.append("encoding", encoding);
-        if (kontogruppeId !== null) {
-          form.append("kontogruppeId", String(kontogruppeId));
-        }
-        form.append("mapping", JSON.stringify(activeMapping));
-        form.append("separator", activeSeparator);
-        form.append("invertAmount", activeInvert ? "1" : "0");
-        form.append("defaultCurrency", activeCurrency);
-        if (activePresetName) form.append("preset", activePresetName);
-
-        const res = await fetch("/api/import", {
-          method: "POST",
-          body: form,
-        });
+        const form = buildFormData(
+          file,
+          kontogruppeId,
+          encoding,
+          activeMapping,
+          activeSeparator,
+          activeInvert,
+          activeCurrency,
+          activePresetName
+        );
+        const res = await fetch("/api/import", { method: "POST", body: form });
         const result = await res.json();
         if (!res.ok) {
           setImportError(result.error ?? "Unbekannter Fehler beim Import");
           return;
         }
         setLastImport({ inserted: result.inserted, skipped: result.skipped });
+        setImportPreview(null);
         await loadFromDb();
 
         if (autoAi) {
@@ -231,7 +300,7 @@ export default function Home() {
       const headers = detectCsvHeaders(text, activeSeparator, presetHooksRef.current);
       setCsvHeaders(headers);
 
-      await postImport(
+      await fetchPreview(
         file,
         kontogruppeId,
         encoding,
@@ -239,8 +308,7 @@ export default function Home() {
         activeSeparator,
         activeInvert,
         activeCurrency,
-        activePreset,
-        autoAi
+        activePreset
       );
     },
     [
@@ -251,7 +319,7 @@ export default function Home() {
       presetName,
       kontogruppen,
       applyPreset,
-      postImport,
+      fetchPreview,
     ]
   );
 
@@ -289,9 +357,33 @@ export default function Home() {
     [applyPreset, refreshHeaders]
   );
 
-  const handleReimport = useCallback(() => {
+  const handleReparse = useCallback(() => {
     if (!pendingFile) return;
-    void postImport(
+    void fetchPreview(
+      pendingFile,
+      pendingKontogruppeId,
+      pendingEncoding,
+      mapping,
+      separator,
+      invertAmount,
+      defaultCurrency,
+      presetName
+    );
+  }, [
+    pendingFile,
+    pendingKontogruppeId,
+    pendingEncoding,
+    mapping,
+    separator,
+    invertAmount,
+    defaultCurrency,
+    presetName,
+    fetchPreview,
+  ]);
+
+  const handleConfirmImport = useCallback(() => {
+    if (!pendingFile) return;
+    void confirmImport(
       pendingFile,
       pendingKontogruppeId,
       pendingEncoding,
@@ -312,8 +404,14 @@ export default function Home() {
     defaultCurrency,
     presetName,
     pendingAutoAi,
-    postImport,
+    confirmImport,
   ]);
+
+  const handleCancelPreview = useCallback(() => {
+    setImportPreview(null);
+    setCsvHeaders([]);
+    setPendingFile(null);
+  }, []);
 
   const handleUmbuchungToggle = useCallback(
     async (id: string, isUmbuchung: boolean) => {
@@ -475,10 +573,19 @@ export default function Home() {
         <div className="space-y-6">
           <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
 
-          {isImporting && !aiProgress && (
-            <p className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2 text-sm text-blue-300">
-              Import läuft – Datei wird serverseitig geparst…
+          {isPreviewing && (
+            <p className="rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-slate-300">
+              Datei wird geparst…
             </p>
+          )}
+
+          {importPreview && !isPreviewing && (
+            <CsvImportPreview
+              preview={importPreview}
+              isImporting={isImporting}
+              onConfirm={handleConfirmImport}
+              onCancel={handleCancelPreview}
+            />
           )}
 
           {aiProgress && (
@@ -517,11 +624,11 @@ export default function Home() {
                 onPresetSelect={handlePresetSelect}
               />
               <button
-                onClick={handleReimport}
-                disabled={isImporting}
+                onClick={handleReparse}
+                disabled={isPreviewing || isImporting}
                 className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer disabled:opacity-50"
               >
-                ↻ Mit aktuellem Mapping neu importieren
+                ↻ Mit aktuellem Mapping neu parsen
               </button>
             </div>
           )}
