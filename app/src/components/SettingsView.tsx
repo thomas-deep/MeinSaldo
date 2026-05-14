@@ -2,21 +2,23 @@
 
 import { useState } from "react";
 import { Users, Tag, Sparkles, ScrollText } from "lucide-react";
+import InhaberManager from "./InhaberManager";
 import KontogruppenManager from "./KontogruppenManager";
 import CategoriesView from "./CategoriesView";
 import AiSettings from "./AiSettings";
 import LogsView from "./LogsView";
-import { Kontogruppe } from "../lib/types";
+import { Inhaber, Kontogruppe } from "../lib/types";
 
 interface SettingsViewProps {
   kontogruppen: Kontogruppe[];
+  inhaber: Inhaber[];
   onKontogruppenChange: () => void;
 }
 
-type Section = "kontogruppen" | "kategorien" | "ki" | "logs";
+type Section = "konten" | "kategorien" | "ki" | "logs";
 
 const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
-  { id: "kontogruppen", label: "Kontogruppen", icon: Users },
+  { id: "konten", label: "Inhaber & Konten", icon: Users },
   { id: "kategorien", label: "Kategorien", icon: Tag },
   { id: "ki", label: "KI-Kategorisierung", icon: Sparkles },
   { id: "logs", label: "Logs", icon: ScrollText },
@@ -24,9 +26,10 @@ const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
 
 export default function SettingsView({
   kontogruppen,
+  inhaber,
   onKontogruppenChange,
 }: SettingsViewProps) {
-  const [section, setSection] = useState<Section>("kontogruppen");
+  const [section, setSection] = useState<Section>("konten");
 
   return (
     <div className="grid gap-6 lg:grid-cols-[200px_1fr]">
@@ -52,11 +55,18 @@ export default function SettingsView({
       </nav>
 
       <div>
-        {section === "kontogruppen" && (
-          <KontogruppenManager
-            kontogruppen={kontogruppen}
-            onChange={onKontogruppenChange}
-          />
+        {section === "konten" && (
+          <div className="space-y-6">
+            <InhaberManager
+              inhaber={inhaber}
+              onChange={onKontogruppenChange}
+            />
+            <KontogruppenManager
+              kontogruppen={kontogruppen}
+              inhaber={inhaber}
+              onChange={onKontogruppenChange}
+            />
+          </div>
         )}
         {section === "kategorien" && <CategoriesView />}
         {section === "ki" && <AiSettings />}

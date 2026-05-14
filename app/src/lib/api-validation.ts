@@ -40,7 +40,7 @@ export async function parseBody<T>(
   return { ok: true, data: result.data };
 }
 
-export const kontogruppeTypeSchema = z.enum([
+export const inhaberTypeSchema = z.enum([
   "privat",
   "gemeinsam",
   "firma",
@@ -98,7 +98,7 @@ export const hexColor = z
 
 export const kontogruppeCreateSchema = z.object({
   name: z.string().min(1).max(64),
-  type: kontogruppeTypeSchema,
+  inhaberId: z.number().int().positive(),
   art: kontogruppeArtSchema.optional(),
   color: hexColor,
   icon: z.string().max(32).optional(),
@@ -106,6 +106,14 @@ export const kontogruppeCreateSchema = z.object({
 });
 
 export const kontogruppeUpdateSchema = kontogruppeCreateSchema;
+
+export const inhaberCreateSchema = z.object({
+  name: z.string().min(1).max(64),
+  type: inhaberTypeSchema,
+  color: hexColor,
+});
+
+export const inhaberUpdateSchema = inhaberCreateSchema;
 
 function allowedOllamaHosts(): string[] {
   const env = process.env.ALLOWED_OLLAMA_HOSTS;

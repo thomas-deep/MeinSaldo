@@ -3,9 +3,10 @@ import path from "path";
 import fs from "fs";
 import { createHash } from "crypto";
 import {
+  Inhaber,
+  InhaberType,
   Kontogruppe,
   KontogruppeArt,
-  KontogruppeType,
   Transaction,
 } from "./types";
 import { categoryRules } from "./categories";
@@ -27,16 +28,26 @@ interface Migration {
  * Neue Schema-Änderungen kommen als zusätzliche Migrationen ans Ende.
  */
 const SCHEMA_V1 = `
-  CREATE TABLE kontogruppen (
+  CREATE TABLE inhaber (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL,
+    color TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE kontogruppen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    inhaber_id INTEGER NOT NULL REFERENCES inhaber(id) ON DELETE RESTRICT,
     art TEXT NOT NULL DEFAULT 'girokonto',
     color TEXT NOT NULL,
     icon TEXT NOT NULL DEFAULT 'user',
     bank TEXT,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    UNIQUE(inhaber_id, name)
   );
+  CREATE INDEX idx_kontogruppen_inhaber ON kontogruppen(inhaber_id);
 
   CREATE TABLE kategorien (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -870,7 +881,10 @@ export function getStats(): {
 interface KontogruppeRow {
   id: number;
   name: string;
-  type: KontogruppeType;
+  inhaber_id: number;
+  inhaber_name: string;
+  inhaber_type: InhaberType;
+  inhaber_color: string;
   art: KontogruppeArt;
   color: string;
   icon: string | null;
@@ -882,7 +896,10 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
   return {
     id: row.id,
     name: row.name,
-    type: row.type,
+    inhaberId: row.inhaber_id,
+    inhaberName: row.inhaber_name,
+    inhaberType: row.inhaber_type,
+    inhaberColor: row.inhaber_color,
     art: row.art ?? "girokonto",
     color: row.color,
     icon: row.icon || "user",
@@ -891,17 +908,25 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
   };
 }
 
+const SELECT_KONTOGRUPPEN = `
+  SELECT
+    kg.id, kg.name, kg.inhaber_id, kg.art, kg.color, kg.icon, kg.bank, kg.created_at,
+    i.name AS inhaber_name, i.type AS inhaber_type, i.color AS inhaber_color
+  FROM kontogruppen kg
+  JOIN inhaber i ON i.id = kg.inhaber_id
+`;
+
 export function getAllKontogruppen(): Kontogruppe[] {
   const db = getDb();
   const rows = db
-    .prepare("SELECT * FROM kontogruppen ORDER BY id ASC")
+    .prepare(`${SELECT_KONTOGRUPPEN} ORDER BY i.id ASC, kg.id ASC`)
     .all() as KontogruppeRow[];
   return rows.map(rowToKontogruppe);
 }
 
 export function createKontogruppe(
   name: string,
-  type: KontogruppeType,
+  inhaberId: number,
   art: KontogruppeArt,
   color: string,
   icon: string,
@@ -910,11 +935,11 @@ export function createKontogruppe(
   const db = getDb();
   const result = db
     .prepare(
-      `INSERT INTO kontogruppen (name, type, art, color, icon, bank, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO kontogruppen (name, inhaber_id, art, color, icon, bank, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, type, art, color, icon, bank, new Date().toISOString());
+    .run(name, inhaberId, art, color, icon, bank, new Date().toISOString());
   const row = db
-    .prepare("SELECT * FROM kontogruppen WHERE id = ?")
+    .prepare(`${SELECT_KONTOGRUPPEN} WHERE kg.id = ?`)
     .get(result.lastInsertRowid) as KontogruppeRow;
   recomputeUmbuchungen(db);
   return rowToKontogruppe(row);
@@ -937,7 +962,7 @@ export function deleteKontogruppe(id: number): boolean {
 export function updateKontogruppe(
   id: number,
   name: string,
-  type: KontogruppeType,
+  inhaberId: number,
   art: KontogruppeArt,
   color: string,
   icon: string,
@@ -946,9 +971,81 @@ export function updateKontogruppe(
   const db = getDb();
   const result = db
     .prepare(
-      "UPDATE kontogruppen SET name = ?, type = ?, art = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
+      "UPDATE kontogruppen SET name = ?, inhaber_id = ?, art = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
     )
-    .run(name, type, art, color, icon, bank, id);
+    .run(name, inhaberId, art, color, icon, bank, id);
   if (result.changes > 0) recomputeUmbuchungen(db);
+  return result.changes > 0;
+}
+
+// ---------- Inhaber ----------
+
+interface InhaberRow {
+  id: number;
+  name: string;
+  type: InhaberType;
+  color: string;
+  created_at: string;
+}
+
+function rowToInhaber(row: InhaberRow): Inhaber {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    color: row.color,
+    createdAt: row.created_at,
+  };
+}
+
+export function getAllInhaber(): Inhaber[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT * FROM inhaber ORDER BY id ASC")
+    .all() as InhaberRow[];
+  return rows.map(rowToInhaber);
+}
+
+export function createInhaber(
+  name: string,
+  type: InhaberType,
+  color: string
+): Inhaber {
+  const db = getDb();
+  const result = db
+    .prepare(
+      "INSERT INTO inhaber (name, type, color, created_at) VALUES (?, ?, ?, ?)"
+    )
+    .run(name, type, color, new Date().toISOString());
+  const row = db
+    .prepare("SELECT * FROM inhaber WHERE id = ?")
+    .get(result.lastInsertRowid) as InhaberRow;
+  return rowToInhaber(row);
+}
+
+export function updateInhaber(
+  id: number,
+  name: string,
+  type: InhaberType,
+  color: string
+): boolean {
+  const db = getDb();
+  const result = db
+    .prepare("UPDATE inhaber SET name = ?, type = ?, color = ? WHERE id = ?")
+    .run(name, type, color, id);
+  return result.changes > 0;
+}
+
+export function deleteInhaber(id: number): boolean {
+  const db = getDb();
+  const has = db
+    .prepare("SELECT COUNT(*) AS c FROM kontogruppen WHERE inhaber_id = ?")
+    .get(id) as { c: number };
+  if (has.c > 0) {
+    throw new Error(
+      `Inhaber hat noch ${has.c} Kontogruppe${has.c === 1 ? "" : "n"} — bitte erst diese löschen oder verschieben`
+    );
+  }
+  const result = db.prepare("DELETE FROM inhaber WHERE id = ?").run(id);
   return result.changes > 0;
 }

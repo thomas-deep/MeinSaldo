@@ -12,12 +12,12 @@ export async function PATCH(
   const { id } = await params;
   const parsed = await parseBody(req, kontogruppeUpdateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, type, art, color, icon, bank } = parsed.data;
+  const { name, inhaberId, art, color, icon, bank } = parsed.data;
 
   const updated = updateKontogruppe(
     parseInt(id, 10),
     name,
-    type,
+    inhaberId,
     art ?? "girokonto",
     color,
     icon || "user",

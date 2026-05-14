@@ -16,6 +16,7 @@ import SettingsView from "../components/SettingsView";
 import AiCategorizeButton from "../components/AiCategorizeButton";
 import {
   FieldMapping,
+  Inhaber,
   Kontogruppe,
   PreprocessResult,
   RawRow,
@@ -70,6 +71,7 @@ export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kontogruppen, setKontogruppen] = useState<Kontogruppe[]>([]);
   const [kategorienNames, setKategorienNames] = useState<string[]>([]);
+  const [inhaber, setInhaber] = useState<Inhaber[]>([]);
   const [mapping, setMapping] = useState<FieldMapping>({ ...defaultMapping });
   const [separator, setSeparator] = useState(";");
   const [invertAmount, setInvertAmount] = useState(false);
@@ -102,21 +104,24 @@ export default function Home() {
 
   const loadFromDb = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [txRes, kgRes, katRes] = await Promise.all([
+      const [txRes, kgRes, katRes, inhRes] = await Promise.all([
         fetch("/api/transactions", { signal }),
         fetch("/api/kontogruppen", { signal }),
         fetch("/api/kategorien", { signal }),
+        fetch("/api/inhaber", { signal }),
       ]);
       const txData = await txRes.json();
       const kgData = await kgRes.json();
       const katData = (await katRes.json()) as {
         kategorien: { name: string }[];
       };
+      const inhData = (await inhRes.json()) as { inhaber: Inhaber[] };
       if (signal?.aborted) return;
       setTransactions(txData.transactions);
       setDbStats(txData.stats);
       setKontogruppen(kgData.kontogruppen);
       setKategorienNames(katData.kategorien.map((k) => k.name));
+      setInhaber(inhData.inhaber);
     } catch (e) {
       if ((e as { name?: string })?.name === "AbortError") return;
       console.error("Load failed:", e);
@@ -633,6 +638,7 @@ export default function Home() {
       {view === "einstellungen" && (
         <SettingsView
           kontogruppen={kontogruppen}
+          inhaber={inhaber}
           onKontogruppenChange={loadFromDb}
         />
       )}

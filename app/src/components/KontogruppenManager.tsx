@@ -1,29 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2, Users, X, Pencil, Check } from "lucide-react";
-import { Kontogruppe, KontogruppeArt, KontogruppeType } from "../lib/types";
+import { Inhaber, Kontogruppe, KontogruppeArt } from "../lib/types";
 import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
 
 interface KontogruppenManagerProps {
   kontogruppen: Kontogruppe[];
+  inhaber: Inhaber[];
   onChange: () => void;
 }
-
-const TYPE_LABELS: Record<KontogruppeType, string> = {
-  privat: "Privat",
-  gemeinsam: "Gemeinsam",
-  firma: "Firma",
-};
-
-const TYPE_DEFAULT_ICON: Record<KontogruppeType, string> = {
-  privat: "user",
-  gemeinsam: "users",
-  firma: "briefcase",
-};
-
-const TYPES_ORDER: KontogruppeType[] = ["privat", "gemeinsam", "firma"];
 
 const ART_LABELS: Record<KontogruppeArt, string> = {
   girokonto: "Girokonto",
@@ -57,7 +44,7 @@ const PRESET_COLORS = [
 
 interface FormState {
   name: string;
-  type: KontogruppeType;
+  inhaberId: number | "";
   art: KontogruppeArt;
   color: string;
   icon: string;
@@ -67,15 +54,17 @@ interface FormState {
 function FormFields({
   state,
   onChange,
+  inhaber,
 }: {
   state: FormState;
   onChange: (s: FormState) => void;
+  inhaber: Inhaber[];
 }) {
   return (
     <div className="space-y-3">
       <input
         type="text"
-        placeholder='z.B. "Privat", "Gemeinsam", "Firma A"'
+        placeholder='z.B. "Giro", "Visa", "Tagesgeld"'
         value={state.name}
         onChange={(e) => onChange({ ...state, name: e.target.value })}
         className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
@@ -83,34 +72,30 @@ function FormFields({
       />
       <div>
         <label className="mb-1.5 block text-xs text-fg-muted">
-          Typ <span className="text-fg-faint">— wem gehört&apos;s</span>
+          Inhaber <span className="text-fg-faint">— wem gehört&apos;s</span>
         </label>
-        <div className="grid grid-cols-3 gap-2">
-          {TYPES_ORDER.map((t) => (
-            <button
-              key={t}
-              onClick={() =>
-                onChange({
-                  ...state,
-                  type: t,
-                  icon:
-                    state.icon &&
-                    state.icon !== TYPE_DEFAULT_ICON[state.type] &&
-                    state.icon !== ART_DEFAULT_ICON[state.art]
-                      ? state.icon
-                      : TYPE_DEFAULT_ICON[t],
-                })
-              }
-              className={`rounded-lg border px-3 py-1.5 text-xs cursor-pointer ${
-                state.type === t
-                  ? "border-fg bg-fg text-fg-inverse"
-                  : "border-border bg-surface text-fg-muted hover:text-fg"
-              }`}
-            >
-              {TYPE_LABELS[t]}
-            </button>
+        <select
+          value={state.inhaberId === "" ? "" : String(state.inhaberId)}
+          onChange={(e) =>
+            onChange({
+              ...state,
+              inhaberId: e.target.value === "" ? "" : Number(e.target.value),
+            })
+          }
+          className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-sm text-fg"
+        >
+          <option value="">— bitte wählen —</option>
+          {inhaber.map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.name}
+            </option>
           ))}
-        </div>
+        </select>
+        {inhaber.length === 0 && (
+          <p className="mt-1 text-xs text-warn">
+            Erst einen Inhaber anlegen, dann hier zuordnen.
+          </p>
+        )}
       </div>
       <div>
         <label className="mb-1.5 block text-xs text-fg-muted">
@@ -126,8 +111,7 @@ function FormFields({
                   art: a,
                   icon:
                     state.icon &&
-                    state.icon !== ART_DEFAULT_ICON[state.art] &&
-                    state.icon !== TYPE_DEFAULT_ICON[state.type]
+                    state.icon !== ART_DEFAULT_ICON[state.art]
                       ? state.icon
                       : ART_DEFAULT_ICON[a],
                 })
@@ -207,26 +191,41 @@ function FormFields({
 
 export default function KontogruppenManager({
   kontogruppen,
+  inhaber,
   onChange,
 }: KontogruppenManagerProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const defaultInhaberId: number | "" = inhaber[0]?.id ?? "";
   const [form, setForm] = useState<FormState>({
     name: "",
-    type: "privat",
+    inhaberId: defaultInhaberId,
     art: "girokonto",
     color: PRESET_COLORS[0],
-    icon: "user",
+    icon: ART_DEFAULT_ICON["girokonto"],
     bank: "",
   });
+
+  const grouped = useMemo(() => {
+    const byInhaber = new Map<number, Kontogruppe[]>();
+    for (const kg of kontogruppen) {
+      const list = byInhaber.get(kg.inhaberId) ?? [];
+      list.push(kg);
+      byInhaber.set(kg.inhaberId, list);
+    }
+    return inhaber.map((i) => ({
+      inhaber: i,
+      kontogruppen: byInhaber.get(i.id) ?? [],
+    }));
+  }, [kontogruppen, inhaber]);
 
   const resetForm = () => {
     setForm({
       name: "",
-      type: "privat",
+      inhaberId: inhaber[0]?.id ?? "",
       art: "girokonto",
       color: PRESET_COLORS[0],
-      icon: "user",
+      icon: ART_DEFAULT_ICON["girokonto"],
       bank: "",
     });
     setShowForm(false);
@@ -234,13 +233,13 @@ export default function KontogruppenManager({
   };
 
   const handleCreate = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || form.inhaberId === "") return;
     await fetch("/api/kontogruppen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name.trim(),
-        type: form.type,
+        inhaberId: form.inhaberId,
         art: form.art,
         color: form.color,
         icon: form.icon,
@@ -252,13 +251,13 @@ export default function KontogruppenManager({
   };
 
   const handleUpdate = async () => {
-    if (!editingId || !form.name.trim()) return;
+    if (!editingId || !form.name.trim() || form.inhaberId === "") return;
     await fetch(`/api/kontogruppen/${editingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name.trim(),
-        type: form.type,
+        inhaberId: form.inhaberId,
         art: form.art,
         color: form.color,
         icon: form.icon,
@@ -272,7 +271,7 @@ export default function KontogruppenManager({
   const handleEdit = (kg: Kontogruppe) => {
     setForm({
       name: kg.name,
-      type: kg.type,
+      inhaberId: kg.inhaberId,
       art: kg.art,
       color: kg.color,
       icon: kg.icon,
@@ -280,6 +279,19 @@ export default function KontogruppenManager({
     });
     setEditingId(kg.id);
     setShowForm(false);
+  };
+
+  const handleAddForInhaber = (inhaberId: number) => {
+    setForm({
+      name: "",
+      inhaberId,
+      art: "girokonto",
+      color: PRESET_COLORS[0],
+      icon: ART_DEFAULT_ICON["girokonto"],
+      bank: "",
+    });
+    setEditingId(null);
+    setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -302,136 +314,151 @@ export default function KontogruppenManager({
           </div>
           <div>
             <h3 className="text-sm font-medium text-fg">
-              Kontoinhaber &amp; Kontogruppen
+              Kontogruppen
             </h3>
             <p className="text-xs text-fg-subtle">
-              Konten organisieren — z. B. nach Inhaber, Verwendung oder
-              Kartentyp. Wird beim CSV-Import als Upload-Ziel angeboten.
+              Konkrete Konten (Giro, Kreditkarte, Depot…) je Inhaber. Wird
+              beim CSV-Import als Upload-Ziel angeboten.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 px-5 py-4">
-        {kontogruppen.length === 0 && !showForm && (
-            <p className="text-xs text-fg-subtle">
-              Noch keine Kontogruppen angelegt. Lege eine an, um Uploads zuordnen zu können.
-            </p>
-          )}
+      <div className="space-y-5 px-5 py-4">
+        {inhaber.length === 0 && (
+          <p className="rounded-lg border border-warn bg-warn-soft px-3 py-2 text-xs text-warn">
+            Erst Inhaber anlegen (Sektion darüber), dann können hier
+            Kontogruppen zugeordnet werden.
+          </p>
+        )}
 
-          {kontogruppen.map((kg) => {
-            const Icon = getIcon(kg.icon);
-            const isEditing = editingId === kg.id;
-            return (
-              <div
-                key={kg.id}
-                className="rounded-lg border border-border bg-bg-muted"
-              >
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="rounded-md p-1.5"
-                      style={{ backgroundColor: kg.color + "33" }}
-                    >
-                      <Icon className="h-4 w-4" style={{ color: kg.color }} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-fg">{kg.name}</p>
-                      <p className="text-xs text-fg-subtle">
-                        {TYPE_LABELS[kg.type]}
-                        {` · ${ART_LABELS[kg.art]}`}
-                        {kg.bank ? ` · ${kg.bank}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {!isEditing && (
-                      <button
-                        onClick={() => handleEdit(kg)}
-                        className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
-                        title="Bearbeiten"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(kg.id)}
-                      className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-danger cursor-pointer"
-                      title="Löschen"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="border-t border-border px-3 py-3 space-y-3">
-                    <FormFields state={form} onChange={setForm} />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={resetForm}
-                        className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
-                      >
-                        Abbrechen
-                      </button>
-                      <button
-                        onClick={handleUpdate}
-                        disabled={!form.name.trim()}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Speichern
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {showForm ? (
-            <div className="space-y-3 rounded-lg border border-border bg-bg-muted p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-fg-soft">
-                  Neue Kontogruppe
+        {grouped.map(({ inhaber: i, kontogruppen: kgs }) => (
+          <div key={i.id} className="space-y-2">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: i.color }}
+                />
+                <span className="text-xs font-medium uppercase tracking-[0.16em] text-fg-faint">
+                  {i.name}
                 </span>
-                <button
-                  onClick={resetForm}
-                  className="text-fg-subtle hover:text-fg-soft cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <span className="text-[11px] text-fg-faint">
+                  · {kgs.length} Konto{kgs.length === 1 ? "" : "s"}
+                </span>
               </div>
-              <FormFields state={form} onChange={setForm} />
               <button
-                onClick={handleCreate}
-                disabled={!form.name.trim()}
-                className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                onClick={() => handleAddForInhaber(i.id)}
+                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-fg-muted hover:border-border-strong hover:text-fg cursor-pointer"
               >
-                Anlegen
+                <Plus className="h-3 w-3" />
+                Konto
               </button>
             </div>
-          ) : (
-            !editingId && (
+
+            {kgs.length === 0 && (
+              <p className="px-1 text-xs italic text-fg-subtle">
+                noch keine Konten für diesen Inhaber
+              </p>
+            )}
+
+            {kgs.map((kg) => {
+              const Icon = getIcon(kg.icon);
+              const isEditing = editingId === kg.id;
+              return (
+                <div
+                  key={kg.id}
+                  className="rounded-lg border border-border bg-bg-muted"
+                >
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="rounded-md p-1.5"
+                        style={{ backgroundColor: kg.color + "33" }}
+                      >
+                        <Icon
+                          className="h-4 w-4"
+                          style={{ color: kg.color }}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-fg">{kg.name}</p>
+                        <p className="text-xs text-fg-subtle">
+                          {ART_LABELS[kg.art]}
+                          {kg.bank ? ` · ${kg.bank}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {!isEditing && (
+                        <button
+                          onClick={() => handleEdit(kg)}
+                          className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
+                          title="Bearbeiten"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(kg.id)}
+                        className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-danger cursor-pointer"
+                        title="Löschen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {isEditing && (
+                    <div className="border-t border-border px-3 py-3 space-y-3">
+                      <FormFields state={form} onChange={setForm} inhaber={inhaber} />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={resetForm}
+                          className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
+                        >
+                          Abbrechen
+                        </button>
+                        <button
+                          onClick={handleUpdate}
+                          disabled={!form.name.trim() || form.inhaberId === ""}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Speichern
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {showForm && (
+          <div className="space-y-3 rounded-lg border border-brand bg-brand-soft p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-fg-soft">
+                Neue Kontogruppe
+              </span>
               <button
-                onClick={() => {
-                  setForm({
-                    name: "",
-                    type: "privat",
-                    art: "girokonto",
-                    color: PRESET_COLORS[0],
-                    icon: "user",
-                    bank: "",
-                  });
-                  setShowForm(true);
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong px-3 py-2 text-xs font-medium text-fg-muted hover:border-brand hover:text-brand cursor-pointer"
+                onClick={resetForm}
+                className="text-fg-subtle hover:text-fg-soft cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
-                Kontogruppe anlegen
+                <X className="h-4 w-4" />
               </button>
-            )
-          )}
+            </div>
+            <FormFields state={form} onChange={setForm} inhaber={inhaber} />
+            <button
+              onClick={handleCreate}
+              disabled={!form.name.trim() || form.inhaberId === ""}
+              className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            >
+              Anlegen
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

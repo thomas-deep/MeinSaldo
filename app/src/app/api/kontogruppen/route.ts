@@ -12,12 +12,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const parsed = await parseBody(req, kontogruppeCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, type, art, color, icon, bank } = parsed.data;
+  const { name, inhaberId, art, color, icon, bank } = parsed.data;
 
   try {
     const kontogruppe = createKontogruppe(
       name,
-      type,
+      inhaberId,
       art ?? "girokonto",
       color,
       icon || "user",

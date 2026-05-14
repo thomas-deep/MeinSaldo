@@ -20,7 +20,7 @@ export interface Transaction {
   isUmbuchung?: boolean;
 }
 
-export type KontogruppeType = "privat" | "gemeinsam" | "firma";
+export type InhaberType = "privat" | "gemeinsam" | "firma";
 export type KontogruppeArt =
   | "girokonto"
   | "sparkonto"
@@ -28,10 +28,21 @@ export type KontogruppeArt =
   | "depot"
   | "sonstiges";
 
+export interface Inhaber {
+  id: number;
+  name: string;
+  type: InhaberType;
+  color: string;
+  createdAt?: string;
+}
+
 export interface Kontogruppe {
   id: number;
   name: string;
-  type: KontogruppeType;
+  inhaberId: number;
+  inhaberName?: string;
+  inhaberType?: InhaberType;
+  inhaberColor?: string;
   art: KontogruppeArt;
   color: string;
   icon: string;
