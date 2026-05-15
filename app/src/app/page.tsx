@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LineChart, Database, Settings as SettingsIcon } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
 import CsvUpload, { AiImportMode, EncodingChoice } from "../components/CsvUpload";
+import KontoPicker from "../components/KontoPicker";
 import FieldMappingComponent from "../components/FieldMapping";
 import SummaryCards from "../components/SummaryCards";
 import CategoryChart from "../components/CategoryChart";
@@ -13,7 +14,6 @@ import CategoryDrillDown from "../components/CategoryDrillDown";
 import DbStatus from "../components/DbStatus";
 import KontogruppeFilter from "../components/KontogruppeFilter";
 import SettingsView from "../components/SettingsView";
-import AiCategorizeButton from "../components/AiCategorizeButton";
 import {
   FieldMapping,
   Inhaber,
@@ -72,6 +72,7 @@ export default function Home() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingEncoding, setPendingEncoding] = useState<EncodingChoice>("auto");
   const [pendingKontogruppeId, setPendingKontogruppeId] = useState<number | null>(null);
+  const [kontoChosen, setKontoChosen] = useState(false);
   const [presetName, setPresetName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kontogruppen, setKontogruppen] = useState<Kontogruppe[]>([]);
@@ -293,14 +294,48 @@ export default function Home() {
   );
 
   const handleFileSelected = useCallback(
-    async (
-      file: File,
-      kontogruppeId: number | null,
-      encoding: EncodingChoice
-    ) => {
+    async (file: File, encoding: EncodingChoice) => {
       setPendingFile(file);
       setPendingEncoding(encoding);
+      setImportError(null);
+      setImportPreview(null);
+      const decodeEnc =
+        encoding === "auto" ? presetEncoding(presetName) : encoding;
+      const text = await decodeFile(file, decodeEnc);
+      const headers = detectCsvHeaders(text, separator, presetHooksRef.current);
+      setCsvHeaders(headers);
+      // Wenn das Konto bereits aus einem früheren Upload gewählt wurde,
+      // direkt eine neue Vorschau ziehen — sonst auf User-Klick warten.
+      if (kontoChosen) {
+        await fetchPreview(
+          file,
+          pendingKontogruppeId,
+          encoding,
+          mapping,
+          separator,
+          invertAmount,
+          defaultCurrency,
+          presetName
+        );
+      }
+    },
+    [
+      presetName,
+      separator,
+      kontoChosen,
+      pendingKontogruppeId,
+      mapping,
+      invertAmount,
+      defaultCurrency,
+      fetchPreview,
+    ]
+  );
+
+  const handleKontoSelected = useCallback(
+    async (kontogruppeId: number | null) => {
       setPendingKontogruppeId(kontogruppeId);
+      setKontoChosen(true);
+      if (!pendingFile) return;
 
       let activeMapping = mapping;
       let activeSeparator = separator;
@@ -324,15 +359,21 @@ export default function Home() {
       }
 
       const decodeEnc =
-        encoding === "auto" ? presetEncoding(activePreset) : encoding;
-      const text = await decodeFile(file, decodeEnc);
-      const headers = detectCsvHeaders(text, activeSeparator, presetHooksRef.current);
+        pendingEncoding === "auto"
+          ? presetEncoding(activePreset)
+          : pendingEncoding;
+      const text = await decodeFile(pendingFile, decodeEnc);
+      const headers = detectCsvHeaders(
+        text,
+        activeSeparator,
+        presetHooksRef.current
+      );
       setCsvHeaders(headers);
 
       await fetchPreview(
-        file,
+        pendingFile,
         kontogruppeId,
-        encoding,
+        pendingEncoding,
         activeMapping,
         activeSeparator,
         activeInvert,
@@ -341,6 +382,8 @@ export default function Home() {
       );
     },
     [
+      pendingFile,
+      pendingEncoding,
       mapping,
       separator,
       invertAmount,
@@ -439,6 +482,8 @@ export default function Home() {
     setImportPreview(null);
     setCsvHeaders([]);
     setPendingFile(null);
+    setPendingKontogruppeId(null);
+    setKontoChosen(false);
   }, []);
 
   const handleUmbuchungToggle = useCallback(
@@ -525,6 +570,43 @@ export default function Home() {
     await fetch("/api/umbuchungen/recompute", { method: "POST" });
     await loadFromDb();
   }, [loadFromDb]);
+
+  const handleRecategorizeRules = useCallback(
+    async (mode: "rules" | "rules-only-sonstiges") => {
+      await fetch("/api/categorize-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      await loadFromDb();
+    },
+    [loadFromDb]
+  );
+
+  const handleRecategorizeAi = useCallback(
+    async (mode: "ai-sonstiges" | "ai-all") => {
+      try {
+        if (mode === "ai-sonstiges") {
+          setAiProgress({ done: 0, total: 0, matched: 0 });
+          await runAiOnAllUncategorized((p) => setAiProgress(p));
+        } else {
+          const res = await fetch("/api/categorize-all?scope=all");
+          const json = (await res.json()) as { ids: string[] };
+          const ids = json.ids;
+          if (ids.length === 0) return;
+          setAiProgress({ done: 0, total: ids.length, matched: 0 });
+          await runAiOnIds(ids, {
+            force: true,
+            onProgress: (p) => setAiProgress(p),
+          });
+        }
+        await loadFromDb();
+      } finally {
+        setAiProgress(null);
+      }
+    },
+    [loadFromDb]
+  );
 
   const handleBulkDelete = useCallback(
     async (ids: string[]) => {
@@ -674,9 +756,22 @@ export default function Home() {
 
       {view === "daten" && (
         <div className="space-y-6">
-          <CsvUpload kontogruppen={kontogruppen} onFileSelected={handleFileSelected} />
+          <CsvUpload
+            filename={pendingFile?.name ?? null}
+            encoding={pendingEncoding}
+            onEncodingChange={setPendingEncoding}
+            onFileSelected={handleFileSelected}
+          />
 
-          {csvHeaders.length > 0 && (
+          {pendingFile && (
+            <KontoPicker
+              kontogruppen={kontogruppen}
+              selected={kontoChosen ? pendingKontogruppeId : null}
+              onSelect={handleKontoSelected}
+            />
+          )}
+
+          {pendingFile && kontoChosen && csvHeaders.length > 0 && (
             <FieldMappingComponent
               csvHeaders={csvHeaders}
               mapping={mapping}
@@ -726,6 +821,9 @@ export default function Home() {
               latest={dbStats.latest}
               lastImport={lastImport}
               onClear={handleClearDb}
+              onRecomputeUmbuchungen={handleRecomputeUmbuchungen}
+              onRecategorizeRules={handleRecategorizeRules}
+              onRecategorizeAi={handleRecategorizeAi}
             />
           )}
 
@@ -766,8 +864,6 @@ export default function Home() {
 
           {!isLoading && hasData && (
             <>
-              <AiCategorizeButton onDone={loadFromDb} />
-
               {kontogruppen.length > 0 && (
                 <KontogruppeFilter
                   kontogruppen={kontogruppen}
@@ -787,7 +883,6 @@ export default function Home() {
                 transactions={filteredTransactions}
                 comparison={comparisonTransactions}
                 includeUmbuchungen={auswertungFilter.includeUmbuchungen}
-                onRecomputeUmbuchungen={handleRecomputeUmbuchungen}
               />
 
               <div className="flex items-center gap-6 border-b border-border">

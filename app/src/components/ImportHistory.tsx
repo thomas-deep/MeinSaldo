@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Clock, RefreshCw, Trash2, Wallet } from "lucide-react";
+import { Clock, FileText, RefreshCw, Trash2, Wallet } from "lucide-react";
 import { Kontogruppe, formatKontogruppe } from "../lib/types";
 
 interface ImportBatch {
@@ -12,6 +12,7 @@ interface ImportBatch {
     name: string | null;
     inhaberName: string | null;
   }[];
+  sourceFiles: string[];
   dateFrom: string | null;
   dateTo: string | null;
 }
@@ -177,6 +178,19 @@ export default function ImportHistory({ kontogruppen, onChange }: Props) {
                   <span className="text-fg-faint">·</span> Konto:{" "}
                   <span className="text-fg-muted">{kgLabel}</span>
                 </p>
+                {b.sourceFiles.length > 0 && (
+                  <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-fg-faint">
+                    <FileText className="h-3 w-3" />
+                    {b.sourceFiles.map((f, i) => (
+                      <span key={f}>
+                        <span className="font-mono">{f}</span>
+                        {i < b.sourceFiles.length - 1 && (
+                          <span className="text-fg-faint">, </span>
+                        )}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-muted pl-2.5 pr-1 py-0.5">

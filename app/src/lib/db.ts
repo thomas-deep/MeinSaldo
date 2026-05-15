@@ -75,6 +75,7 @@ const SCHEMA_V1 = `
     saldo_nach_buchung REAL NOT NULL DEFAULT 0,
     kategorie_id INTEGER REFERENCES kategorien(id),
     kontogruppe_id INTEGER REFERENCES kontogruppen(id),
+    source_file TEXT,
     is_manual_override INTEGER NOT NULL DEFAULT 0,
     ai_classified INTEGER NOT NULL DEFAULT 0,
     is_umbuchung INTEGER NOT NULL DEFAULT 0,
@@ -138,12 +139,20 @@ const migrations: Migration[] = [
       db.exec(
         "ALTER TABLE kontogruppen ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999"
       );
-      // Initiale Reihenfolge an id-Reihenfolge ausrichten
       db.exec(
         "UPDATE inhaber SET sort_order = id WHERE sort_order = 999"
       );
       db.exec(
         "UPDATE kontogruppen SET sort_order = id WHERE sort_order = 999"
+      );
+    },
+  },
+  {
+    version: 4,
+    description: "transactions: source_file (CSV-Dateiname pro Import)",
+    up: (db) => {
+      db.exec(
+        "ALTER TABLE transactions ADD COLUMN source_file TEXT"
       );
     },
   },
@@ -627,7 +636,8 @@ export interface InsertResult {
 
 export function insertTransactions(
   transactions: Transaction[],
-  kontogruppeId: number | null
+  kontogruppeId: number | null,
+  sourceFile: string | null = null
 ): InsertResult {
   const db = getDb();
 
@@ -640,8 +650,8 @@ export function insertTransactions(
       id, konto_bezeichnung, iban_konto, buchungstag, valutadatum,
       name_zahlungsbeteiligter, iban_zahlungsbeteiligter, buchungstext,
       verwendungszweck, betrag, waehrung, saldo_nach_buchung,
-      kategorie_id, kontogruppe_id, imported_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      kategorie_id, kontogruppe_id, source_file, imported_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const kategorieCache = new Map<string, number>();
@@ -684,6 +694,7 @@ export function insertTransactions(
         t.saldoNachBuchung,
         kategorieId,
         kontogruppeId,
+        sourceFile,
         now
       );
 
@@ -729,6 +740,94 @@ export function updateCategoryByAi(
   return result.changes > 0;
 }
 
+/**
+ * Wendet die Kategorie-Regeln auf alle (oder nur uneingestufte) Transaktionen
+ * an. Manuelle Overrides bleiben erhalten.
+ * @param onlySonstiges — wenn true, nur Buchungen mit Kategorie "Sonstiges" /
+ *   "Sonstige Einnahmen" (klassisches Fallback-Reset).
+ */
+export function recategorizeAllByRules(onlySonstiges: boolean): {
+  total: number;
+  updated: number;
+} {
+  const db = getDb();
+  const rules = getKategorieRules().filter((r) => !r.isFallback);
+  const filter = onlySonstiges
+    ? "AND (k.name = 'Sonstiges' OR k.name = 'Sonstige Einnahmen')"
+    : "";
+  const rows = db
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       WHERE t.is_manual_override = 0 ${filter}`
+    )
+    .all() as DbRow[];
+
+  let updated = 0;
+  const update = db.prepare(
+    "UPDATE transactions SET kategorie_id = ?, ai_classified = 0 WHERE id = ?"
+  );
+  const fallbackEinnahme = getKategorieId(db, "Sonstige Einnahmen");
+  const fallbackAusgabe = getKategorieId(db, "Sonstiges");
+  const tx = db.transaction(() => {
+    for (const row of rows) {
+      const t = rowToTransaction(row);
+      const direction = t.betrag >= 0 ? "einnahme" : "ausgabe";
+      let matched: string | null = null;
+      for (const rule of rules) {
+        if (rule.direction !== "beide" && rule.direction !== direction)
+          continue;
+        const searchText = `${t.verwendungszweck} ${t.nameZahlungsbeteiligter} ${t.buchungstext}`.toLowerCase();
+        const counterparty = t.nameZahlungsbeteiligter.toLowerCase();
+        const hit =
+          rule.keywords.some(
+            (k) => k && searchText.includes(k.toLowerCase())
+          ) ||
+          rule.namePatterns.some((p) => {
+            if (!p) return false;
+            const pl = p.toLowerCase();
+            return counterparty.includes(pl) || searchText.includes(pl);
+          });
+        if (hit) {
+          matched = rule.name;
+          break;
+        }
+      }
+      const newKategorieId =
+        matched != null
+          ? getKategorieId(db, matched)
+          : t.betrag > 0
+            ? fallbackEinnahme
+            : fallbackAusgabe;
+      const r = update.run(newKategorieId, t.id);
+      if (r.changes > 0) updated++;
+    }
+  });
+  tx();
+  return { total: rows.length, updated };
+}
+
+export function getAllUncategorizedIds(): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT t.id FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       WHERE t.is_manual_override = 0
+         AND (k.name = 'Sonstiges' OR k.name = 'Sonstige Einnahmen' OR k.name IS NULL)`
+    )
+    .all() as { id: string }[];
+  return rows.map((r) => r.id);
+}
+
+export function getAllTransactionIds(): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT id FROM transactions WHERE is_manual_override = 0")
+    .all() as { id: string }[];
+  return rows.map((r) => r.id);
+}
+
 export function clearAll(): number {
   const db = getDb();
   const result = db.prepare("DELETE FROM transactions").run();
@@ -770,6 +869,7 @@ export interface ImportBatch {
     name: string | null;
     inhaberName: string | null;
   }[];
+  sourceFiles: string[];
   dateFrom: string | null;
   dateTo: string | null;
 }
@@ -803,6 +903,10 @@ export function getImportBatches(limit = 50): ImportBatch[] {
      LEFT JOIN inhaber i ON i.id = k.inhaber_id
      WHERE t.imported_at = ?`
   );
+  const fileStmt = db.prepare(
+    `SELECT DISTINCT source_file FROM transactions
+     WHERE imported_at = ? AND source_file IS NOT NULL AND source_file != ''`
+  );
 
   return rows.map((r) => ({
     importedAt: r.imported_at,
@@ -814,6 +918,9 @@ export function getImportBatches(limit = 50): ImportBatch[] {
       name: string | null;
       inhaberName: string | null;
     }[],
+    sourceFiles: (
+      fileStmt.all(r.imported_at) as { source_file: string }[]
+    ).map((row) => row.source_file),
   }));
 }
 

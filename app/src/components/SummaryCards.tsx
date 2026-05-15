@@ -8,7 +8,6 @@ interface SummaryCardsProps {
   comparison?: Transaction[];
   comparisonLabel?: string;
   includeUmbuchungen?: boolean;
-  onRecomputeUmbuchungen?: () => Promise<void> | void;
 }
 
 function formatEuro(value: number, opts?: { sign?: boolean }): string {
@@ -145,7 +144,6 @@ export default function SummaryCards({
   comparison,
   comparisonLabel = "vs. Vorjahr",
   includeUmbuchungen = false,
-  onRecomputeUmbuchungen,
 }: SummaryCardsProps) {
   const cur = aggregate(transactions, includeUmbuchungen);
   const prev = comparison ? aggregate(comparison, includeUmbuchungen) : null;
@@ -204,34 +202,21 @@ export default function SummaryCards({
           formatDelta={(v) => `${v.toFixed(1)} %`}
         />
       </div>
-      {(cur.umbuchungenCount > 0 || onRecomputeUmbuchungen) && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-fg-subtle">
-          {cur.umbuchungenCount > 0 && (
-            <p>
-              <span className="font-medium text-fg-muted">
-                {cur.umbuchungenCount}
-              </span>{" "}
-              Umbuchungen zwischen eigenen Konten —{" "}
-              {includeUmbuchungen
-                ? "in Summen einbezogen"
-                : "aus Summen ausgeschlossen"}{" "}
-              (
-              <span className="font-mono tabular-nums">
-                {formatEuro(cur.umbuchungenVolume)}
-              </span>{" "}
-              Volumen)
-            </p>
-          )}
-          {onRecomputeUmbuchungen && (
-            <button
-              onClick={() => void onRecomputeUmbuchungen()}
-              className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-[11px] text-fg-muted hover:text-fg cursor-pointer"
-              title="Umbuchungs-Erkennung neu über alle Buchungen laufen lassen (manuelle Markierungen bleiben erhalten)"
-            >
-              Umbuchungen neu erkennen
-            </button>
-          )}
-        </div>
+      {cur.umbuchungenCount > 0 && (
+        <p className="text-xs text-fg-subtle">
+          <span className="font-medium text-fg-muted">
+            {cur.umbuchungenCount}
+          </span>{" "}
+          Umbuchungen zwischen eigenen Konten —{" "}
+          {includeUmbuchungen
+            ? "in Summen einbezogen"
+            : "aus Summen ausgeschlossen"}{" "}
+          (
+          <span className="font-mono tabular-nums">
+            {formatEuro(cur.umbuchungenVolume)}
+          </span>{" "}
+          Volumen)
+        </p>
       )}
     </div>
   );

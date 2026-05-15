@@ -4,6 +4,21 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+### Daten-Seite (Refactor)
+
+- **Linearer Upload-Flow** ohne Vorab-Auswahl: nach CSV-Drop erscheint die
+  Konto-Auswahl, danach das Mapping, danach die Vorschau — alle Sektionen
+  bleiben sichtbar, kein Hide-and-Seek mehr.
+- **Globale Aktionen am DB-Status-Container**: „Umbuchungen finden"
+  (recomputeUmbuchungen) und „Neukategorisieren" mit Dropdown
+  (Regeln auf „Sonstiges" / Regeln auf alles / KI auf „Sonstiges" /
+  Komplett-KI). Manuelle Overrides bleiben in allen Modi erhalten.
+- **CSV-Dateiname** wird beim Import gespeichert (Migration v4: neue Spalte
+  `transactions.source_file`) und in der Import-Historie pro Eintrag
+  angezeigt.
+- AI-Hinweis-Banner aus der Auswertung entfernt — KI-Kategorisierung läuft
+  jetzt zentral über „Neukategorisieren" auf der Daten-Seite.
+
 ### Kategorien
 
 - **Direction pro Kategorie** (`einnahme` / `ausgabe` / `beide`). Auto-Match

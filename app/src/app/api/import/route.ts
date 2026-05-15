@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const result = insertTransactions(transactions, kontogruppeId);
+  const result = insertTransactions(transactions, kontogruppeId, file.name);
   logEvent(
     "info",
     "import",
