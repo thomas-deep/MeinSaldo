@@ -88,10 +88,13 @@ export interface BankPreset {
   rowTransform?: (row: RawRow) => RawRow;
 }
 
+export type KategorieDirection = "einnahme" | "ausgabe" | "beide";
+
 export interface CategoryRule {
   kategorie: string;
   keywords: string[];
   namePatterns: string[];
+  direction: KategorieDirection;
 }
 
 export interface MonthlyData {

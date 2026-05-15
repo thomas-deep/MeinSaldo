@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
         kategorie: r.name,
         keywords: r.keywords,
         namePatterns: r.namePatterns,
+        direction: r.direction,
       }));
     transactions = parseCsvData(text, config.mapping, config.separator, {
       invertAmount: config.invertAmount,

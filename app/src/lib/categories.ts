@@ -3,6 +3,7 @@ import { CategoryRule, Transaction } from "./types";
 export const categoryRules: CategoryRule[] = [
   {
     kategorie: "Gehalt & Einkommen",
+    direction: "einnahme",
     keywords: [
       "gehalt", "lohn", "vergütung", "honorar", "sold", "bezüge", "entgelt",
       "gehaltszahlung", "lohnzahlung", "bonus", "tantieme", "weihnachtsgeld",
@@ -11,7 +12,37 @@ export const categoryRules: CategoryRule[] = [
     namePatterns: [],
   },
   {
+    kategorie: "Zahlung Ausgangsrechnung",
+    direction: "einnahme",
+    keywords: [
+      "ausgangsrechnung", "ar-nr", "ar nr", "ar-nummer", "rechnungsnummer ar",
+      "zahlung rechnung", "rg-nr", "rg nr", "honorarnote", "honorar-rechnung",
+    ],
+    namePatterns: [],
+  },
+  {
+    kategorie: "Steuererstattung",
+    direction: "einnahme",
+    keywords: [
+      "steuererstattung", "umsatzsteuererstattung", "ust-erstattung",
+      "vorsteuererstattung", "einkommensteuererstattung",
+      "lohnsteuererstattung", "körperschaftsteuererstattung",
+      "gewerbesteuererstattung", "ust-guthaben", "steuer-guthaben",
+    ],
+    namePatterns: [],
+  },
+  {
+    kategorie: "Mieteinnahmen",
+    direction: "einnahme",
+    keywords: [
+      "mieteinnahme", "mietzahlung", "mietzins", "pachtzahlung",
+      "pachteinnahme", "mieteingang", "kaltmiete eingang",
+    ],
+    namePatterns: [],
+  },
+  {
     kategorie: "Miete & Wohnen",
+    direction: "ausgabe",
     keywords: [
       "miete", "kaltmiete", "warmmiete", "nebenkosten", "betriebskosten",
       "hausgeld", "wohngeld", "grundsteuer", "wohnungsbaugenossenschaft",
@@ -21,6 +52,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Versicherungen",
+    direction: "ausgabe",
     keywords: [
       "versicherung", "police", "beitrag", "krankenkasse", "haftpflicht",
       "rechtsschutz", "hausrat", "unfall", "berufsunfähigkeit",
@@ -35,6 +67,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Strom & Gas & Wasser",
+    direction: "ausgabe",
     keywords: [
       "strom", "stadtwerke", "energieversorgung", "energieversorger",
       "gas", "wasser", "abwasser", "ökostrom", "naturstrom", "fernwärme",
@@ -48,6 +81,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Telekommunikation",
+    direction: "ausgabe",
     keywords: [
       "telekom", "mobilfunk", "internet", "dsl", "glasfaser", "festnetz",
       "telefon", "handyvertrag", "tarif", "datenvolumen",
@@ -61,6 +95,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Lebensmittel",
+    direction: "ausgabe",
     keywords: [
       "supermarkt", "lebensmittel", "wocheneinkauf", "einkauf bio",
       "bio company", "bio markt", "naturkost",
@@ -75,6 +110,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Restaurant & Lieferung",
+    direction: "ausgabe",
     keywords: [
       "restaurant", "gastro", "bistro", "imbiss", "pizza", "café", "cafe",
       "bäckerei", "baeckerei", "konditorei", "metzgerei", "lieferung",
@@ -91,6 +127,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Transport & Mobilität",
+    direction: "ausgabe",
     keywords: [
       "tankstelle", "tanken", "kraftstoff", "benzin", "diesel", "carsharing",
       "kfz", "werkstatt", "tüv", "dekra", "öpnv", "verkehrsverbund",
@@ -112,6 +149,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Abonnements & Streaming",
+    direction: "ausgabe",
     keywords: [
       "abo ", "abonnement", "subscription", "monatsbeitrag", "jahresbeitrag",
       "streaming", "premium", "plus member", "membership",
@@ -130,6 +168,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Shopping & Konsum",
+    direction: "ausgabe",
     keywords: [
       "online-shop", "online shop", "bestellung", "rechnung", "kauf auf",
     ],
@@ -153,6 +192,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Gesundheit",
+    direction: "ausgabe",
     keywords: [
       "apotheke", "arzt", "ärzt", "praxis", "krankenhaus", "klinik", "zahnarzt",
       "optiker", "labor", "therapie", "physiotherapie", "ergotherapie",
@@ -168,6 +208,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Fitness & Sport",
+    direction: "ausgabe",
     keywords: [
       "fitness", "gym", "sport", "fitnessstudio", "schwimmbad", "schwimmbäder",
       "yoga", "pilates", "crossfit", "kletterhalle", "boulderhalle",
@@ -182,6 +223,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Bildung",
+    direction: "ausgabe",
     keywords: [
       "universität", "uni ", "hochschule", "fachhochschule", "studiengebühr",
       "semesterbeitrag", "kursgebühr", "vhs", "volkshochschule",
@@ -195,6 +237,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Reisen & Urlaub",
+    direction: "ausgabe",
     keywords: [
       "hotel", "hostel", "pension", "fewo", "ferienwohnung", "ferienhaus",
       "übernachtung", "flug", "flugticket", "reise", "urlaub", "reisebüro",
@@ -212,6 +255,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Steuern & Abgaben",
+    direction: "ausgabe",
     keywords: [
       "finanzamt", "steuer", "einkommensteuer", "umsatzsteuer", "gewerbesteuer",
       "kfz-steuer", "kraftfahrzeugsteuer", "gez", "rundfunkbeitrag",
@@ -224,6 +268,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Sparen & Investieren",
+    direction: "beide",
     keywords: [
       "sparplan", "depot", "etf", "wertpapier", "fondskauf", "fondsanteil",
       "investment", "anlage", "anleihe", "aktien", "dividende",
@@ -239,6 +284,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Bank-Gebühren & Zinsen",
+    direction: "beide",
     keywords: [
       "kontoführung", "kontoführungsentgelt", "kontoführungsgebühr",
       "jahresgebühr", "kartengebühr", "kreditkartengebühr", "kontogebühr",
@@ -251,6 +297,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Spenden",
+    direction: "ausgabe",
     keywords: [
       "spende", "donation", "charity", "hilfsorganisation", "wohltätig",
       "kirchensteuer", "kirchgeld",
@@ -264,6 +311,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Familie & Kinder",
+    direction: "beide",
     keywords: [
       "kindergeld", "elterngeld", "unterhalt", "spielzeug", "kinderbedarf",
       "schule", "schulgebühren", "hort", "tagesmutter", "jugendamt",
@@ -276,6 +324,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Haustier",
+    direction: "ausgabe",
     keywords: [
       "tierarzt", "tierheim", "tierfutter", "haustier", "katzenfutter",
       "hundefutter",
@@ -287,6 +336,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Geschenke & Blumen",
+    direction: "ausgabe",
     keywords: [
       "geschenk", "blumen", "blumenstrauß", "präsent",
     ],
@@ -296,6 +346,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Bargeld",
+    direction: "beide",
     keywords: [
       "bargeldauszahlung", "geldautomat", "atm", "abhebung", "auszahlung am",
       "cash", "sb-bargeldauszahlung",
@@ -304,6 +355,7 @@ export const categoryRules: CategoryRule[] = [
   },
   {
     kategorie: "Überweisung",
+    direction: "beide",
     keywords: [
       "umbuchung", "übertrag", "dauerauftrag", "zahlungseingang",
       "ueberweisungseingang", "ueberweisungsausgang",
@@ -325,8 +377,10 @@ export function categorizeTransaction(
     .toLowerCase();
 
   const counterpartyText = tx.nameZahlungsbeteiligter.toLowerCase();
+  const txDirection = tx.betrag >= 0 ? "einnahme" : "ausgabe";
 
   for (const rule of rules) {
+    if (rule.direction !== "beide" && rule.direction !== txDirection) continue;
     for (const keyword of rule.keywords) {
       if (!keyword) continue;
       if (searchText.includes(keyword.toLowerCase())) {

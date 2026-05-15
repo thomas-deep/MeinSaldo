@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -43,9 +44,71 @@ interface CategoryChartProps {
   transactions: Transaction[];
   type: "einnahmen" | "ausgaben";
   onCategoryClick?: (kategorie: string) => void;
+  includeUmbuchungen?: boolean;
+  comparison?: Transaction[];
+  comparisonLabel?: string;
+}
+
+interface CategorySummaryWithPrev extends CategorySummary {
+  prevBetrag?: number;
+}
+
+function aggregateByKategorie(
+  transactions: Transaction[],
+  type: "einnahmen" | "ausgaben",
+  includeUmbuchungen: boolean
+): Map<string, number> {
+  const operative = includeUmbuchungen
+    ? transactions
+    : transactions.filter((t) => !t.isUmbuchung);
+  const filtered =
+    type === "einnahmen"
+      ? operative.filter((t) => t.betrag > 0)
+      : operative.filter((t) => t.betrag < 0);
+  const m = new Map<string, number>();
+  for (const t of filtered) {
+    m.set(t.kategorie, (m.get(t.kategorie) ?? 0) + Math.abs(t.betrag));
+  }
+  return m;
 }
 
 // Palette wird theme-aware unten via categoryPalette() berechnet.
+
+function CategoryDelta({
+  current,
+  prev,
+  lowerIsBetter,
+  title,
+}: {
+  current: number;
+  prev: number;
+  lowerIsBetter: boolean;
+  title: string;
+}) {
+  if (prev === 0 && current === 0) return null;
+  const diff = current - prev;
+  const pct = prev === 0 ? null : (diff / Math.abs(prev)) * 100;
+  const isImprovement = lowerIsBetter ? diff < 0 : diff > 0;
+  const isWorse = lowerIsBetter ? diff > 0 : diff < 0;
+  const color =
+    diff === 0
+      ? "text-fg-subtle"
+      : isImprovement
+        ? "text-positive"
+        : isWorse
+          ? "text-danger"
+          : "text-fg-muted";
+  const Icon = diff === 0 ? Minus : diff > 0 ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-0.5 font-mono tabular-nums text-[10px] ${color}`}
+    >
+      <Icon className="h-3 w-3" />
+      {pct !== null ? `${diff > 0 ? "+" : ""}${pct.toFixed(0)}%` : "neu"}
+    </span>
+  );
+}
 
 function formatEuro(value: number): string {
   return new Intl.NumberFormat("de-DE", {
@@ -55,20 +118,32 @@ function formatEuro(value: number): string {
   }).format(value);
 }
 
-export default function CategoryChart({ transactions, type, onCategoryClick }: CategoryChartProps) {
+export default function CategoryChart({
+  transactions,
+  type,
+  onCategoryClick,
+  includeUmbuchungen = false,
+  comparison,
+  comparisonLabel = "vs. Vorjahr",
+}: CategoryChartProps) {
   const [chartType, setChartType] = useState<"bar" | "pie">("bar");
   const chartTheme = useChartTheme();
   const { resolved } = useTheme();
   const COLORS = categoryPalette(resolved);
 
-  const data: CategorySummary[] = useMemo(() => {
-    const operative = transactions.filter((t) => !t.isUmbuchung);
+  const data: CategorySummaryWithPrev[] = useMemo(() => {
+    const operative = includeUmbuchungen
+      ? transactions
+      : transactions.filter((t) => !t.isUmbuchung);
     const filtered =
       type === "einnahmen"
         ? operative.filter((t) => t.betrag > 0)
         : operative.filter((t) => t.betrag < 0);
 
     const total = filtered.reduce((s, t) => s + Math.abs(t.betrag), 0);
+    const prevMap = comparison
+      ? aggregateByKategorie(comparison, type, includeUmbuchungen)
+      : null;
 
     const grouped = filtered.reduce<Record<string, { betrag: number; anzahl: number }>>(
       (acc, t) => {
@@ -86,6 +161,7 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
         betrag: Math.round(betrag * 100) / 100,
         anzahl,
         prozent: total > 0 ? Math.round((betrag / total) * 1000) / 10 : 0,
+        prevBetrag: prevMap ? prevMap.get(kategorie) ?? 0 : undefined,
       }))
       .sort((a, b) => b.betrag - a.betrag);
 
@@ -95,6 +171,9 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
     if (small.length <= 1) return all;
     const sumBetrag = small.reduce((s, c) => s + c.betrag, 0);
     const sumAnzahl = small.reduce((s, c) => s + c.anzahl, 0);
+    const sumPrev = prevMap
+      ? small.reduce((s, c) => s + (prevMap.get(c.kategorie) ?? 0), 0)
+      : undefined;
     return [
       ...main,
       {
@@ -102,9 +181,10 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
         betrag: Math.round(sumBetrag * 100) / 100,
         anzahl: sumAnzahl,
         prozent: total > 0 ? Math.round((sumBetrag / total) * 1000) / 10 : 0,
+        prevBetrag: sumPrev,
       },
     ];
-  }, [transactions, type]);
+  }, [transactions, type, includeUmbuchungen, comparison]);
 
   const title = type === "einnahmen" ? "Einnahmen" : "Ausgaben";
 
@@ -248,6 +328,14 @@ export default function CategoryChart({ transactions, type, onCategoryClick }: C
               <span className="text-fg-subtle">({item.anzahl}x)</span>
             </div>
             <div className="flex items-center gap-3">
+              {item.prevBetrag !== undefined && (
+                <CategoryDelta
+                  current={item.betrag}
+                  prev={item.prevBetrag}
+                  lowerIsBetter={type === "ausgaben"}
+                  title={`${formatEuro(item.prevBetrag)} ${comparisonLabel}`}
+                />
+              )}
               <span className="text-fg-muted">{item.prozent}%</span>
               <span className="font-medium text-fg">{formatEuro(item.betrag)}</span>
             </div>

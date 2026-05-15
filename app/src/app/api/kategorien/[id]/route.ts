@@ -13,6 +13,7 @@ const patchSchema = z
     keywords: z.array(z.string()).max(500).optional(),
     namePatterns: z.array(z.string()).max(500).optional(),
     ruleOrder: z.number().int().min(0).max(99999).optional(),
+    direction: z.enum(["einnahme", "ausgabe", "beide"]).optional(),
   })
   .refine(
     (data) => Object.values(data).some((v) => v !== undefined),

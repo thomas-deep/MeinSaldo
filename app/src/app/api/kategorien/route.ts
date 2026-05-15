@@ -15,6 +15,7 @@ const createSchema = z.object({
   name: z.string().min(1).max(64),
   keywords: z.array(z.string()).max(200).optional(),
   namePatterns: z.array(z.string()).max(200).optional(),
+  direction: z.enum(["einnahme", "ausgabe", "beide"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -24,7 +25,8 @@ export async function POST(req: NextRequest) {
     const k = createKategorieRule(
       parsed.data.name.trim(),
       (parsed.data.keywords ?? []).map((s) => s.trim()).filter(Boolean),
-      (parsed.data.namePatterns ?? []).map((s) => s.trim()).filter(Boolean)
+      (parsed.data.namePatterns ?? []).map((s) => s.trim()).filter(Boolean),
+      parsed.data.direction ?? "beide"
     );
     logEvent("info", "kategorien", `Kategorie '${k.name}' angelegt`, {
       id: k.id,

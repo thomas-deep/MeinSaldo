@@ -7,8 +7,8 @@ import {
   deleteTransactionsByIds,
   logEvent,
   trimLogs,
-} from "../../../../lib/db";
-import { parseBody } from "../../../../lib/api-validation";
+} from "../../../lib/db";
+import { parseBody } from "../../../lib/api-validation";
 
 const baseSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "ids array darf nicht leer sein"),

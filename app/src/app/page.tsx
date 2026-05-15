@@ -37,7 +37,11 @@ import CsvImportPreview, {
   ImportPreview,
 } from "../components/CsvImportPreview";
 import ImportHistory from "../components/ImportHistory";
-import { KontogruppeFilterValue } from "../components/KontogruppeFilter";
+import {
+  KontogruppeFilterValue,
+  EMPTY_FILTER,
+  isFilterEmpty,
+} from "../components/KontogruppeFilter";
 
 interface PresetHooks {
   preprocess?: (rawText: string) => PreprocessResult;
@@ -89,7 +93,7 @@ export default function Home() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
-  const [filter, setFilter] = useState<KontogruppeFilterValue>({ kind: "all" });
+  const [filter, setFilter] = useState<KontogruppeFilterValue>(EMPTY_FILTER);
   const [auswertungFilter, setAuswertungFilter] = useState<AuswertungFilterState>(() => ({
     preset: "alle",
     range: rangeFor("alle", new Date()),
@@ -97,6 +101,7 @@ export default function Home() {
     minBetrag: 0,
     search: "",
     compareVorjahr: false,
+    includeUmbuchungen: false,
   }));
   const [drillDown, setDrillDown] = useState<{
     kategorie: string;
@@ -482,7 +487,7 @@ export default function Home() {
 
   const handleBulkCategory = useCallback(
     async (ids: string[], kategorie: string) => {
-      await fetch("/api/transactions/bulk", {
+      await fetch("/api/transactions-bulk", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, kategorie }),
@@ -494,7 +499,7 @@ export default function Home() {
 
   const handleBulkKontogruppe = useCallback(
     async (ids: string[], kontogruppeId: number | null) => {
-      await fetch("/api/transactions/bulk", {
+      await fetch("/api/transactions-bulk", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, kontogruppeId }),
@@ -506,7 +511,7 @@ export default function Home() {
 
   const handleBulkUmbuchung = useCallback(
     async (ids: string[], isUmbuchung: boolean) => {
-      await fetch("/api/transactions/bulk", {
+      await fetch("/api/transactions-bulk", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, umbuchung: isUmbuchung }),
@@ -516,9 +521,14 @@ export default function Home() {
     [loadFromDb]
   );
 
+  const handleRecomputeUmbuchungen = useCallback(async () => {
+    await fetch("/api/umbuchungen/recompute", { method: "POST" });
+    await loadFromDb();
+  }, [loadFromDb]);
+
   const handleBulkDelete = useCallback(
     async (ids: string[]) => {
-      await fetch("/api/transactions/bulk", {
+      await fetch("/api/transactions-bulk", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -549,17 +559,16 @@ export default function Home() {
   }, [kontogruppen]);
 
   const kontogruppenFiltered = useMemo(() => {
-    if (filter.kind === "all") return transactions;
-    if (filter.kind === "none")
-      return transactions.filter((t) => t.kontogruppeId == null);
-    if (filter.kind === "kontogruppe")
-      return transactions.filter((t) => t.kontogruppeId === filter.id);
-    // inhaber
-    const kgIds = kontogruppenByInhaber.get(filter.id);
-    if (!kgIds) return [];
-    return transactions.filter(
-      (t) => t.kontogruppeId != null && kgIds.has(t.kontogruppeId)
-    );
+    if (isFilterEmpty(filter)) return transactions;
+    const allowedKgIds = new Set<number>(filter.kontogruppeIds);
+    for (const inhaberId of filter.inhaberIds) {
+      const kgIds = kontogruppenByInhaber.get(inhaberId);
+      if (kgIds) for (const id of kgIds) allowedKgIds.add(id);
+    }
+    return transactions.filter((t) => {
+      if (t.kontogruppeId == null) return filter.includeNone;
+      return allowedKgIds.has(t.kontogruppeId);
+    });
   }, [transactions, filter, kontogruppenByInhaber]);
 
   const applyAuswertungFilter = useCallback(
@@ -777,6 +786,8 @@ export default function Home() {
               <SummaryCards
                 transactions={filteredTransactions}
                 comparison={comparisonTransactions}
+                includeUmbuchungen={auswertungFilter.includeUmbuchungen}
+                onRecomputeUmbuchungen={handleRecomputeUmbuchungen}
               />
 
               <div className="flex items-center gap-6 border-b border-border">
@@ -821,6 +832,7 @@ export default function Home() {
                   <div className="space-y-6">
                     <MonthlyChart
                       transactions={filteredTransactions}
+                      includeUmbuchungen={auswertungFilter.includeUmbuchungen}
                       onMonthClick={(yearMonth) => {
                         const [yStr, mStr] = yearMonth.split("-");
                         const y = parseInt(yStr, 10);
@@ -841,14 +853,18 @@ export default function Home() {
                     <div className="grid gap-6 lg:grid-cols-2">
                       <CategoryChart
                         transactions={filteredTransactions}
+                        comparison={comparisonTransactions}
                         type="ausgaben"
+                        includeUmbuchungen={auswertungFilter.includeUmbuchungen}
                         onCategoryClick={(kategorie) =>
                           setDrillDown({ kategorie, type: "ausgaben" })
                         }
                       />
                       <CategoryChart
                         transactions={filteredTransactions}
+                        comparison={comparisonTransactions}
                         type="einnahmen"
+                        includeUmbuchungen={auswertungFilter.includeUmbuchungen}
                         onCategoryClick={(kategorie) =>
                           setDrillDown({ kategorie, type: "einnahmen" })
                         }

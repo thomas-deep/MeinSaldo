@@ -2,6 +2,40 @@
 
 Reverse-chronologisch — neueste zuerst.
 
+## Unveröffentlicht
+
+### Kategorien
+
+- **Direction pro Kategorie** (`einnahme` / `ausgabe` / `beide`). Auto-Match
+  berücksichtigt das Vorzeichen der Buchung — Regeln mit konflikt-haftem
+  Substring (z. B. „miete") greifen nur in ihrer Richtung. Migration v2 setzt
+  Defaults pro Seed-Kategorie. Editor zeigt Segment-Control und farbige Badges.
+- **Drag-and-Drop-Sortierung** für Kategorien, Inhaber und Kontogruppen
+  via `@dnd-kit/sortable`. Neue Bulk-Reorder-Endpunkte als Geschwister-Routen
+  (`/api/<entity>-reorder`), um Next-16-Routing-Konflikt mit `[id]` zu umgehen.
+  Migration v3 fügt `sort_order` in `inhaber` und `kontogruppen` hinzu.
+- **Drei neue Einnahme-Kategorien** für Firmen: `Zahlung Ausgangsrechnung`,
+  `Steuererstattung`, `Mieteinnahmen`.
+
+### Auswertung
+
+- **Vorjahresvergleich in Kategorie-Listen** (Einnahmen + Ausgaben):
+  Pfeil-Indikator + Prozent-Delta pro Kategorie, Tooltip mit Vorjahres-Wert.
+- **Multiselect-Pills** im Konto-Filter — Inhaber + einzelne Konten parallel
+  toggelbar, „Gesamt" setzt zurück.
+- **Umbuchungs-Toggle** im Filter („Umbuchungen einbeziehen") schaltet Stats
+  und Charts zwischen operativem Saldo und Brutto inkl. Umbuchungen um.
+- **Umbuchungen neu erkennen** auf Knopfdruck — neuer Endpoint
+  `POST /api/umbuchungen/recompute`, manuelle Markierungen bleiben erhalten.
+
+### Transaktionen
+
+- **Page-Size-Dropdown** in der Transaktionstabelle: 50 / 100 / 250 / 500 /
+  Alle (statt fest 200).
+- **Routing-Fix**: `/api/transactions/bulk` wurde von der `[id]`-Route
+  geschluckt und gab still `{updated: false}` zurück — Bulk-Endpunkt nach
+  `/api/transactions-bulk` verschoben.
+
 ## v0.1.0 — Erstes stabiles Release (2026-05-14)
 
 Erste durchgängige, produktiv nutzbare Version. Daten-Modell, UI-System und

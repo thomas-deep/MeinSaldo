@@ -19,6 +19,7 @@ import { useChartTheme } from "../lib/chart-theme";
 interface MonthlyChartProps {
   transactions: Transaction[];
   onMonthClick?: (yearMonth: string) => void;
+  includeUmbuchungen?: boolean;
 }
 
 function formatEuro(value: number): string {
@@ -45,14 +46,19 @@ function extractMonthKey(payload: unknown): string | null {
   return null;
 }
 
-export default function MonthlyChart({ transactions, onMonthClick }: MonthlyChartProps) {
+export default function MonthlyChart({
+  transactions,
+  onMonthClick,
+  includeUmbuchungen = false,
+}: MonthlyChartProps) {
   const ct = useChartTheme();
 
   const data: MonthlyEntry[] = useMemo(() => {
     const grouped: Record<string, { einnahmen: number; ausgaben: number }> = {};
 
     for (const tx of transactions) {
-      if (!tx.buchungstag || tx.isUmbuchung) continue;
+      if (!tx.buchungstag) continue;
+      if (!includeUmbuchungen && tx.isUmbuchung) continue;
       const monthKey = tx.buchungstag.substring(0, 7);
       if (!grouped[monthKey]) grouped[monthKey] = { einnahmen: 0, ausgaben: 0 };
       if (tx.betrag > 0) grouped[monthKey].einnahmen += tx.betrag;
@@ -77,7 +83,7 @@ export default function MonthlyChart({ transactions, onMonthClick }: MonthlyChar
           saldo: Math.round((einnahmen - ausgaben) * 100) / 100,
         };
       });
-  }, [transactions]);
+  }, [transactions, includeUmbuchungen]);
 
   if (data.length === 0) {
     return (

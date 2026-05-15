@@ -19,6 +19,7 @@ export interface AuswertungFilterState {
   minBetrag: number;
   search: string;
   compareVorjahr: boolean;
+  includeUmbuchungen: boolean;
 }
 
 interface Props {
@@ -55,6 +56,7 @@ function activeFilterCount(state: AuswertungFilterState): number {
   if (state.minBetrag > 0) n++;
   if (state.search.trim()) n++;
   if (state.compareVorjahr && state.preset !== "alle") n++;
+  if (state.includeUmbuchungen) n++;
   return n;
 }
 
@@ -86,6 +88,7 @@ export default function AuswertungFilter({ state, onChange }: Props) {
       minBetrag: 0,
       search: "",
       compareVorjahr: false,
+      includeUmbuchungen: false,
     });
 
   return (
@@ -118,6 +121,9 @@ export default function AuswertungFilter({ state, onChange }: Props) {
           )}
           {state.compareVorjahr && state.preset !== "alle" && (
             <span className="text-xs text-brand">· Vorjahresvergleich</span>
+          )}
+          {state.includeUmbuchungen && (
+            <span className="text-xs text-fg-muted">· inkl. Umbuchungen</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -247,6 +253,13 @@ export default function AuswertungFilter({ state, onChange }: Props) {
                   : "Gleichen Zeitraum im Vorjahr zum Vergleich anzeigen"
               }
               label="Vorjahresvergleich"
+            />
+
+            <Toggle
+              checked={state.includeUmbuchungen}
+              onChange={(v) => onChange({ ...state, includeUmbuchungen: v })}
+              title="Umbuchungen in Summen und Charts einbeziehen"
+              label="Umbuchungen einbeziehen"
             />
           </div>
         </div>

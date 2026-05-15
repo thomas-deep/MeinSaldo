@@ -5,6 +5,7 @@ import { Plus, Trash2, Users, X, Pencil, Check } from "lucide-react";
 import { Inhaber, Kontogruppe, KontogruppeArt } from "../lib/types";
 import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
+import SortableList, { DragHandle } from "./SortableList";
 
 interface KontogruppenManagerProps {
   kontogruppen: Kontogruppe[];
@@ -294,6 +295,20 @@ export default function KontogruppenManager({
     setShowForm(true);
   };
 
+  const handleReorder = async (inhaberId: number, newOrder: Kontogruppe[]) => {
+    // Beim Reorder innerhalb eines Inhabers: globale sort_order so setzen, dass
+    // diese Kontogruppen in der neuen Reihenfolge stehen; Konten anderer Inhaber
+    // bleiben unverändert.
+    const others = kontogruppen.filter((k) => k.inhaberId !== inhaberId);
+    const ids = [...others.map((k) => k.id), ...newOrder.map((k) => k.id)];
+    await fetch("/api/kontogruppen-reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    onChange();
+  };
+
   const handleDelete = async (id: number) => {
     if (
       !confirm(
@@ -362,77 +377,79 @@ export default function KontogruppenManager({
               </p>
             )}
 
-            {kgs.map((kg) => {
-              const Icon = getIcon(kg.icon);
-              const isEditing = editingId === kg.id;
-              return (
-                <div
-                  key={kg.id}
-                  className="rounded-lg border border-border bg-bg-muted"
-                >
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="rounded-md p-1.5"
-                        style={{ backgroundColor: kg.color + "33" }}
-                      >
-                        <Icon
-                          className="h-4 w-4"
-                          style={{ color: kg.color }}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-fg">{kg.name}</p>
-                        <p className="text-xs text-fg-subtle">
-                          {ART_LABELS[kg.art]}
-                          {kg.bank ? ` · ${kg.bank}` : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {!isEditing && (
-                        <button
-                          onClick={() => handleEdit(kg)}
-                          className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
-                          title="Bearbeiten"
+            <SortableList
+              items={kgs}
+              onReorder={(newOrder) => handleReorder(i.id, newOrder)}
+              renderItem={(kg, handle) => {
+                const Icon = getIcon(kg.icon);
+                const isEditing = editingId === kg.id;
+                return (
+                  <div className="mb-2 rounded-lg border border-border bg-bg-muted">
+                    <div className="flex items-center justify-between px-1 py-2">
+                      <div className="flex items-center gap-2">
+                        <DragHandle {...handle} />
+                        <div
+                          className="rounded-md p-1.5"
+                          style={{ backgroundColor: kg.color + "33" }}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Icon
+                            className="h-4 w-4"
+                            style={{ color: kg.color }}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-fg">{kg.name}</p>
+                          <p className="text-xs text-fg-subtle">
+                            {ART_LABELS[kg.art]}
+                            {kg.bank ? ` · ${kg.bank}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 pr-2">
+                        {!isEditing && (
+                          <button
+                            onClick={() => handleEdit(kg)}
+                            className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
+                            title="Bearbeiten"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(kg.id)}
+                          className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-danger cursor-pointer"
+                          title="Löschen"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(kg.id)}
-                        className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-danger cursor-pointer"
-                        title="Löschen"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {isEditing && (
-                    <div className="border-t border-border px-3 py-3 space-y-3">
-                      <FormFields state={form} onChange={setForm} inhaber={inhaber} />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={resetForm}
-                          className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
-                        >
-                          Abbrechen
-                        </button>
-                        <button
-                          onClick={handleUpdate}
-                          disabled={!form.name.trim() || form.inhaberId === ""}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Speichern
-                        </button>
+                    {isEditing && (
+                      <div className="border-t border-border px-3 py-3 space-y-3">
+                        <FormFields state={form} onChange={setForm} inhaber={inhaber} />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={resetForm}
+                            className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={handleUpdate}
+                            disabled={!form.name.trim() || form.inhaberId === ""}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Speichern
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              }}
+            />
           </div>
         ))}
 

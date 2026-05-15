@@ -33,6 +33,7 @@ const SCHEMA_V1 = `
     name TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL,
     color TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 999,
     created_at TEXT NOT NULL
   );
 
@@ -44,6 +45,7 @@ const SCHEMA_V1 = `
     color TEXT NOT NULL,
     icon TEXT NOT NULL DEFAULT 'user',
     bank TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 999,
     created_at TEXT NOT NULL,
     UNIQUE(inhaber_id, name)
   );
@@ -54,7 +56,8 @@ const SCHEMA_V1 = `
     name TEXT NOT NULL UNIQUE,
     rule_order INTEGER NOT NULL DEFAULT 999,
     keywords TEXT NOT NULL DEFAULT '[]',
-    name_patterns TEXT NOT NULL DEFAULT '[]'
+    name_patterns TEXT NOT NULL DEFAULT '[]',
+    direction TEXT NOT NULL DEFAULT 'beide'
   );
 
   CREATE TABLE transactions (
@@ -107,6 +110,42 @@ const migrations: Migration[] = [
     description:
       "Initial schema (Kategorien-FK, materialisiertes is_umbuchung, Logs, Kontogruppen mit type+art)",
     up: (db) => db.exec(SCHEMA_V1),
+  },
+  {
+    version: 2,
+    description: "Kategorien: direction-Spalte (einnahme/ausgabe/beide)",
+    up: (db) => {
+      db.exec(
+        "ALTER TABLE kategorien ADD COLUMN direction TEXT NOT NULL DEFAULT 'beide'"
+      );
+      const update = db.prepare(
+        "UPDATE kategorien SET direction = ? WHERE name = ?"
+      );
+      for (const rule of categoryRules) {
+        update.run(rule.direction, rule.kategorie);
+      }
+      update.run("einnahme", "Sonstige Einnahmen");
+      update.run("ausgabe", "Sonstiges");
+    },
+  },
+  {
+    version: 3,
+    description: "Inhaber + Kontogruppen: sort_order-Spalten für DnD",
+    up: (db) => {
+      db.exec(
+        "ALTER TABLE inhaber ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999"
+      );
+      db.exec(
+        "ALTER TABLE kontogruppen ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999"
+      );
+      // Initiale Reihenfolge an id-Reihenfolge ausrichten
+      db.exec(
+        "UPDATE inhaber SET sort_order = id WHERE sort_order = 999"
+      );
+      db.exec(
+        "UPDATE kontogruppen SET sort_order = id WHERE sort_order = 999"
+      );
+    },
   },
 ];
 
@@ -215,7 +254,7 @@ function runMigrations(db: Database.Database): void {
 
 function syncKategorien(db: Database.Database): void {
   const insert = db.prepare(
-    "INSERT OR IGNORE INTO kategorien (name, rule_order, keywords, name_patterns) VALUES (?, ?, ?, ?)"
+    "INSERT OR IGNORE INTO kategorien (name, rule_order, keywords, name_patterns, direction) VALUES (?, ?, ?, ?, ?)"
   );
   const tx = db.transaction(() => {
     categoryRules.forEach((rule, idx) => {
@@ -223,12 +262,13 @@ function syncKategorien(db: Database.Database): void {
         rule.kategorie,
         idx,
         JSON.stringify(rule.keywords),
-        JSON.stringify(rule.namePatterns)
+        JSON.stringify(rule.namePatterns),
+        rule.direction
       );
     });
     // Fallback-Kategorien — keine Rules, hohe Ordnung (immer am Ende)
-    insert.run("Sonstige Einnahmen", 9000, "[]", "[]");
-    insert.run("Sonstiges", 9001, "[]", "[]");
+    insert.run("Sonstige Einnahmen", 9000, "[]", "[]", "einnahme");
+    insert.run("Sonstiges", 9001, "[]", "[]", "ausgabe");
   });
   tx();
 }
@@ -337,13 +377,20 @@ export function getAllKategorien(): { id: number; name: string }[] {
     .all() as { id: number; name: string }[];
 }
 
+export type KategorieDirection = "einnahme" | "ausgabe" | "beide";
+
 export interface KategorieRule {
   id: number;
   name: string;
   ruleOrder: number;
   keywords: string[];
   namePatterns: string[];
+  direction: KategorieDirection;
   isFallback: boolean;
+}
+
+function parseDirection(v: string | null): KategorieDirection {
+  return v === "einnahme" || v === "ausgabe" || v === "beide" ? v : "beide";
 }
 
 function parseJsonArray(value: string | null): string[] {
@@ -365,7 +412,7 @@ export function getKategorieRules(): KategorieRule[] {
   const db = getDb();
   const rows = db
     .prepare(
-      "SELECT id, name, rule_order, keywords, name_patterns FROM kategorien ORDER BY rule_order ASC, id ASC"
+      "SELECT id, name, rule_order, keywords, name_patterns, direction FROM kategorien ORDER BY rule_order ASC, id ASC"
     )
     .all() as {
     id: number;
@@ -373,6 +420,7 @@ export function getKategorieRules(): KategorieRule[] {
     rule_order: number;
     keywords: string | null;
     name_patterns: string | null;
+    direction: string | null;
   }[];
   return rows.map((r) => ({
     id: r.id,
@@ -380,6 +428,7 @@ export function getKategorieRules(): KategorieRule[] {
     ruleOrder: r.rule_order,
     keywords: parseJsonArray(r.keywords),
     namePatterns: parseJsonArray(r.name_patterns),
+    direction: parseDirection(r.direction),
     isFallback: FALLBACK_NAMES.has(r.name),
   }));
 }
@@ -391,6 +440,7 @@ export function updateKategorieRule(
     keywords?: string[];
     namePatterns?: string[];
     ruleOrder?: number;
+    direction?: KategorieDirection;
   }
 ): boolean {
   const db = getDb();
@@ -412,6 +462,10 @@ export function updateKategorieRule(
     fields.push("rule_order = ?");
     values.push(patch.ruleOrder);
   }
+  if (patch.direction !== undefined) {
+    fields.push("direction = ?");
+    values.push(patch.direction);
+  }
   if (fields.length === 0) return false;
   values.push(id);
   const result = db
@@ -423,7 +477,8 @@ export function updateKategorieRule(
 export function createKategorieRule(
   name: string,
   keywords: string[] = [],
-  namePatterns: string[] = []
+  namePatterns: string[] = [],
+  direction: KategorieDirection = "beide"
 ): KategorieRule {
   const db = getDb();
   // Neue User-Kategorien werden ans Ende sortiert, aber vor die Fallbacks
@@ -435,15 +490,22 @@ export function createKategorieRule(
   const order = (max.m ?? -1) + 1;
   const result = db
     .prepare(
-      "INSERT INTO kategorien (name, rule_order, keywords, name_patterns) VALUES (?, ?, ?, ?)"
+      "INSERT INTO kategorien (name, rule_order, keywords, name_patterns, direction) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(name, order, JSON.stringify(keywords), JSON.stringify(namePatterns));
+    .run(
+      name,
+      order,
+      JSON.stringify(keywords),
+      JSON.stringify(namePatterns),
+      direction
+    );
   return {
     id: result.lastInsertRowid as number,
     name,
     ruleOrder: order,
     keywords,
     namePatterns,
+    direction,
     isFallback: false,
   };
 }
@@ -478,6 +540,15 @@ interface UmbuchungRow {
   iban_zahlungsbeteiligter: string;
   name_zahlungsbeteiligter: string;
   kontogruppe_id: number | null;
+}
+
+export function recomputeUmbuchungenAll(): number {
+  const db = getDb();
+  recomputeUmbuchungen(db);
+  const row = db
+    .prepare("SELECT COUNT(*) AS c FROM transactions WHERE is_umbuchung = 1")
+    .get() as { c: number };
+  return row.c;
 }
 
 function recomputeUmbuchungen(db: Database.Database): void {
@@ -926,7 +997,9 @@ const SELECT_KONTOGRUPPEN = `
 export function getAllKontogruppen(): Kontogruppe[] {
   const db = getDb();
   const rows = db
-    .prepare(`${SELECT_KONTOGRUPPEN} ORDER BY i.id ASC, kg.id ASC`)
+    .prepare(
+      `${SELECT_KONTOGRUPPEN} ORDER BY i.sort_order ASC, i.id ASC, kg.sort_order ASC, kg.id ASC`
+    )
     .all() as KontogruppeRow[];
   return rows.map(rowToKontogruppe);
 }
@@ -985,6 +1058,36 @@ export function updateKontogruppe(
   return result.changes > 0;
 }
 
+export function reorderKontogruppen(orderedIds: number[]): number {
+  if (orderedIds.length === 0) return 0;
+  const db = getDb();
+  const stmt = db.prepare("UPDATE kontogruppen SET sort_order = ? WHERE id = ?");
+  let n = 0;
+  const tx = db.transaction(() => {
+    orderedIds.forEach((id, idx) => {
+      const r = stmt.run(idx, id);
+      n += r.changes;
+    });
+  });
+  tx();
+  return n;
+}
+
+export function reorderKategorien(orderedIds: number[]): number {
+  if (orderedIds.length === 0) return 0;
+  const db = getDb();
+  const stmt = db.prepare("UPDATE kategorien SET rule_order = ? WHERE id = ?");
+  let n = 0;
+  const tx = db.transaction(() => {
+    orderedIds.forEach((id, idx) => {
+      const r = stmt.run(idx, id);
+      n += r.changes;
+    });
+  });
+  tx();
+  return n;
+}
+
 // ---------- Inhaber ----------
 
 interface InhaberRow {
@@ -1008,7 +1111,7 @@ function rowToInhaber(row: InhaberRow): Inhaber {
 export function getAllInhaber(): Inhaber[] {
   const db = getDb();
   const rows = db
-    .prepare("SELECT * FROM inhaber ORDER BY id ASC")
+    .prepare("SELECT * FROM inhaber ORDER BY sort_order ASC, id ASC")
     .all() as InhaberRow[];
   return rows.map(rowToInhaber);
 }
@@ -1055,4 +1158,19 @@ export function deleteInhaber(id: number): boolean {
   }
   const result = db.prepare("DELETE FROM inhaber WHERE id = ?").run(id);
   return result.changes > 0;
+}
+
+export function reorderInhaber(orderedIds: number[]): number {
+  if (orderedIds.length === 0) return 0;
+  const db = getDb();
+  const stmt = db.prepare("UPDATE inhaber SET sort_order = ? WHERE id = ?");
+  let n = 0;
+  const tx = db.transaction(() => {
+    orderedIds.forEach((id, idx) => {
+      const r = stmt.run(idx, id);
+      n += r.changes;
+    });
+  });
+  tx();
+  return n;
 }

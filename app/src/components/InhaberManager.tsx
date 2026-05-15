@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Plus, Trash2, Pencil, X, Check, UserRound } from "lucide-react";
 import { Inhaber, InhaberType } from "../lib/types";
+import SortableList, { DragHandle } from "./SortableList";
 
 const TYPE_LABELS: Record<InhaberType, string> = {
   privat: "Privat",
@@ -150,6 +151,16 @@ export default function InhaberManager({ inhaber, onChange }: Props) {
     onChange();
   };
 
+  const handleReorder = async (newOrder: Inhaber[]) => {
+    const ids = newOrder.map((i) => i.id);
+    await fetch("/api/inhaber-reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    onChange();
+  };
+
   const handleEdit = (i: Inhaber) => {
     setForm({ name: i.name, type: i.type, color: i.color });
     setEditingId(i.id);
@@ -182,72 +193,74 @@ export default function InhaberManager({ inhaber, onChange }: Props) {
           </p>
         )}
 
-        {inhaber.map((i) => {
-          const isEditing = editingId === i.id;
-          return (
-            <div
-              key={i.id}
-              className="rounded-lg border border-border bg-bg-muted"
-            >
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-8 w-8 rounded-md flex items-center justify-center"
-                    style={{ backgroundColor: i.color + "33" }}
-                  >
-                    <UserRound
-                      className="h-4 w-4"
-                      style={{ color: i.color }}
-                    />
+        <SortableList
+          items={inhaber}
+          onReorder={handleReorder}
+          renderItem={(i, handle) => {
+            const isEditing = editingId === i.id;
+            return (
+              <div className="mb-3 rounded-lg border border-border bg-bg-muted">
+                <div className="flex items-center justify-between px-1 py-2">
+                  <div className="flex items-center gap-2">
+                    <DragHandle {...handle} />
+                    <div
+                      className="h-8 w-8 rounded-md flex items-center justify-center"
+                      style={{ backgroundColor: i.color + "33" }}
+                    >
+                      <UserRound
+                        className="h-4 w-4"
+                        style={{ color: i.color }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-fg">{i.name}</p>
+                      <p className="text-xs text-fg-subtle">
+                        {TYPE_LABELS[i.type]}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-fg">{i.name}</p>
-                    <p className="text-xs text-fg-subtle">
-                      {TYPE_LABELS[i.type]}
-                    </p>
-                  </div>
+                  {!isEditing && (
+                    <div className="flex items-center gap-1 pr-2">
+                      <button
+                        onClick={() => handleEdit(i)}
+                        className="rounded p-1.5 text-fg-muted hover:bg-surface hover:text-fg cursor-pointer"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(i.id, i.name)}
+                        className="rounded p-1.5 text-fg-muted hover:bg-danger-soft hover:text-danger cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {!isEditing && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEdit(i)}
-                      className="rounded p-1.5 text-fg-muted hover:bg-surface hover:text-fg cursor-pointer"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(i.id, i.name)}
-                      className="rounded p-1.5 text-fg-muted hover:bg-danger-soft hover:text-danger cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                {isEditing && (
+                  <div className="space-y-3 border-t border-border bg-surface px-3 py-3">
+                    <FormFields state={form} onChange={setForm} />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={resetForm}
+                        className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
+                      >
+                        Abbrechen
+                      </button>
+                      <button
+                        onClick={handleUpdate}
+                        disabled={!form.name.trim()}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Speichern
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
-              {isEditing && (
-                <div className="space-y-3 border-t border-border bg-surface px-3 py-3">
-                  <FormFields state={form} onChange={setForm} />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={resetForm}
-                      className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-xs font-medium text-fg-soft hover:bg-surface-active cursor-pointer"
-                    >
-                      Abbrechen
-                    </button>
-                    <button
-                      onClick={handleUpdate}
-                      disabled={!form.name.trim()}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-xs font-medium text-brand-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Speichern
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          }}
+        />
 
         {showForm ? (
           <div className="space-y-3 rounded-lg border border-brand bg-brand-soft p-3">

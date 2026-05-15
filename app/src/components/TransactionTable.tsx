@@ -76,7 +76,14 @@ export default function TransactionTable({
   const [filterKategorie, setFilterKategorie] = useState("");
   const [filterType, setFilterType] = useState<"alle" | "einnahmen" | "ausgaben">("alle");
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 200;
+  const [pageSize, setPageSize] = useState<number>(100);
+  const PAGE_SIZE_OPTIONS: { value: number; label: string }[] = [
+    { value: 50, label: "50" },
+    { value: 100, label: "100" },
+    { value: 250, label: "250" },
+    { value: 500, label: "500" },
+    { value: 0, label: "Alle" },
+  ];
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
@@ -114,10 +121,12 @@ export default function TransactionTable({
     return result;
   }, [transactions, search, sortKey, sortDesc, filterKategorie, filterType]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const effectivePageSize = pageSize === 0 ? filtered.length : pageSize;
+  const totalPages =
+    pageSize === 0 ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
-  const pageStart = currentPage * PAGE_SIZE;
-  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const pageStart = currentPage * effectivePageSize;
+  const pageEnd = Math.min(pageStart + effectivePageSize, filtered.length);
   const pageRows = filtered.slice(pageStart, pageEnd);
 
   const allOnPageSelected =
@@ -506,32 +515,55 @@ export default function TransactionTable({
         </table>
       </div>
 
-      {filtered.length > PAGE_SIZE && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-fg-subtle">
-          <span>
-            Zeige {pageStart + 1}–{pageEnd} von {filtered.length}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
-              className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
-            >
-              Zurück
-            </button>
-            <span className="text-fg-muted">
-              Seite {currentPage + 1} / {totalPages}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-fg-subtle">
+        <span>
+          {filtered.length === 0
+            ? "Keine Buchungen"
+            : `Zeige ${pageStart + 1}–${pageEnd} von ${filtered.length}`}
+        </span>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5">
+            <span className="uppercase tracking-[0.16em] text-fg-faint text-[10px] font-medium">
+              Pro Seite
             </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage >= totalPages - 1}
-              className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(0);
+              }}
+              className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg cursor-pointer"
             >
-              Weiter
-            </button>
-          </div>
+              {PAGE_SIZE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {totalPages > 1 && (
+            <>
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={currentPage === 0}
+                className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
+              >
+                Zurück
+              </button>
+              <span className="text-fg-muted">
+                Seite {currentPage + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={currentPage >= totalPages - 1}
+                className="rounded border border-border px-2 py-1 text-fg-soft disabled:cursor-not-allowed disabled:opacity-40 hover:border-border-strong cursor-pointer"
+              >
+                Weiter
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

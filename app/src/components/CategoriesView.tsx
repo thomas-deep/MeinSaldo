@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowLeftRight,
   ChevronDown,
   ChevronRight,
   Tag,
@@ -12,6 +15,9 @@ import {
   Save,
   RefreshCw,
 } from "lucide-react";
+import SortableList, { DragHandle } from "./SortableList";
+
+type Direction = "einnahme" | "ausgabe" | "beide";
 
 interface KategorieRule {
   id: number;
@@ -19,6 +25,7 @@ interface KategorieRule {
   ruleOrder: number;
   keywords: string[];
   namePatterns: string[];
+  direction: Direction;
   isFallback: boolean;
 }
 
@@ -30,6 +37,67 @@ interface DraftRule {
   name: string;
   keywords: string[];
   namePatterns: string[];
+  direction: Direction;
+}
+
+const DIRECTION_LABELS: Record<Direction, string> = {
+  einnahme: "Einnahme",
+  ausgabe: "Ausgabe",
+  beide: "Beide",
+};
+
+function DirectionBadge({ direction }: { direction: Direction }) {
+  const Icon =
+    direction === "einnahme"
+      ? ArrowUpRight
+      : direction === "ausgabe"
+        ? ArrowDownRight
+        : ArrowLeftRight;
+  const color =
+    direction === "einnahme"
+      ? "text-positive border-positive/40 bg-positive/10"
+      : direction === "ausgabe"
+        ? "text-danger border-danger/40 bg-danger-soft"
+        : "text-fg-muted border-border bg-bg-muted";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${color}`}
+    >
+      <Icon className="h-3 w-3" />
+      {DIRECTION_LABELS[direction]}
+    </span>
+  );
+}
+
+function DirectionPicker({
+  value,
+  onChange,
+}: {
+  value: Direction;
+  onChange: (v: Direction) => void;
+}) {
+  const options: Direction[] = ["einnahme", "ausgabe", "beide"];
+  return (
+    <div className="inline-flex gap-0.5 rounded-full border border-border bg-bg-muted p-0.5">
+      {options.map((o) => {
+        const active = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(o)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium cursor-pointer transition-colors ${
+              active
+                ? "bg-fg text-fg-inverse"
+                : "text-fg-muted hover:text-fg"
+            }`}
+          >
+            {DIRECTION_LABELS[o]}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function ChipList({
@@ -121,6 +189,7 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
     name: rule.name,
     keywords: [...rule.keywords],
     namePatterns: [...rule.namePatterns],
+    direction: rule.direction,
   });
   const [saving, setSaving] = useState(false);
 
@@ -130,11 +199,13 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
       name: rule.name,
       keywords: [...rule.keywords],
       namePatterns: [...rule.namePatterns],
+      direction: rule.direction,
     });
   }, [rule]);
 
   const dirty =
     draft.name !== rule.name ||
+    draft.direction !== rule.direction ||
     JSON.stringify(draft.keywords) !== JSON.stringify(rule.keywords) ||
     JSON.stringify(draft.namePatterns) !== JSON.stringify(rule.namePatterns);
 
@@ -151,16 +222,27 @@ function RuleEditor({ rule, onSave, onDelete }: RuleEditorProps) {
   return (
     <div className="space-y-4 bg-bg-muted px-5 py-4">
       {!rule.isFallback && (
-        <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">
-            Name
-          </label>
-          <input
-            type="text"
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg"
-          />
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
+              Name
+            </label>
+            <input
+              type="text"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
+              Richtung
+            </label>
+            <DirectionPicker
+              value={draft.direction}
+              onChange={(v) => setDraft({ ...draft, direction: v })}
+            />
+          </div>
         </div>
       )}
 
@@ -272,6 +354,7 @@ export default function CategoriesView() {
     name: "",
     keywords: [],
     namePatterns: [],
+    direction: "ausgabe",
   });
   const [creating, setCreating] = useState(false);
 
@@ -307,6 +390,7 @@ export default function CategoriesView() {
           name: draft.name,
           keywords: draft.keywords,
           namePatterns: draft.namePatterns,
+          direction: draft.direction,
         }),
       });
       if (!res.ok) {
@@ -332,6 +416,19 @@ export default function CategoriesView() {
     [load]
   );
 
+  const handleReorder = useCallback(
+    async (newOrder: KategorieRule[]) => {
+      setRules(newOrder);
+      const ids = newOrder.map((r) => r.id);
+      await fetch("/api/kategorien-reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+    },
+    []
+  );
+
   const handleCreate = useCallback(async () => {
     if (!newDraft.name.trim()) return;
     setCreating(true);
@@ -346,7 +443,12 @@ export default function CategoriesView() {
         alert(`Fehler: ${err.error ?? res.statusText}`);
         return;
       }
-      setNewDraft({ name: "", keywords: [], namePatterns: [] });
+      setNewDraft({
+        name: "",
+        keywords: [],
+        namePatterns: [],
+        direction: "ausgabe",
+      });
       setShowNewForm(false);
       await load();
     } finally {
@@ -394,19 +496,30 @@ export default function CategoriesView() {
 
       {showNewForm && (
         <div className="space-y-3 border-b border-border bg-brand-soft px-5 py-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
-              Name
-            </label>
-            <input
-              type="text"
-              value={newDraft.name}
-              onChange={(e) =>
-                setNewDraft({ ...newDraft, name: e.target.value })
-              }
-              placeholder="z. B. Hobby & Freizeit"
-              className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg placeholder:text-fg-subtle"
-            />
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="mb-1 block text-xs font-medium text-fg-muted">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newDraft.name}
+                onChange={(e) =>
+                  setNewDraft({ ...newDraft, name: e.target.value })
+                }
+                placeholder="z. B. Hobby & Freizeit"
+                className="w-full max-w-md rounded border border-border-strong bg-surface-active px-2 py-1 text-sm text-fg placeholder:text-fg-subtle"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">
+                Richtung
+              </label>
+              <DirectionPicker
+                value={newDraft.direction}
+                onChange={(v) => setNewDraft({ ...newDraft, direction: v })}
+              />
+            </div>
           </div>
           <div>
             <p className="mb-1.5 text-xs font-medium text-fg-muted">
@@ -465,7 +578,12 @@ export default function CategoriesView() {
             <button
               onClick={() => {
                 setShowNewForm(false);
-                setNewDraft({ name: "", keywords: [], namePatterns: [] });
+                setNewDraft({
+        name: "",
+        keywords: [],
+        namePatterns: [],
+        direction: "ausgabe",
+      });
               }}
               className="rounded-lg border border-border px-3 py-1.5 text-xs text-fg-soft hover:border-border-strong cursor-pointer"
             >
@@ -493,44 +611,52 @@ export default function CategoriesView() {
             Noch keine Kategorien
           </p>
         )}
-        {rules.map((rule) => {
-          const isOpen = expanded === rule.id;
-          const total = rule.keywords.length + rule.namePatterns.length;
-          return (
-            <div key={rule.id}>
-              <button
-                onClick={() => setExpanded(isOpen ? null : rule.id)}
-                className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-surface-hover cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-fg-subtle" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-fg-subtle" />
-                  )}
-                  <span className="text-sm font-medium text-fg">
-                    {rule.name}
-                  </span>
-                  {rule.isFallback && (
-                    <span className="rounded bg-bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fg-muted">
-                      Fallback
+        <SortableList
+          items={rules}
+          onReorder={handleReorder}
+          renderItem={(rule, handle) => {
+            const isOpen = expanded === rule.id;
+            const total = rule.keywords.length + rule.namePatterns.length;
+            return (
+              <div className="border-b border-border last:border-b-0">
+                <div className="flex w-full items-center gap-1 px-2 py-3 hover:bg-surface-hover">
+                  <DragHandle {...handle} />
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : rule.id)}
+                    className="flex flex-1 items-center justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-fg-subtle" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-fg-subtle" />
+                      )}
+                      <span className="text-sm font-medium text-fg">
+                        {rule.name}
+                      </span>
+                      <DirectionBadge direction={rule.direction} />
+                      {rule.isFallback && (
+                        <span className="rounded bg-bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fg-muted">
+                          Fallback
+                        </span>
+                      )}
+                    </div>
+                    <span className="pr-3 text-xs text-fg-subtle">
+                      {rule.isFallback ? "—" : `${total} Einträge`}
                     </span>
-                  )}
+                  </button>
                 </div>
-                <span className="text-xs text-fg-subtle">
-                  {rule.isFallback ? "—" : `${total} Einträge`}
-                </span>
-              </button>
-              {isOpen && (
-                <RuleEditor
-                  rule={rule}
-                  onSave={handleSaveRule}
-                  onDelete={handleDeleteRule}
-                />
-              )}
-            </div>
-          );
-        })}
+                {isOpen && (
+                  <RuleEditor
+                    rule={rule}
+                    onSave={handleSaveRule}
+                    onDelete={handleDeleteRule}
+                  />
+                )}
+              </div>
+            );
+          }}
+        />
       </div>
     </div>
   );
