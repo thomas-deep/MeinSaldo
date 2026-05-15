@@ -124,9 +124,9 @@ export default function CsvImportPreview({
               </tr>
             </thead>
             <tbody>
-              {preview.preview.map((row) => (
+              {preview.preview.map((row, idx) => (
                 <tr
-                  key={row.id}
+                  key={`${row.id}-${idx}`}
                   className={`border-b border-border/50 ${
                     row.isDuplicate ? "opacity-60" : ""
                   }`}

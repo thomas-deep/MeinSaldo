@@ -694,7 +694,11 @@ export function bulkUpdateCategory(
 export interface ImportBatch {
   importedAt: string;
   count: number;
-  kontogruppen: { id: number | null; name: string | null }[];
+  kontogruppen: {
+    id: number | null;
+    name: string | null;
+    inhaberName: string | null;
+  }[];
   dateFrom: string | null;
   dateTo: string | null;
 }
@@ -722,8 +726,10 @@ export function getImportBatches(limit = 50): ImportBatch[] {
   }[];
 
   const kontoStmt = db.prepare(
-    `SELECT DISTINCT t.kontogruppe_id AS id, k.name AS name
-     FROM transactions t LEFT JOIN kontogruppen k ON k.id = t.kontogruppe_id
+    `SELECT DISTINCT t.kontogruppe_id AS id, k.name AS name, i.name AS inhaberName
+     FROM transactions t
+     LEFT JOIN kontogruppen k ON k.id = t.kontogruppe_id
+     LEFT JOIN inhaber i ON i.id = k.inhaber_id
      WHERE t.imported_at = ?`
   );
 
@@ -735,6 +741,7 @@ export function getImportBatches(limit = 50): ImportBatch[] {
     kontogruppen: kontoStmt.all(r.imported_at) as {
       id: number | null;
       name: string | null;
+      inhaberName: string | null;
     }[],
   }));
 }

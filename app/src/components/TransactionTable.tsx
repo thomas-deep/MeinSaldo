@@ -14,7 +14,7 @@ import {
   Tag,
   Wallet,
 } from "lucide-react";
-import { Kontogruppe, Transaction } from "../lib/types";
+import { Kontogruppe, Transaction, formatKontogruppe } from "../lib/types";
 import {
   AiProgress,
   runAiOnIds,
@@ -283,7 +283,7 @@ export default function TransactionTable({
                     <option value="">Konto wechseln…</option>
                     {kontogruppen.map((k) => (
                       <option key={k.id} value={k.id}>
-                        {k.name}
+                        {formatKontogruppe(k)}
                       </option>
                     ))}
                     <option value="null">(keine Zuordnung)</option>

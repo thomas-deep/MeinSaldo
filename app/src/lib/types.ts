@@ -50,6 +50,11 @@ export interface Kontogruppe {
   createdAt?: string;
 }
 
+/** „Thomas · Giro" — einheitliche Darstellung wenn Inhaber-Kontext fehlt. */
+export function formatKontogruppe(kg: Pick<Kontogruppe, "name" | "inhaberName">): string {
+  return kg.inhaberName ? `${kg.inhaberName} · ${kg.name}` : kg.name;
+}
+
 export interface FieldMapping {
   kontoBezeichnung: string;
   ibanKonto: string;

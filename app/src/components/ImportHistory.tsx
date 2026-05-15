@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Clock, RefreshCw, Trash2, Wallet } from "lucide-react";
-import { Kontogruppe } from "../lib/types";
+import { Kontogruppe, formatKontogruppe } from "../lib/types";
 
 interface ImportBatch {
   importedAt: string;
   count: number;
-  kontogruppen: { id: number | null; name: string | null }[];
+  kontogruppen: {
+    id: number | null;
+    name: string | null;
+    inhaberName: string | null;
+  }[];
   dateFrom: string | null;
   dateTo: string | null;
 }
@@ -148,7 +152,13 @@ export default function ImportHistory({ kontogruppen, onChange }: Props) {
             b.kontogruppen.length === 0
               ? "—"
               : b.kontogruppen
-                  .map((k) => k.name ?? "(keine Zuordnung)")
+                  .map((k) =>
+                    k.name === null
+                      ? "(keine Zuordnung)"
+                      : k.inhaberName
+                        ? `${k.inhaberName} · ${k.name}`
+                        : k.name
+                  )
                   .join(", ");
           return (
             <li
@@ -186,7 +196,7 @@ export default function ImportHistory({ kontogruppen, onChange }: Props) {
                   <option value="">Konto wechseln…</option>
                   {kontogruppen.map((k) => (
                     <option key={k.id} value={k.id}>
-                      {k.name}
+                      {formatKontogruppe(k)}
                     </option>
                   ))}
                   <option value="null">(keine Zuordnung)</option>

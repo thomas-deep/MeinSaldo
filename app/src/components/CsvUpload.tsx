@@ -2,7 +2,7 @@
 
 import { Upload, AlertCircle } from "lucide-react";
 import { useCallback, useState } from "react";
-import { Kontogruppe } from "../lib/types";
+import { Kontogruppe, formatKontogruppe } from "../lib/types";
 
 export type EncodingChoice = "auto" | "utf-8" | "windows-1252";
 const ENCODINGS: EncodingChoice[] = ["auto", "utf-8", "windows-1252"];
@@ -146,7 +146,7 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
                     className="h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: kg.color }}
                   />
-                  {kg.name}
+                  {formatKontogruppe(kg)}
                 </button>
               );
             })}
@@ -202,7 +202,7 @@ export default function CsvUpload({ kontogruppen, onFileSelected }: CsvUploadPro
                       className="mr-1.5 inline-block h-2 w-2 rounded-full"
                       style={{ backgroundColor: kg.color }}
                     />
-                    {kg.name}
+                    {formatKontogruppe(kg)}
                   </button>
                 ))}
                 <button
