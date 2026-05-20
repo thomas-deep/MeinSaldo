@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LineChart, Database, Settings as SettingsIcon, Search } from "lucide-react";
+import { LineChart, Database, Settings as SettingsIcon, Search, Repeat } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
 import SearchPalette from "../components/SearchPalette";
+import RecurringView from "../components/RecurringView";
 import CsvUpload, { AiImportMode, EncodingChoice } from "../components/CsvUpload";
 import KontoPicker from "../components/KontoPicker";
 import FieldMappingComponent from "../components/FieldMapping";
@@ -86,7 +87,7 @@ export default function Home() {
   const presetHooksRef = useRef<PresetHooks>({});
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "tabelle">("dashboard");
-  const [view, setView] = useState<"auswertung" | "daten" | "einstellungen">("auswertung");
+  const [view, setView] = useState<"auswertung" | "wiederkehrend" | "daten" | "einstellungen">("auswertung");
   const [dbStats, setDbStats] = useState<DbStats>({ count: 0, earliest: null, latest: null });
   const [lastImport, setLastImport] = useState<{ inserted: number; skipped: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -715,6 +716,7 @@ export default function Home() {
 
   const navItems = [
     { id: "auswertung" as const, label: "Auswertung", icon: LineChart },
+    { id: "wiederkehrend" as const, label: "Wiederkehrend", icon: Repeat },
     { id: "daten" as const, label: "Daten", icon: Database },
     { id: "einstellungen" as const, label: "Einstellungen", icon: SettingsIcon },
   ];
@@ -791,6 +793,8 @@ export default function Home() {
           onKontogruppenChange={loadFromDb}
         />
       )}
+
+      {view === "wiederkehrend" && <RecurringView />}
 
       {view === "daten" && (
         <div className="space-y-6">
