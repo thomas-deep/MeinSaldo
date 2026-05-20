@@ -12,9 +12,27 @@ import {
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 
-const DB_PATH = path.join(process.cwd(), "data", "finanzen.db");
+function resolveDbPath(): string {
+  return (
+    process.env.FINANZEN_DB_PATH ||
+    path.join(process.cwd(), "data", "finanzen.db")
+  );
+}
 
 let dbInstance: Database.Database | null = null;
+
+/** Test-Hilfe: schließt die DB und vergisst das Singleton, damit der nächste
+ * `getDb()`-Aufruf eine frische Instanz öffnet. Nur in Tests verwenden. */
+export function __resetDbForTests(): void {
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch {
+      // ignore
+    }
+    dbInstance = null;
+  }
+}
 
 interface Migration {
   version: number;
@@ -116,9 +134,7 @@ const migrations: Migration[] = [
     version: 2,
     description: "Kategorien: direction-Spalte (einnahme/ausgabe/beide)",
     up: (db) => {
-      db.exec(
-        "ALTER TABLE kategorien ADD COLUMN direction TEXT NOT NULL DEFAULT 'beide'"
-      );
+      ensureColumn(db, "kategorien", "direction", "TEXT NOT NULL DEFAULT 'beide'");
       const update = db.prepare(
         "UPDATE kategorien SET direction = ? WHERE name = ?"
       );
@@ -133,12 +149,8 @@ const migrations: Migration[] = [
     version: 3,
     description: "Inhaber + Kontogruppen: sort_order-Spalten für DnD",
     up: (db) => {
-      db.exec(
-        "ALTER TABLE inhaber ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999"
-      );
-      db.exec(
-        "ALTER TABLE kontogruppen ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999"
-      );
+      ensureColumn(db, "inhaber", "sort_order", "INTEGER NOT NULL DEFAULT 999");
+      ensureColumn(db, "kontogruppen", "sort_order", "INTEGER NOT NULL DEFAULT 999");
       db.exec(
         "UPDATE inhaber SET sort_order = id WHERE sort_order = 999"
       );
@@ -151,9 +163,7 @@ const migrations: Migration[] = [
     version: 4,
     description: "transactions: source_file (CSV-Dateiname pro Import)",
     up: (db) => {
-      db.exec(
-        "ALTER TABLE transactions ADD COLUMN source_file TEXT"
-      );
+      ensureColumn(db, "transactions", "source_file", "TEXT");
     },
   },
 ];
@@ -237,6 +247,28 @@ export function trimLogs(maxEntries = MAX_LOG_ENTRIES): void {
   ).run(row.c - maxEntries);
 }
 
+function columnExists(
+  db: Database.Database,
+  table: string,
+  column: string
+): boolean {
+  const rows = db
+    .prepare(`PRAGMA table_info(${table})`)
+    .all() as { name: string }[];
+  return rows.some((r) => r.name === column);
+}
+
+function ensureColumn(
+  db: Database.Database,
+  table: string,
+  column: string,
+  definition: string
+): void {
+  if (!columnExists(db, table, column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 function runMigrations(db: Database.Database): void {
   db.exec(
     "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
@@ -285,10 +317,13 @@ function syncKategorien(db: Database.Database): void {
 function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const dbPath = resolveDbPath();
+  if (dbPath !== ":memory:") {
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  }
 
-  const db = new Database(DB_PATH);
+  const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
