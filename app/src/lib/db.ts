@@ -166,6 +166,45 @@ const migrations: Migration[] = [
       ensureColumn(db, "transactions", "source_file", "TEXT");
     },
   },
+  {
+    version: 5,
+    description:
+      "FTS5-Volltextindex über verwendungszweck/name/buchungstext + Sync-Trigger",
+    up: (db) => {
+      db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS transactions_fts USING fts5(
+          verwendungszweck,
+          name_zahlungsbeteiligter,
+          buchungstext,
+          content='transactions',
+          content_rowid='rowid',
+          tokenize='unicode61 remove_diacritics 2'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS transactions_ai_fts AFTER INSERT ON transactions BEGIN
+          INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES (new.rowid, new.verwendungszweck, new.name_zahlungsbeteiligter, new.buchungstext);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS transactions_ad_fts AFTER DELETE ON transactions BEGIN
+          INSERT INTO transactions_fts(transactions_fts, rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES ('delete', old.rowid, old.verwendungszweck, old.name_zahlungsbeteiligter, old.buchungstext);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS transactions_au_fts AFTER UPDATE ON transactions BEGIN
+          INSERT INTO transactions_fts(transactions_fts, rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES ('delete', old.rowid, old.verwendungszweck, old.name_zahlungsbeteiligter, old.buchungstext);
+          INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES (new.rowid, new.verwendungszweck, new.name_zahlungsbeteiligter, new.buchungstext);
+        END;
+
+        INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+        SELECT rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext
+        FROM transactions
+        WHERE rowid NOT IN (SELECT rowid FROM transactions_fts);
+      `);
+    },
+  },
 ];
 
 const MAX_LOG_ENTRIES = 5000;
@@ -647,6 +686,38 @@ export function getAllTransactions(): Transaction[] {
        ORDER BY t.buchungstag DESC, t.id DESC`
     )
     .all() as DbRow[];
+  return rows.map(rowToTransaction);
+}
+
+/** Baut aus einer User-Anfrage einen FTS5-MATCH-Ausdruck mit Prefix-Suche pro
+ * Token. Sonderzeichen werden so behandelt, dass FTS5-Syntax nicht versehentlich
+ * getriggert wird. Leere Anfrage → null (Aufrufer soll dann keine Suche machen). */
+export function buildFtsQuery(raw: string): string | null {
+  const tokens = raw
+    .split(/\s+/)
+    .map((t) => t.replace(/["*()]/g, "").trim())
+    .filter((t) => t.length >= 2);
+  if (tokens.length === 0) return null;
+  return tokens.map((t) => `"${t}"*`).join(" ");
+}
+
+export function searchTransactions(
+  rawQuery: string,
+  limit = 100
+): Transaction[] {
+  const query = buildFtsQuery(rawQuery);
+  if (!query) return [];
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM transactions t
+       JOIN transactions_fts fts ON fts.rowid = t.rowid
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id
+       WHERE transactions_fts MATCH ?
+       ORDER BY rank
+       LIMIT ?`
+    )
+    .all(query, limit) as DbRow[];
   return rows.map(rowToTransaction);
 }
 

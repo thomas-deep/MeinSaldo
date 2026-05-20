@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LineChart, Database, Settings as SettingsIcon } from "lucide-react";
+import { LineChart, Database, Settings as SettingsIcon, Search } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
+import SearchPalette from "../components/SearchPalette";
 import CsvUpload, { AiImportMode, EncodingChoice } from "../components/CsvUpload";
 import KontoPicker from "../components/KontoPicker";
 import FieldMappingComponent from "../components/FieldMapping";
@@ -95,6 +96,7 @@ export default function Home() {
   const [importError, setImportError] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
   const [filter, setFilter] = useState<KontogruppeFilterValue>(EMPTY_FILTER);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [auswertungFilter, setAuswertungFilter] = useState<AuswertungFilterState>(() => ({
     preset: "alle",
     range: rangeFor("alle", new Date()),
@@ -143,6 +145,17 @@ export default function Home() {
     loadFromDb(ctrl.signal);
     return () => ctrl.abort();
   }, [loadFromDb]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const applyPreset = useCallback((preset: (typeof bankPresets)[number]) => {
     setMapping({ ...preset.mapping });
@@ -742,9 +755,34 @@ export default function Home() {
               );
             })}
           </nav>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Suche öffnen (Cmd+K)"
+            title="Suche (⌘K)"
+            className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-fg-muted hover:text-fg"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Suchen</span>
+            <kbd className="hidden md:inline rounded border border-border bg-bg px-1 text-[10px]">
+              ⌘K
+            </kbd>
+          </button>
           <ThemeToggle />
         </div>
       </header>
+
+      <SearchPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(t) => {
+          setView("auswertung");
+          setAuswertungFilter((prev) => ({
+            ...prev,
+            search: t.nameZahlungsbeteiligter || t.verwendungszweck,
+          }));
+        }}
+      />
 
       {view === "einstellungen" && (
         <SettingsView
