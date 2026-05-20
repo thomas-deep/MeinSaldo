@@ -2,6 +2,12 @@ export interface RawTransaction {
   [key: string]: string;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface Transaction {
   id: string;
   kontoBezeichnung: string;
@@ -18,6 +24,7 @@ export interface Transaction {
   kategorie: string;
   kontogruppeId?: number | null;
   isUmbuchung?: boolean;
+  tags?: Tag[];
 }
 
 export type InhaberType = "privat" | "gemeinsam" | "firma";

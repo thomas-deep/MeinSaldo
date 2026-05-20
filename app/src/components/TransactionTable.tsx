@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Kontogruppe, Transaction, formatKontogruppe } from "../lib/types";
+import TagPicker from "./TagPicker";
 import {
   AiProgress,
   runAiOnIds,
@@ -32,6 +33,7 @@ interface TransactionTableProps {
   onBulkUmbuchung?: (ids: string[], isUmbuchung: boolean) => Promise<void> | void;
   onBulkDelete?: (ids: string[]) => Promise<void> | void;
   onAiBulkDone?: () => void;
+  onTagsChange?: () => void;
 }
 
 function formatEuro(value: number): string {
@@ -64,6 +66,7 @@ export default function TransactionTable({
   onBulkUmbuchung,
   onBulkDelete,
   onAiBulkDone,
+  onTagsChange,
 }: TransactionTableProps) {
   const allCategories = kategorien;
   const kontogruppenById = useMemo(
@@ -465,6 +468,30 @@ export default function TransactionTable({
                       </button>
                       <span className="truncate">{tx.verwendungszweck}</span>
                     </div>
+                    {(tx.tags && tx.tags.length > 0) || onTagsChange ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        {tx.tags?.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                            style={{
+                              backgroundColor: `${tag.color}22`,
+                              color: tag.color,
+                              border: `1px solid ${tag.color}66`,
+                            }}
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                        {onTagsChange && (
+                          <TagPicker
+                            transactionId={tx.id}
+                            currentTags={tx.tags ?? []}
+                            onChange={onTagsChange}
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-5 py-3">
                     {tx.kontogruppeId && kontogruppenById[tx.kontogruppeId] ? (

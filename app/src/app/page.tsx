@@ -1021,6 +1021,7 @@ export default function Home() {
                   onBulkUmbuchung={handleBulkUmbuchung}
                   onBulkDelete={handleBulkDelete}
                   onAiBulkDone={() => loadFromDb()}
+                  onTagsChange={() => loadFromDb()}
                 />
               )}
             </>

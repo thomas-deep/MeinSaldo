@@ -7,6 +7,7 @@ import {
   InhaberType,
   Kontogruppe,
   KontogruppeArt,
+  Tag,
   Transaction,
 } from "./types";
 import { categoryRules } from "./categories";
@@ -202,6 +203,29 @@ const migrations: Migration[] = [
         SELECT rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext
         FROM transactions
         WHERE rowid NOT IN (SELECT rowid FROM transactions_fts);
+      `);
+    },
+  },
+  {
+    version: 6,
+    description: "Tags + transaction_tags (many-to-many)",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS tags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          color TEXT NOT NULL DEFAULT '#6b7280',
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS transaction_tags (
+          transaction_id TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+          tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY (transaction_id, tag_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag
+          ON transaction_tags(tag_id);
       `);
     },
   },
@@ -677,6 +701,36 @@ function recomputeUmbuchungen(db: Database.Database): void {
   tx();
 }
 
+function attachTags(transactions: Transaction[]): Transaction[] {
+  if (transactions.length === 0) return transactions;
+  const db = getDb();
+  const placeholders = transactions.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT tt.transaction_id, t.id, t.name, t.color
+       FROM transaction_tags tt
+       JOIN tags t ON t.id = tt.tag_id
+       WHERE tt.transaction_id IN (${placeholders})
+       ORDER BY t.name COLLATE NOCASE`
+    )
+    .all(...transactions.map((t) => t.id)) as {
+    transaction_id: string;
+    id: number;
+    name: string;
+    color: string;
+  }[];
+  const byTx = new Map<string, Tag[]>();
+  for (const r of rows) {
+    const list = byTx.get(r.transaction_id) ?? [];
+    list.push({ id: r.id, name: r.name, color: r.color });
+    byTx.set(r.transaction_id, list);
+  }
+  for (const t of transactions) {
+    t.tags = byTx.get(t.id) ?? [];
+  }
+  return transactions;
+}
+
 export function getAllTransactions(): Transaction[] {
   const db = getDb();
   const rows = db
@@ -686,7 +740,89 @@ export function getAllTransactions(): Transaction[] {
        ORDER BY t.buchungstag DESC, t.id DESC`
     )
     .all() as DbRow[];
-  return rows.map(rowToTransaction);
+  return attachTags(rows.map(rowToTransaction));
+}
+
+export function getAllTags(): Tag[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT id, name, color FROM tags ORDER BY name COLLATE NOCASE")
+    .all() as Tag[];
+}
+
+export function createTag(name: string, color: string): Tag {
+  const db = getDb();
+  const info = db
+    .prepare(
+      "INSERT INTO tags (name, color, created_at) VALUES (?, ?, ?)"
+    )
+    .run(name, color, new Date().toISOString());
+  return { id: Number(info.lastInsertRowid), name, color };
+}
+
+export function updateTag(id: number, name: string, color: string): boolean {
+  const db = getDb();
+  const info = db
+    .prepare("UPDATE tags SET name = ?, color = ? WHERE id = ?")
+    .run(name, color, id);
+  return info.changes > 0;
+}
+
+export function deleteTag(id: number): boolean {
+  const db = getDb();
+  const info = db.prepare("DELETE FROM tags WHERE id = ?").run(id);
+  return info.changes > 0;
+}
+
+export function setTagsForTransaction(
+  transactionId: string,
+  tagIds: number[]
+): void {
+  const db = getDb();
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM transaction_tags WHERE transaction_id = ?").run(
+      transactionId
+    );
+    const insert = db.prepare(
+      "INSERT INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)"
+    );
+    for (const tagId of tagIds) insert.run(transactionId, tagId);
+  });
+  tx();
+}
+
+export function addTagToTransactions(
+  transactionIds: string[],
+  tagId: number
+): number {
+  const db = getDb();
+  const insert = db.prepare(
+    "INSERT OR IGNORE INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)"
+  );
+  let added = 0;
+  const tx = db.transaction(() => {
+    for (const id of transactionIds) {
+      const info = insert.run(id, tagId);
+      if (info.changes > 0) added++;
+    }
+  });
+  tx();
+  return added;
+}
+
+export function removeTagFromTransactions(
+  transactionIds: string[],
+  tagId: number
+): number {
+  if (transactionIds.length === 0) return 0;
+  const db = getDb();
+  const placeholders = transactionIds.map(() => "?").join(",");
+  const info = db
+    .prepare(
+      `DELETE FROM transaction_tags WHERE tag_id = ? AND transaction_id IN (${placeholders})`
+    )
+    .run(tagId, ...transactionIds);
+  return info.changes;
 }
 
 /** Baut aus einer User-Anfrage einen FTS5-MATCH-Ausdruck mit Prefix-Suche pro
@@ -718,7 +854,7 @@ export function searchTransactions(
        LIMIT ?`
     )
     .all(query, limit) as DbRow[];
-  return rows.map(rowToTransaction);
+  return attachTags(rows.map(rowToTransaction));
 }
 
 export function setUmbuchungOverride(

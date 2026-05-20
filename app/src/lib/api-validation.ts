@@ -115,6 +115,17 @@ export const inhaberCreateSchema = z.object({
 
 export const inhaberUpdateSchema = inhaberCreateSchema;
 
+export const tagCreateSchema = z.object({
+  name: z.string().min(1).max(32),
+  color: hexColor,
+});
+
+export const tagUpdateSchema = tagCreateSchema;
+
+export const transactionTagsSchema = z.object({
+  tagIds: z.array(z.number().int().positive()).max(32),
+});
+
 function allowedOllamaHosts(): string[] {
   const env = process.env.ALLOWED_OLLAMA_HOSTS;
   if (env && env.trim()) {
