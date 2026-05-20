@@ -129,6 +129,39 @@ Keine IBAN-Felder (Kreditkarte hat keine), daher leeres `kontoBezeichnung` / `ib
 
 Default-Mapping wie Volksbank/ING. Trennzeichen wählbar. Alle Spalten frei zuordenbar im Feld-Mapping-Panel.
 
+## Beitrag neuer Bank-Presets
+
+Wir freuen uns über Beiträge für weitere Banken. Workflow:
+
+### 1. CSV-Sample anonymisieren
+
+Bevor du ein Sample teilst, **alle personenbezogenen Daten entfernen oder ersetzen**:
+
+- **IBANs** → `DE00000000000000000000` (eigene) und `DE99999999999999999999` (Counterparty)
+- **Namen** (Inhaber, Counterparty, abweichende Empfänger) → `Max Mustermann`, `Beispiel GmbH`, `Empfänger 1`
+- **Verwendungszweck** → falls identifizierend (z. B. Mandatsreferenz, Kundennummern): durch generische Bezeichner ersetzen, aber die *Struktur* erhalten (z. B. „SEPA-Lastschrift MANDATSREF: XXXX RECHNUNG: 12345" als Muster behalten, damit Parser-Heuristiken treffen)
+- **Beträge** dürfen bleiben oder gerundet werden
+- **Datümer** dürfen bleiben
+
+Genug Zeilen für die Parser-Heuristiken: mindestens 20 Buchungen, damit Encoding-Erkennung, Datum-Heuristik und Vorzeichen-Erkennung greifen.
+
+### 2. Sample bereitstellen
+
+Zwei Wege:
+
+- **Issue mit Code-Block** (bevorzugt für kleine Samples ≤ 30 Zeilen).
+- **Gist-Link im Issue** für längere Samples — bitte *unlisted* Gist, nicht public.
+
+**Niemals** echte CSV-Dateien in PRs committen. Wenn du Tests beilegst, nutze einen synthetischen Block direkt in der Testdatei (siehe `field-mapping.test.ts`).
+
+### 3. Preset-PR
+
+Siehe `CONTRIBUTING.md` Abschnitt „Neue Bank unterstützen" und das Code-Template unten.
+
+### 4. Review
+
+Maintainer prüft anhand des Samples (mit synthetischen Daten) im Browser. Bei DKB-ähnlichen Eigenheiten (Header-Metadaten, kombinierte Spalten) brauchen wir ggf. Rückfragen zu Edge-Cases (Auslandsüberweisungen, Storno-Buchungen, Rück-Lastschriften).
+
 ## Eigenes Bank-Preset hinzufügen
 
 Siehe `docs/TECHNICAL.md` Abschnitt „Erweiterungspunkte → Neue Bank hinzufügen". Konkret in `src/lib/field-mapping.ts`:
