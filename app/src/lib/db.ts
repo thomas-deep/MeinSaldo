@@ -7,9 +7,13 @@ import {
   InhaberType,
   Kontogruppe,
   KontogruppeArt,
+  NetWorthEntry,
+  NetWorthHistoryPoint,
+  NetWorthSnapshot,
   Tag,
   Transaction,
 } from "./types";
+import { buildMonthlyNetWorthHistory, SnapshotInput } from "./networth";
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 
@@ -226,6 +230,52 @@ const migrations: Migration[] = [
 
         CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag
           ON transaction_tags(tag_id);
+      `);
+    },
+  },
+  {
+    version: 7,
+    description:
+      "Net-Worth: assets, liabilities mit Wert-Verlaufs-Snapshots",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS assets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'sonstiges',
+          note TEXT,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS liabilities (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'sonstiges',
+          note TEXT,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS asset_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          value REAL NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(asset_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_asset_snapshots_asset_date
+          ON asset_snapshots(asset_id, date);
+
+        CREATE TABLE IF NOT EXISTS liability_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          liability_id INTEGER NOT NULL REFERENCES liabilities(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          value REAL NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(liability_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_liability_snapshots_liability_date
+          ON liability_snapshots(liability_id, date);
       `);
     },
   },
@@ -823,6 +873,289 @@ export function removeTagFromTransactions(
     )
     .run(tagId, ...transactionIds);
   return info.changes;
+}
+
+// ──────────────── Net-Worth ────────────────
+
+function getEntriesWithLatest(
+  table: "assets" | "liabilities"
+): NetWorthEntry[] {
+  const snapshotTable =
+    table === "assets" ? "asset_snapshots" : "liability_snapshots";
+  const fk = table === "assets" ? "asset_id" : "liability_id";
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.name, e.kind, e.note,
+              s.value AS latest_value, s.date AS latest_date
+       FROM ${table} e
+       LEFT JOIN (
+         SELECT ${fk} AS entity_id, value, date
+         FROM ${snapshotTable} s1
+         WHERE date = (
+           SELECT MAX(date) FROM ${snapshotTable} s2 WHERE s2.${fk} = s1.${fk}
+         )
+       ) s ON s.entity_id = e.id
+       ORDER BY e.name COLLATE NOCASE`
+    )
+    .all() as {
+    id: number;
+    name: string;
+    kind: string;
+    note: string | null;
+    latest_value: number | null;
+    latest_date: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    note: r.note,
+    latestValue: r.latest_value,
+    latestDate: r.latest_date,
+    source: "manual" as const,
+  }));
+}
+
+/** Kontogruppen-art → Asset (true) oder Liability (false). */
+function isAssetArt(art: string): boolean {
+  return art !== "kreditkarte";
+}
+
+/** Liefert pro Kontogruppe den jeweils letzten saldoNachBuchung als NetWorthEntry.
+ *  Asset oder Liability je nach art (kreditkarte = Liability mit Math.abs). */
+function getKontogruppenAsEntries(): {
+  assets: NetWorthEntry[];
+  liabilities: NetWorthEntry[];
+} {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `WITH latest AS (
+         SELECT t.kontogruppe_id, t.saldo_nach_buchung, t.buchungstag,
+           ROW_NUMBER() OVER (
+             PARTITION BY t.kontogruppe_id
+             ORDER BY t.buchungstag DESC, t.id DESC
+           ) AS rn
+         FROM transactions t
+         WHERE t.kontogruppe_id IS NOT NULL
+       )
+       SELECT kg.id, kg.name, kg.art, kg.bank AS note, i.name AS inhaber_name,
+              l.saldo_nach_buchung AS latest_value, l.buchungstag AS latest_date
+       FROM kontogruppen kg
+       JOIN inhaber i ON i.id = kg.inhaber_id
+       LEFT JOIN latest l ON l.kontogruppe_id = kg.id AND l.rn = 1
+       WHERE l.saldo_nach_buchung IS NOT NULL
+       ORDER BY i.name COLLATE NOCASE, kg.name COLLATE NOCASE`
+    )
+    .all() as {
+    id: number;
+    name: string;
+    art: string;
+    note: string | null;
+    inhaber_name: string;
+    latest_value: number;
+    latest_date: string;
+  }[];
+
+  const assets: NetWorthEntry[] = [];
+  const liabilities: NetWorthEntry[] = [];
+  for (const r of rows) {
+    const entry: NetWorthEntry = {
+      id: r.id,
+      name: r.name,
+      kind: r.art,
+      note: r.note,
+      latestValue: isAssetArt(r.art) ? r.latest_value : Math.abs(r.latest_value),
+      latestDate: r.latest_date,
+      source: "konto",
+      displayPrefix: r.inhaber_name,
+    };
+    if (isAssetArt(r.art)) {
+      assets.push(entry);
+    } else {
+      liabilities.push(entry);
+    }
+  }
+  return { assets, liabilities };
+}
+
+export function getAssets(): NetWorthEntry[] {
+  const manual = getEntriesWithLatest("assets");
+  const { assets } = getKontogruppenAsEntries();
+  return [...assets, ...manual];
+}
+
+export function getLiabilities(): NetWorthEntry[] {
+  const manual = getEntriesWithLatest("liabilities");
+  const { liabilities } = getKontogruppenAsEntries();
+  return [...liabilities, ...manual];
+}
+
+export function createAsset(
+  name: string,
+  kind: string,
+  note: string | null
+): NetWorthEntry {
+  const db = getDb();
+  const info = db
+    .prepare(
+      "INSERT INTO assets (name, kind, note, created_at) VALUES (?, ?, ?, ?)"
+    )
+    .run(name, kind, note, new Date().toISOString());
+  return {
+    id: Number(info.lastInsertRowid),
+    name,
+    kind,
+    note,
+    latestValue: null,
+    latestDate: null,
+    source: "manual",
+  };
+}
+
+export function createLiability(
+  name: string,
+  kind: string,
+  note: string | null
+): NetWorthEntry {
+  const db = getDb();
+  const info = db
+    .prepare(
+      "INSERT INTO liabilities (name, kind, note, created_at) VALUES (?, ?, ?, ?)"
+    )
+    .run(name, kind, note, new Date().toISOString());
+  return {
+    id: Number(info.lastInsertRowid),
+    name,
+    kind,
+    note,
+    latestValue: null,
+    latestDate: null,
+    source: "manual",
+  };
+}
+
+export function deleteAsset(id: number): boolean {
+  return getDb().prepare("DELETE FROM assets WHERE id = ?").run(id).changes > 0;
+}
+
+export function deleteLiability(id: number): boolean {
+  return (
+    getDb().prepare("DELETE FROM liabilities WHERE id = ?").run(id).changes > 0
+  );
+}
+
+export function upsertAssetSnapshot(
+  assetId: number,
+  date: string,
+  value: number
+): void {
+  getDb()
+    .prepare(
+      `INSERT INTO asset_snapshots (asset_id, date, value, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(asset_id, date) DO UPDATE SET value = excluded.value`
+    )
+    .run(assetId, date, value, new Date().toISOString());
+}
+
+export function upsertLiabilitySnapshot(
+  liabilityId: number,
+  date: string,
+  value: number
+): void {
+  getDb()
+    .prepare(
+      `INSERT INTO liability_snapshots (liability_id, date, value, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(liability_id, date) DO UPDATE SET value = excluded.value`
+    )
+    .run(liabilityId, date, value, new Date().toISOString());
+}
+
+export function getAssetSnapshots(assetId: number): NetWorthSnapshot[] {
+  return getDb()
+    .prepare(
+      "SELECT date, value FROM asset_snapshots WHERE asset_id = ? ORDER BY date"
+    )
+    .all(assetId) as NetWorthSnapshot[];
+}
+
+export function getLiabilitySnapshots(
+  liabilityId: number
+): NetWorthSnapshot[] {
+  return getDb()
+    .prepare(
+      "SELECT date, value FROM liability_snapshots WHERE liability_id = ? ORDER BY date"
+    )
+    .all(liabilityId) as NetWorthSnapshot[];
+}
+
+/** Monatsende-Saldo pro Kontogruppe (eine Zeile pro (kontogruppe, Monat)).
+ *  Liefert separat Asset- und Liability-Inputs, da Kreditkarten als Liability
+ *  zählen (Math.abs). entityId wird mit negativem Vorzeichen versehen, damit
+ *  konto-IDs nicht mit manuellen Asset-IDs kollidieren. */
+function getKontogruppenMonthlySnapshots(): {
+  assets: SnapshotInput[];
+  liabilities: SnapshotInput[];
+} {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `WITH monthly AS (
+         SELECT t.kontogruppe_id, substr(t.buchungstag, 1, 7) AS ym,
+           t.saldo_nach_buchung, t.buchungstag,
+           ROW_NUMBER() OVER (
+             PARTITION BY t.kontogruppe_id, substr(t.buchungstag, 1, 7)
+             ORDER BY t.buchungstag DESC, t.id DESC
+           ) AS rn
+         FROM transactions t
+         WHERE t.kontogruppe_id IS NOT NULL
+       )
+       SELECT m.kontogruppe_id, m.ym, m.saldo_nach_buchung, kg.art
+       FROM monthly m
+       JOIN kontogruppen kg ON kg.id = m.kontogruppe_id
+       WHERE m.rn = 1`
+    )
+    .all() as {
+    kontogruppe_id: number;
+    ym: string;
+    saldo_nach_buchung: number;
+    art: string;
+  }[];
+
+  const assets: SnapshotInput[] = [];
+  const liabilities: SnapshotInput[] = [];
+  for (const r of rows) {
+    const point = {
+      entityId: -r.kontogruppe_id,
+      date: `${r.ym}-01`,
+      value: isAssetArt(r.art)
+        ? r.saldo_nach_buchung
+        : Math.abs(r.saldo_nach_buchung),
+    };
+    if (isAssetArt(r.art)) assets.push(point);
+    else liabilities.push(point);
+  }
+  return { assets, liabilities };
+}
+
+export function getNetWorthHistory(): NetWorthHistoryPoint[] {
+  const db = getDb();
+  const manualAssets = db
+    .prepare("SELECT asset_id AS entityId, date, value FROM asset_snapshots")
+    .all() as SnapshotInput[];
+  const manualLiabilities = db
+    .prepare(
+      "SELECT liability_id AS entityId, date, value FROM liability_snapshots"
+    )
+    .all() as SnapshotInput[];
+  const konto = getKontogruppenMonthlySnapshots();
+  return buildMonthlyNetWorthHistory(
+    [...manualAssets, ...konto.assets],
+    [...manualLiabilities, ...konto.liabilities]
+  );
 }
 
 /** Baut aus einer User-Anfrage einen FTS5-MATCH-Ausdruck mit Prefix-Suche pro

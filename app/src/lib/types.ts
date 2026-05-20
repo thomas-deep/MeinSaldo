@@ -8,6 +8,34 @@ export interface Tag {
   color: string;
 }
 
+export type AssetKind = "depot" | "immobilie" | "bargeld" | "sonstiges";
+export type LiabilityKind = "hypothek" | "kredit" | "sonstiges";
+
+export interface NetWorthEntry {
+  id: number;
+  name: string;
+  kind: string;
+  note: string | null;
+  latestValue: number | null;
+  latestDate: string | null;
+  /** "manual" = vom User gepflegt, "konto" = automatisch aus letzter CSV-Buchung. */
+  source: "manual" | "konto";
+  /** Bei source="konto": Vor- und Nachname/Bezeichner, z. B. "Thomas · Giro". */
+  displayPrefix?: string;
+}
+
+export interface NetWorthSnapshot {
+  date: string;
+  value: number;
+}
+
+export interface NetWorthHistoryPoint {
+  date: string;
+  assets: number;
+  liabilities: number;
+  net: number;
+}
+
 export interface Transaction {
   id: string;
   kontoBezeichnung: string;

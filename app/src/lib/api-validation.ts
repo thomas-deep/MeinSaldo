@@ -126,6 +126,34 @@ export const transactionTagsSchema = z.object({
   tagIds: z.array(z.number().int().positive()).max(32),
 });
 
+export const assetKindSchema = z.enum([
+  "depot",
+  "immobilie",
+  "bargeld",
+  "sonstiges",
+]);
+
+export const liabilityKindSchema = z.enum(["hypothek", "kredit", "sonstiges"]);
+
+export const assetCreateSchema = z.object({
+  name: z.string().min(1).max(64),
+  kind: assetKindSchema.optional(),
+  note: z.string().max(500).nullable().optional(),
+});
+
+export const liabilityCreateSchema = z.object({
+  name: z.string().min(1).max(64),
+  kind: liabilityKindSchema.optional(),
+  note: z.string().max(500).nullable().optional(),
+});
+
+export const snapshotSchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Datum muss ISO-Format YYYY-MM-DD haben"),
+  value: z.number().finite(),
+});
+
 function allowedOllamaHosts(): string[] {
   const env = process.env.ALLOWED_OLLAMA_HOSTS;
   if (env && env.trim()) {
