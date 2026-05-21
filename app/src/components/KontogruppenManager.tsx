@@ -6,6 +6,7 @@ import { Inhaber, Kontogruppe, KontogruppeArt } from "../lib/types";
 import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
 import SortableList, { DragHandle } from "./SortableList";
+import { parseGermanNumber, formatGermanAmount } from "../lib/number-format";
 
 interface KontogruppenManagerProps {
   kontogruppen: Kontogruppe[];
@@ -203,13 +204,13 @@ function AnchorEditor({
     kg.anchorDate ?? new Date().toISOString().slice(0, 10)
   );
   const [value, setValue] = useState(
-    kg.anchorValue != null ? String(kg.anchorValue) : ""
+    kg.anchorValue != null ? formatGermanAmount(kg.anchorValue) : ""
   );
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    const v = parseFloat(value.replace(",", "."));
-    if (!isFinite(v) || !date) return;
+    const v = parseGermanNumber(value);
+    if (v === null || !date) return;
     setBusy(true);
     await fetch(`/api/kontogruppen/${kg.id}/anchor`, {
       method: "PUT",

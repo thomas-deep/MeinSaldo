@@ -18,6 +18,7 @@ import {
   NetWorthSnapshot,
 } from "../lib/types";
 import ConfirmDialog from "./ConfirmDialog";
+import { parseGermanNumber } from "../lib/number-format";
 
 const eur = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -266,8 +267,8 @@ function EntryRow({
   }
 
   async function handleSave() {
-    const v = parseFloat(value.replace(",", "."));
-    if (!isFinite(v)) return;
+    const v = parseGermanNumber(value);
+    if (v === null) return;
     await fetch(`/api/${path}/${e.id}/snapshots`, {
       method: "POST",
       headers: { "content-type": "application/json" },
