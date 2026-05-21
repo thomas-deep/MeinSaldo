@@ -6,7 +6,7 @@ Danke, dass du beitragen willst. Die App ist bewusst klein und lokal — Beiträ
 
 ```bash
 git clone <fork-url>
-cd Auswertung-Finanzen/app
+cd MeinSaldo/app
 npm install
 npm run dev      # http://localhost:3000
 ```

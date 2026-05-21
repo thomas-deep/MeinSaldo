@@ -21,7 +21,7 @@ const displaySerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Finanz-Auswertung",
+  title: "MeinSaldo",
   description: "Detaillierte Aufbereitung von Einnahmen und Ausgaben aus Konto-Exporten",
 };
 

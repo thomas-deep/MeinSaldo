@@ -43,7 +43,7 @@ function FormFields({
         type="text"
         value={state.name}
         onChange={(e) => onChange({ ...state, name: e.target.value })}
-        placeholder='z. B. "Thomas", "Gemeinsam", "GmbH X"'
+        placeholder='z. B. "Thomas", "Gemeinsam", "Firma X"'
         className="w-full rounded-lg border border-border-strong bg-surface-active px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
         autoFocus
       />

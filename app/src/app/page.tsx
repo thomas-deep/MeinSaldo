@@ -732,9 +732,8 @@ export default function Home() {
             className="inline-block h-4 w-1 translate-y-[3px] bg-fg"
           />
           <h1 className="font-editorial text-3xl font-medium tracking-tight text-fg">
-            <span className="font-editorial-italic">Finanz</span>
-            <span className="text-fg-muted">·</span>
-            Auswertung
+            <span className="font-editorial-italic">Mein</span>
+            Saldo
           </h1>
         </div>
 
