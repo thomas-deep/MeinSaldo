@@ -6,12 +6,15 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 
 ## A — Priorität für Open-Source-Launch
 
-- [ ] **Recurring-Detection** — automatische Erkennung wiederkehrender Zahlungen (Abos, Miete, Gehalt) auf Basis Verwendungszweck + Betrag + Intervall. Inkl. Preisänderungs-Alert.
-- [ ] **Vermögensübersicht / Net-Worth** — manuelle Assets (Depots, Immobilien) und Liabilities (Kredite) mit Werteverlauf, ergänzt den bestehenden Cashflow.
-- [ ] **Tags** quer zu Kategorien (z. B. `urlaub-2025`, `renovierung`) für Querschnitts-Auswertungen.
-- [ ] **First-class Search** — FTS5-Index über Verwendungszweck/Counterparty, globale Such-Bar, speicherbare Filter-Presets.
-- [ ] **API-Route-Tests** — Vitest mit In-Memory-SQLite; Zod-Validierung wird bereits durchgesetzt, aber nicht getestet.
-- [ ] **Contribution-Guide & CSV-Mithilfe-Workflow** — siehe `CONTRIBUTING.md` und `docs/CSV_FORMATS.md`.
+**Abgeschlossen.** Alle A-Punkte sind umgesetzt — Details in `docs/CHANGELOG.md`.
+
+- [x] **Recurring-Detection** — automatische Erkennung wiederkehrender Zahlungen (Abos, Miete, Gehalt) auf Basis Verwendungszweck + Betrag + Intervall. Inkl. Preisänderungs-Alert und serienweiser Kategorie-/Tag-Zuweisung.
+- [x] **Vermögensübersicht / Net-Worth** — Kontogruppen-Salden automatisch plus manuelle Assets/Liabilities mit Werteverlauf. Inkl. Konto-Anker zur Saldo-Rekonstruktion.
+- [x] **Tags** quer zu Kategorien (z. B. `urlaub-2025`, `renovierung`) für Querschnitts-Auswertungen.
+- [x] **First-class Search** — FTS5-Index über Verwendungszweck/Counterparty, globale Such-Palette (⌘K). (Speicherbare Filter-Presets → nach B verschoben.)
+- [x] **API-Route-Tests** — Vitest mit isolierter In-Memory-SQLite pro Test.
+- [x] **Contribution-Guide & CSV-Mithilfe-Workflow** — siehe `CONTRIBUTING.md` und `docs/CSV_FORMATS.md`.
+- [x] **Kategorie-Übernahme aus dem Verlauf** — neue Importe erben die Kategorie gleicher früherer Buchungen (zusätzlich geliefert).
 
 ## B — Mittelfristig
 
@@ -22,6 +25,7 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 - [ ] **E2E-Tests** mit Playwright (siehe `docs/AUDIT.md`).
 - [ ] **CSV-Encoding-Override pro Bank-Preset** — Sparkasse/Volksbank-Exporte sind häufig `windows-1252` (Roadmap-Punkt aus `AUDIT.md`).
 - [ ] **CSV-Vorlagen-Pflege** — laufende Aktualisierung der Bank-Presets, getriebener Beitrags-Workflow.
+- [ ] **Speicherbare Filter-Presets** — Zeitraum-/Typ-/Such-Kombinationen auf der Auswertung benennen und wiederverwenden (aus dem First-class-Search-Punkt ausgegliedert).
 - [ ] **IBAN-basierte Konto-Zuordnung beim Import** — `iban` als optionales Feld in `kontogruppen` (Verwaltung-UI). Beim CSV-Import wird die `IBAN Auftragskonto` aus der ersten Datenzeile gegen die gepflegten IBANs gematcht und das Konto automatisch vorausgewählt — entfernt das manuelle Konto-Picken pro Import.
 
 ## C — Wenn Zeit/Lust
