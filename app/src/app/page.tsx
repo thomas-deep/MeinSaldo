@@ -30,6 +30,7 @@ import { detectCsvHeaders } from "../lib/parse-csv";
 import {
   AiProgress,
   runAiOnAllUncategorized,
+  runAiOnUncategorizedAmong,
   runAiOnIds,
 } from "../lib/use-ai-categorize";
 import AuswertungFilter, {
@@ -289,7 +290,11 @@ export default function Home() {
                 onProgress: (p) => setAiProgress(p),
               });
             } else {
-              await runAiOnAllUncategorized((p) => setAiProgress(p));
+              // rulesThenAi: nur die neu importierten Buchungen, die als
+              // „Sonstiges" übrig blieben — nicht die gesamte DB.
+              await runAiOnUncategorizedAmong(insertedIds, (p) =>
+                setAiProgress(p)
+              );
             }
             await loadFromDb();
           } catch (e) {

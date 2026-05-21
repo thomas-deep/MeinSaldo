@@ -102,3 +102,19 @@ export async function runAiOnAllUncategorized(
   const allIds: string[] = idsData.ids ?? [];
   return runAiOnIds(allIds, { onProgress });
 }
+
+/**
+ * KI-Lauf nur über die uncategorized IDs aus einer gegebenen Menge — z. B.
+ * direkt nach einem Import nur über die neu eingefügten Buchungen, die die
+ * Regeln auf „Sonstiges" gelassen haben. Klassifiziert nicht den Rest der DB.
+ */
+export async function runAiOnUncategorizedAmong(
+  ids: string[],
+  onProgress?: (p: AiProgress) => void
+): Promise<AiProgress> {
+  const idsRes = await fetch("/api/ai/categorize");
+  const idsData = await idsRes.json();
+  const uncategorized = new Set<string>(idsData.ids ?? []);
+  const target = ids.filter((id) => uncategorized.has(id));
+  return runAiOnIds(target, { onProgress });
+}
