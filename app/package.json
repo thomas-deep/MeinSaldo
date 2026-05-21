@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:demo": "FINANZEN_DB_PATH=data/demo.db next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
