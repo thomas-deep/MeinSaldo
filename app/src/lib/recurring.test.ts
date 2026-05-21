@@ -141,6 +141,27 @@ describe("detectRecurring", () => {
     expect(result[0].nextExpected).toMatch(/^2025-04-/);
   });
 
+  it("aggregiert distinkte Kategorien und Tags der Serie", () => {
+    const txs = [
+      tx("2025-01-15", "Verein", -20, {
+        kategorie: "Freizeit",
+        tags: [{ id: 1, name: "hobby", color: "#111111" }],
+      }),
+      tx("2025-02-15", "Verein", -20, {
+        kategorie: "Sonstiges",
+        tags: [{ id: 1, name: "hobby", color: "#111111" }],
+      }),
+      tx("2025-03-15", "Verein", -20, {
+        kategorie: "Freizeit",
+        tags: [{ id: 2, name: "2025", color: "#222222" }],
+      }),
+    ];
+    const result = detectRecurring(txs);
+    expect(result).toHaveLength(1);
+    expect(result[0].categories).toEqual(["Freizeit", "Sonstiges"]);
+    expect(result[0].tags.map((t) => t.id)).toEqual([2, 1]);
+  });
+
   it("sortiert nach Betrag absteigend (größte Ausgaben zuerst)", () => {
     const txs = [
       tx("2025-01-15", "Klein", -10),

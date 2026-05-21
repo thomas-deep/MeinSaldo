@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, Repeat, Calendar, Check, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  Repeat,
+  Calendar,
+  Check,
+  X,
+  SlidersHorizontal,
+} from "lucide-react";
 import { RecurringSeries, RecurringInterval } from "../lib/recurring";
 import { Tag } from "../lib/types";
 
@@ -28,32 +35,31 @@ export default function RecurringView() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const [recRes, katRes, tagRes] = await Promise.all([
+      fetch("/api/recurring", { signal }),
+      fetch("/api/kategorien", { signal }),
+      fetch("/api/tags", { signal }),
+    ]);
+    if (!recRes.ok) throw new Error("Laden fehlgeschlagen");
+    const recJson = await recRes.json();
+    const katJson = await katRes.json();
+    const tagJson = await tagRes.json();
+    setSeries(recJson.series as RecurringSeries[]);
+    setCategories(
+      (katJson.kategorien as { name: string }[]).map((k) => k.name)
+    );
+    setTags(tagJson.tags as Tag[]);
+  }, []);
+
   useEffect(() => {
     const ctrl = new AbortController();
-    (async () => {
-      try {
-        const [recRes, katRes, tagRes] = await Promise.all([
-          fetch("/api/recurring", { signal: ctrl.signal }),
-          fetch("/api/kategorien", { signal: ctrl.signal }),
-          fetch("/api/tags", { signal: ctrl.signal }),
-        ]);
-        if (!recRes.ok) throw new Error("Laden fehlgeschlagen");
-        const recJson = await recRes.json();
-        const katJson = await katRes.json();
-        const tagJson = await tagRes.json();
-        setSeries(recJson.series as RecurringSeries[]);
-        setCategories(
-          (katJson.kategorien as { name: string }[]).map((k) => k.name)
-        );
-        setTags(tagJson.tags as Tag[]);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          setError((e as Error).message);
-        }
-      }
-    })();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Mount-Fetch mit Abort, setState nur im Fehlerfall
+    load(ctrl.signal).catch((e) => {
+      if ((e as Error).name !== "AbortError") setError((e as Error).message);
+    });
     return () => ctrl.abort();
-  }, []);
+  }, [load]);
 
   if (error) {
     return (
@@ -104,6 +110,7 @@ export default function RecurringView() {
                 series={s}
                 categories={categories}
                 tags={tags}
+                onApplied={() => void load()}
               />
             ))}
           </div>
@@ -121,6 +128,7 @@ export default function RecurringView() {
               series={s}
               categories={categories}
               tags={tags}
+              onApplied={() => void load()}
             />
           ))}
         </div>
@@ -133,19 +141,23 @@ function SeriesRow({
   series: s,
   categories,
   tags,
+  onApplied,
 }: {
   series: RecurringSeries;
   categories: string[];
   tags: Tag[];
+  onApplied: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(
+    null
+  );
   const delta = s.latestBetrag - s.avgBetrag;
 
   async function apply(body: Record<string, unknown>, label: string) {
     setBusy(true);
-    setDone(null);
+    setResult(null);
     try {
       const res = await fetch("/api/transactions-bulk", {
         method: "PATCH",
@@ -154,10 +166,16 @@ function SeriesRow({
       });
       if (res.ok) {
         const json = await res.json();
-        setDone(`${label} auf ${json.updated} Buchungen angewendet`);
+        setResult({
+          ok: true,
+          msg: `${label} auf ${json.updated} Buchungen angewendet`,
+        });
+        onApplied();
       } else {
-        setDone("Fehlgeschlagen");
+        setResult({ ok: false, msg: `${label}: fehlgeschlagen` });
       }
+    } catch {
+      setResult({ ok: false, msg: `${label}: fehlgeschlagen` });
     } finally {
       setBusy(false);
     }
@@ -179,6 +197,31 @@ function SeriesRow({
               {formatDate(s.nextExpected)}
             </span>
           </div>
+          {(s.categories.length > 0 || s.tags.length > 0) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              {s.categories.map((c) => (
+                <span
+                  key={c}
+                  className="rounded border border-border bg-bg-muted px-1.5 py-0.5 text-[10px] font-medium text-fg-muted"
+                >
+                  {c}
+                </span>
+              ))}
+              {s.tags.map((t) => (
+                <span
+                  key={t.id}
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                  style={{
+                    backgroundColor: `${t.color}22`,
+                    color: t.color,
+                    border: `1px solid ${t.color}66`,
+                  }}
+                >
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div
@@ -235,10 +278,7 @@ function SeriesRow({
             defaultValue=""
             onChange={(e) => {
               if (e.target.value) {
-                void apply(
-                  { addTagId: Number(e.target.value) },
-                  "Tag"
-                );
+                void apply({ addTagId: Number(e.target.value) }, "Tag");
               }
             }}
             className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
@@ -252,10 +292,18 @@ function SeriesRow({
               </option>
             ))}
           </select>
-          {done && (
-            <span className="flex items-center gap-1 text-xs text-positive">
-              <Check className="h-3 w-3" />
-              {done}
+          {result && (
+            <span
+              className={`flex items-center gap-1 text-xs ${
+                result.ok ? "text-positive" : "text-danger"
+              }`}
+            >
+              {result.ok ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <X className="h-3 w-3" />
+              )}
+              {result.msg}
             </span>
           )}
         </div>

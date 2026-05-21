@@ -1,4 +1,4 @@
-import { Transaction } from "./types";
+import { Tag, Transaction } from "./types";
 
 export type RecurringInterval = "monthly" | "quarterly" | "yearly";
 
@@ -18,6 +18,10 @@ export interface RecurringSeries {
   nextExpected: string;
   /** IDs aller Transaktionen, die zu dieser Serie zählen. */
   transactionIds: string[];
+  /** Distinkte Kategorien, die die Buchungen dieser Serie aktuell tragen. */
+  categories: string[];
+  /** Distinkte Tags über alle Buchungen dieser Serie. */
+  tags: Tag[];
 }
 
 const PRICE_CHANGE_THRESHOLD = 0.08;
@@ -135,6 +139,17 @@ export function detectRecurring(transactions: Transaction[]): RecurringSeries[] 
       sorted.map((t) => t.nameZahlungsbeteiligter.trim())
     );
 
+    const categories = [
+      ...new Set(sorted.map((t) => t.kategorie).filter(Boolean)),
+    ].sort((a, b) => a.localeCompare(b, "de"));
+    const tagMap = new Map<number, Tag>();
+    for (const t of sorted) {
+      for (const tag of t.tags ?? []) tagMap.set(tag.id, tag);
+    }
+    const tags = [...tagMap.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, "de")
+    );
+
     series.push({
       key,
       name: displayName,
@@ -146,6 +161,8 @@ export function detectRecurring(transactions: Transaction[]): RecurringSeries[] 
       lastDate,
       nextExpected,
       transactionIds: sorted.map((t) => t.id),
+      categories,
+      tags,
     });
   }
 
