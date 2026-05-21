@@ -13,7 +13,7 @@ import {
   Tag,
   Transaction,
 } from "./types";
-import { buildMonthlyNetWorthHistory, SnapshotInput } from "./networth";
+import { buildMonthlyNetWorthHistory, balanceAsOf, SnapshotInput } from "./networth";
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 
@@ -277,6 +277,15 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_liability_snapshots_liability_date
           ON liability_snapshots(liability_id, date);
       `);
+    },
+  },
+  {
+    version: 8,
+    description:
+      "kontogruppen: Anker-Wert (anchor_date/anchor_value) für Saldo-Rekonstruktion",
+    up: (db) => {
+      ensureColumn(db, "kontogruppen", "anchor_date", "TEXT");
+      ensureColumn(db, "kontogruppen", "anchor_value", "REAL");
     },
   },
 ];
@@ -922,56 +931,94 @@ function isAssetArt(art: string): boolean {
   return art !== "kreditkarte";
 }
 
-/** Liefert pro Kontogruppe den jeweils letzten saldoNachBuchung als NetWorthEntry.
+interface KontoMeta {
+  id: number;
+  name: string;
+  art: string;
+  bank: string | null;
+  inhaberName: string;
+  anchorDate: string | null;
+  anchorValue: number | null;
+}
+
+function getKontogruppenMeta(): KontoMeta[] {
+  return getDb()
+    .prepare(
+      `SELECT kg.id, kg.name, kg.art, kg.bank,
+              kg.anchor_date AS anchorDate, kg.anchor_value AS anchorValue,
+              i.name AS inhaberName
+       FROM kontogruppen kg
+       JOIN inhaber i ON i.id = kg.inhaber_id
+       ORDER BY i.name COLLATE NOCASE, kg.name COLLATE NOCASE`
+    )
+    .all() as KontoMeta[];
+}
+
+interface KontoBookingRow {
+  date: string;
+  betrag: number;
+  saldo: number;
+}
+
+/** Alle Buchungen je Kontogruppe, aufsteigend nach Datum (dann id). */
+function getBookingsByKonto(): Map<number, KontoBookingRow[]> {
+  const rows = getDb()
+    .prepare(
+      `SELECT kontogruppe_id, buchungstag AS date, betrag,
+              saldo_nach_buchung AS saldo
+       FROM transactions
+       WHERE kontogruppe_id IS NOT NULL
+       ORDER BY buchungstag ASC, id ASC`
+    )
+    .all() as (KontoBookingRow & { kontogruppe_id: number })[];
+  const byKonto = new Map<number, KontoBookingRow[]>();
+  for (const r of rows) {
+    const list = byKonto.get(r.kontogruppe_id) ?? [];
+    list.push({ date: r.date, betrag: r.betrag, saldo: r.saldo });
+    byKonto.set(r.kontogruppe_id, list);
+  }
+  return byKonto;
+}
+
+/** Aktueller Kontostand: bei gesetztem Anker aus diesem rekonstruiert,
+ *  sonst der letzte saldoNachBuchung der jüngsten Buchung. */
+function kontoCurrentValue(
+  meta: KontoMeta,
+  bookings: KontoBookingRow[]
+): number {
+  const last = bookings[bookings.length - 1];
+  if (meta.anchorDate !== null && meta.anchorValue !== null) {
+    return balanceAsOf(meta.anchorDate, meta.anchorValue, bookings, last.date);
+  }
+  return last.saldo;
+}
+
+/** Liefert pro Kontogruppe den aktuellen Wert als NetWorthEntry.
  *  Asset oder Liability je nach art (kreditkarte = Liability mit Math.abs). */
 function getKontogruppenAsEntries(): {
   assets: NetWorthEntry[];
   liabilities: NetWorthEntry[];
 } {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `WITH latest AS (
-         SELECT t.kontogruppe_id, t.saldo_nach_buchung, t.buchungstag,
-           ROW_NUMBER() OVER (
-             PARTITION BY t.kontogruppe_id
-             ORDER BY t.buchungstag DESC, t.id DESC
-           ) AS rn
-         FROM transactions t
-         WHERE t.kontogruppe_id IS NOT NULL
-       )
-       SELECT kg.id, kg.name, kg.art, kg.bank AS note, i.name AS inhaber_name,
-              l.saldo_nach_buchung AS latest_value, l.buchungstag AS latest_date
-       FROM kontogruppen kg
-       JOIN inhaber i ON i.id = kg.inhaber_id
-       LEFT JOIN latest l ON l.kontogruppe_id = kg.id AND l.rn = 1
-       WHERE l.saldo_nach_buchung IS NOT NULL
-       ORDER BY i.name COLLATE NOCASE, kg.name COLLATE NOCASE`
-    )
-    .all() as {
-    id: number;
-    name: string;
-    art: string;
-    note: string | null;
-    inhaber_name: string;
-    latest_value: number;
-    latest_date: string;
-  }[];
+  const meta = getKontogruppenMeta();
+  const bookings = getBookingsByKonto();
 
   const assets: NetWorthEntry[] = [];
   const liabilities: NetWorthEntry[] = [];
-  for (const r of rows) {
+  for (const m of meta) {
+    const bk = bookings.get(m.id);
+    if (!bk || bk.length === 0) continue;
+    const raw = kontoCurrentValue(m, bk);
     const entry: NetWorthEntry = {
-      id: r.id,
-      name: r.name,
-      kind: r.art,
-      note: r.note,
-      latestValue: isAssetArt(r.art) ? r.latest_value : Math.abs(r.latest_value),
-      latestDate: r.latest_date,
+      id: m.id,
+      name: m.name,
+      kind: m.art,
+      note: m.bank,
+      latestValue: isAssetArt(m.art) ? raw : Math.abs(raw),
+      latestDate: bk[bk.length - 1].date,
       source: "konto",
-      displayPrefix: r.inhaber_name,
+      displayPrefix: m.inhaberName,
     };
-    if (isAssetArt(r.art)) {
+    if (isAssetArt(m.art)) {
       assets.push(entry);
     } else {
       liabilities.push(entry);
@@ -1093,52 +1140,64 @@ export function getLiabilitySnapshots(
 }
 
 /** Monatsende-Saldo pro Kontogruppe (eine Zeile pro (kontogruppe, Monat)).
- *  Liefert separat Asset- und Liability-Inputs, da Kreditkarten als Liability
- *  zählen (Math.abs). entityId wird mit negativem Vorzeichen versehen, damit
- *  konto-IDs nicht mit manuellen Asset-IDs kollidieren. */
+ *  Bei gesetztem Anker wird der Wert aus dem Anker rekonstruiert, sonst der
+ *  letzte saldoNachBuchung des Monats. entityId negativ, damit konto-IDs
+ *  nicht mit manuellen Asset-IDs kollidieren. */
 function getKontogruppenMonthlySnapshots(): {
   assets: SnapshotInput[];
   liabilities: SnapshotInput[];
 } {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `WITH monthly AS (
-         SELECT t.kontogruppe_id, substr(t.buchungstag, 1, 7) AS ym,
-           t.saldo_nach_buchung, t.buchungstag,
-           ROW_NUMBER() OVER (
-             PARTITION BY t.kontogruppe_id, substr(t.buchungstag, 1, 7)
-             ORDER BY t.buchungstag DESC, t.id DESC
-           ) AS rn
-         FROM transactions t
-         WHERE t.kontogruppe_id IS NOT NULL
-       )
-       SELECT m.kontogruppe_id, m.ym, m.saldo_nach_buchung, kg.art
-       FROM monthly m
-       JOIN kontogruppen kg ON kg.id = m.kontogruppe_id
-       WHERE m.rn = 1`
-    )
-    .all() as {
-    kontogruppe_id: number;
-    ym: string;
-    saldo_nach_buchung: number;
-    art: string;
-  }[];
+  const meta = getKontogruppenMeta();
+  const bookings = getBookingsByKonto();
 
   const assets: SnapshotInput[] = [];
   const liabilities: SnapshotInput[] = [];
-  for (const r of rows) {
-    const point = {
-      entityId: -r.kontogruppe_id,
-      date: `${r.ym}-01`,
-      value: isAssetArt(r.art)
-        ? r.saldo_nach_buchung
-        : Math.abs(r.saldo_nach_buchung),
-    };
-    if (isAssetArt(r.art)) assets.push(point);
-    else liabilities.push(point);
+  for (const m of meta) {
+    const bk = bookings.get(m.id);
+    if (!bk || bk.length === 0) continue;
+    const anchored = m.anchorDate !== null && m.anchorValue !== null;
+    // bk ist aufsteigend sortiert → letzte Buchung pro Monat gewinnt
+    const lastBookingPerMonth = new Map<string, KontoBookingRow>();
+    for (const b of bk) lastBookingPerMonth.set(b.date.slice(0, 7), b);
+
+    for (const [ym, lastB] of lastBookingPerMonth) {
+      const raw = anchored
+        ? balanceAsOf(m.anchorDate!, m.anchorValue!, bk, lastB.date)
+        : lastB.saldo;
+      const point: SnapshotInput = {
+        entityId: -m.id,
+        date: `${ym}-01`,
+        value: isAssetArt(m.art) ? raw : Math.abs(raw),
+      };
+      if (isAssetArt(m.art)) assets.push(point);
+      else liabilities.push(point);
+    }
   }
   return { assets, liabilities };
+}
+
+export function setKontogruppeAnchor(
+  id: number,
+  date: string,
+  value: number
+): boolean {
+  return (
+    getDb()
+      .prepare(
+        "UPDATE kontogruppen SET anchor_date = ?, anchor_value = ? WHERE id = ?"
+      )
+      .run(date, value, id).changes > 0
+  );
+}
+
+export function clearKontogruppeAnchor(id: number): boolean {
+  return (
+    getDb()
+      .prepare(
+        "UPDATE kontogruppen SET anchor_date = NULL, anchor_value = NULL WHERE id = ?"
+      )
+      .run(id).changes > 0
+  );
 }
 
 export function getNetWorthHistory(): NetWorthHistoryPoint[] {
@@ -1650,6 +1709,8 @@ interface KontogruppeRow {
   icon: string | null;
   bank: string | null;
   created_at: string;
+  anchor_date: string | null;
+  anchor_value: number | null;
 }
 
 function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
@@ -1665,12 +1726,15 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
     icon: row.icon || "user",
     bank: row.bank ?? undefined,
     createdAt: row.created_at,
+    anchorDate: row.anchor_date,
+    anchorValue: row.anchor_value,
   };
 }
 
 const SELECT_KONTOGRUPPEN = `
   SELECT
     kg.id, kg.name, kg.inhaber_id, kg.art, kg.color, kg.icon, kg.bank, kg.created_at,
+    kg.anchor_date, kg.anchor_value,
     i.name AS inhaber_name, i.type AS inhaber_type, i.color AS inhaber_color
   FROM kontogruppen kg
   JOIN inhaber i ON i.id = kg.inhaber_id

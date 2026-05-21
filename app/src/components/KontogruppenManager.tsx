@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Users, X, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, Users, X, Pencil, Check, Anchor } from "lucide-react";
 import { Inhaber, Kontogruppe, KontogruppeArt } from "../lib/types";
 import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
@@ -190,6 +190,94 @@ function FormFields({
   );
 }
 
+function AnchorEditor({
+  kg,
+  onClose,
+  onSaved,
+}: {
+  kg: Kontogruppe;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [date, setDate] = useState(
+    kg.anchorDate ?? new Date().toISOString().slice(0, 10)
+  );
+  const [value, setValue] = useState(
+    kg.anchorValue != null ? String(kg.anchorValue) : ""
+  );
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const v = parseFloat(value.replace(",", "."));
+    if (!isFinite(v) || !date) return;
+    setBusy(true);
+    await fetch(`/api/kontogruppen/${kg.id}/anchor`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date, value: v }),
+    });
+    setBusy(false);
+    onSaved();
+    onClose();
+  }
+
+  async function clear() {
+    setBusy(true);
+    await fetch(`/api/kontogruppen/${kg.id}/anchor`, { method: "DELETE" });
+    setBusy(false);
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <div className="space-y-2 border-t border-border px-3 py-3">
+      <p className="text-xs text-fg-muted">
+        Bekannter Kontostand zu einem Stichtag. Der Saldo-Verlauf für die
+        Vermögensübersicht wird daraus rück- und vorwärts aus den Buchungen
+        berechnet — nützlich, wenn die CSV keinen Saldo liefert.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+        />
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Kontostand in EUR"
+          className="w-40 rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+        />
+        <button
+          onClick={save}
+          disabled={busy}
+          className="rounded bg-brand px-3 py-1 text-xs font-medium text-brand-fg hover:opacity-90 disabled:opacity-50"
+        >
+          Speichern
+        </button>
+        {kg.anchorDate && (
+          <button
+            onClick={clear}
+            disabled={busy}
+            className="rounded border border-border px-3 py-1 text-xs text-fg-muted hover:text-danger"
+          >
+            Anker entfernen
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          className="rounded border border-border px-3 py-1 text-xs text-fg-muted hover:text-fg"
+        >
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function KontogruppenManager({
   kontogruppen,
   inhaber,
@@ -197,6 +285,7 @@ export default function KontogruppenManager({
 }: KontogruppenManagerProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [anchorEditId, setAnchorEditId] = useState<number | null>(null);
   const defaultInhaberId: number | "" = inhaber[0]?.id ?? "";
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -407,13 +496,34 @@ export default function KontogruppenManager({
                       </div>
                       <div className="flex items-center gap-1 pr-2">
                         {!isEditing && (
-                          <button
-                            onClick={() => handleEdit(kg)}
-                            className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
-                            title="Bearbeiten"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() =>
+                                setAnchorEditId(
+                                  anchorEditId === kg.id ? null : kg.id
+                                )
+                              }
+                              className={`rounded p-1.5 cursor-pointer hover:bg-surface-active ${
+                                kg.anchorDate
+                                  ? "text-brand"
+                                  : "text-fg-subtle hover:text-brand"
+                              }`}
+                              title={
+                                kg.anchorDate
+                                  ? "Anker-Wert gesetzt — bearbeiten"
+                                  : "Anker-Wert für Saldo-Rekonstruktion setzen"
+                              }
+                            >
+                              <Anchor className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(kg)}
+                              className="rounded p-1.5 text-fg-subtle hover:bg-surface-active hover:text-brand cursor-pointer"
+                              title="Bearbeiten"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => handleDelete(kg.id)}
@@ -424,6 +534,14 @@ export default function KontogruppenManager({
                         </button>
                       </div>
                     </div>
+
+                    {anchorEditId === kg.id && !isEditing && (
+                      <AnchorEditor
+                        kg={kg}
+                        onClose={() => setAnchorEditId(null)}
+                        onSaved={onChange}
+                      />
+                    )}
 
                     {isEditing && (
                       <div className="border-t border-border px-3 py-3 space-y-3">

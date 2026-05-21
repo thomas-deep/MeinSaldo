@@ -8,9 +8,6 @@ export interface Tag {
   color: string;
 }
 
-export type AssetKind = "depot" | "immobilie" | "bargeld" | "sonstiges";
-export type LiabilityKind = "hypothek" | "kredit" | "sonstiges";
-
 export interface NetWorthEntry {
   id: number;
   name: string;
@@ -83,6 +80,10 @@ export interface Kontogruppe {
   icon: string;
   bank?: string;
   createdAt?: string;
+  /** Optionaler Anker für die Saldo-Rekonstruktion: bekannter Kontostand
+   *  (`anchorValue`) an einem Stichtag (`anchorDate`, ISO). */
+  anchorDate?: string | null;
+  anchorValue?: number | null;
 }
 
 /** „Thomas · Giro" — einheitliche Darstellung wenn Inhaber-Kontext fehlt. */

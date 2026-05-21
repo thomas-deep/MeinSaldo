@@ -6,6 +6,33 @@ export interface SnapshotInput {
   value: number;
 }
 
+export interface KontoBooking {
+  date: string;
+  betrag: number;
+}
+
+/** Saldo eines Kontos zu einem Stichtag, ausgehend von einem Anker-Wert.
+ *  `anchorValue` ist der bekannte Kontostand AM `anchorDate` (inkl. aller
+ *  Buchungen dieses Tages). Für spätere Stichtage werden Buchungen addiert,
+ *  für frühere subtrahiert. So lässt sich der Verlauf rückwärts und vorwärts
+ *  rekonstruieren, auch wenn die CSV keinen brauchbaren Saldo liefert. */
+export function balanceAsOf(
+  anchorDate: string,
+  anchorValue: number,
+  bookings: KontoBooking[],
+  asOf: string
+): number {
+  let bal = anchorValue;
+  for (const b of bookings) {
+    if (b.date > anchorDate && b.date <= asOf) {
+      bal += b.betrag;
+    } else if (b.date > asOf && b.date <= anchorDate) {
+      bal -= b.betrag;
+    }
+  }
+  return bal;
+}
+
 /** Baut eine monatliche Net-Worth-Historie aus Asset- und Liability-Snapshots.
  *  Pro Monat wird der jeweils zuletzt-bekannte Wert je Entity verwendet
  *  (forward-fill): Wer einmal einen Wert hatte, behält ihn, bis ein neuer

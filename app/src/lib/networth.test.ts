@@ -1,5 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthlyNetWorthHistory } from "./networth";
+import { buildMonthlyNetWorthHistory, balanceAsOf } from "./networth";
+
+describe("balanceAsOf", () => {
+  const bookings = [
+    { date: "2025-01-10", betrag: -50 },
+    { date: "2025-02-15", betrag: 200 },
+    { date: "2025-03-20", betrag: -30 },
+  ];
+
+  it("gibt den Ankerwert zurück, wenn Stichtag = Ankerdatum", () => {
+    expect(balanceAsOf("2025-02-15", 1000, bookings, "2025-02-15")).toBe(1000);
+  });
+
+  it("addiert spätere Buchungen vorwärts", () => {
+    // Anker 2025-02-15 = 1000, danach -30 am 2025-03-20
+    expect(balanceAsOf("2025-02-15", 1000, bookings, "2025-03-31")).toBe(970);
+  });
+
+  it("subtrahiert frühere Buchungen rückwärts", () => {
+    // Anker 2025-02-15 = 1000; die Buchung +200 am 2025-02-15 ist im Anker
+    // enthalten, davor war der Stand 1000 - 200 = 800
+    expect(balanceAsOf("2025-02-15", 1000, bookings, "2025-02-14")).toBe(800);
+  });
+
+  it("rekonstruiert ganz nach vorn vor allen Buchungen", () => {
+    // vor dem 2025-01-10: 800 minus die -50 vom 2025-01-10 → 850
+    expect(balanceAsOf("2025-02-15", 1000, bookings, "2025-01-01")).toBe(850);
+  });
+
+  it("Buchungen am Ankertag zählen als im Anker enthalten", () => {
+    const sameDay = [{ date: "2025-02-15", betrag: 100 }];
+    expect(balanceAsOf("2025-02-15", 500, sameDay, "2025-02-15")).toBe(500);
+    expect(balanceAsOf("2025-02-15", 500, sameDay, "2025-02-14")).toBe(400);
+  });
+});
 
 describe("buildMonthlyNetWorthHistory", () => {
   it("liefert leere Liste ohne Snapshots", () => {

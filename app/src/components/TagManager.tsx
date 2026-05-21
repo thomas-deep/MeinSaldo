@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Tags as TagsIcon } from "lucide-react";
 import { Tag } from "../lib/types";
+import ConfirmDialog from "./ConfirmDialog";
 
 const DEFAULT_COLORS = [
   "#3b82f6",
@@ -19,6 +20,7 @@ export default function TagManager() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(DEFAULT_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Tag | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/tags");
@@ -50,24 +52,31 @@ export default function TagManager() {
     await load();
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm("Tag löschen? Verknüpfungen zu Transaktionen werden entfernt.")) {
-      return;
-    }
-    await fetch(`/api/tags/${id}`, { method: "DELETE" });
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    await fetch(`/api/tags/${pendingDelete.id}`, { method: "DELETE" });
+    setPendingDelete(null);
     await load();
   }
 
   return (
-    <section className="space-y-4">
-      <header>
-        <h2 className="font-editorial text-xl text-fg">Tags</h2>
-        <p className="text-sm text-fg-muted">
-          Frei vergebbare Labels quer zu Kategorien — z.&nbsp;B. &bdquo;urlaub-2025&ldquo;,
-          &bdquo;renovierung&ldquo;.
-        </p>
-      </header>
+    <div className="rounded-2xl border border-border bg-surface">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-bg-muted p-2">
+            <TagsIcon className="h-5 w-5 text-fg-muted" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-fg">Tags</h3>
+            <p className="text-xs text-fg-subtle">
+              Frei vergebbare Labels quer zu Kategorien — z.&nbsp;B.
+              &bdquo;urlaub-2025&ldquo;, &bdquo;renovierung&ldquo;.
+            </p>
+          </div>
+        </div>
+      </div>
 
+      <div className="space-y-4 px-5 py-4">
       <form onSubmit={handleCreate} className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -113,7 +122,7 @@ export default function TagManager() {
           {tags.map((t) => (
             <li
               key={t.id}
-              className="flex items-center justify-between rounded border border-border bg-surface px-3 py-2"
+              className="flex items-center justify-between rounded border border-border bg-bg px-3 py-2"
             >
               <span
                 className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-medium"
@@ -126,9 +135,9 @@ export default function TagManager() {
                 {t.name}
               </span>
               <button
-                onClick={() => handleDelete(t.id)}
+                onClick={() => setPendingDelete(t)}
                 aria-label="Tag löschen"
-                className="text-fg-muted hover:text-red-500"
+                className="text-fg-muted hover:text-danger"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -136,6 +145,17 @@ export default function TagManager() {
           ))}
         </ul>
       )}
-    </section>
+      </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Tag löschen?"
+        message={`„${pendingDelete?.name ?? ""}" wird gelöscht. Die Verknüpfungen zu Transaktionen werden entfernt, die Buchungen selbst bleiben erhalten.`}
+        confirmLabel="Löschen"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+    </div>
   );
 }

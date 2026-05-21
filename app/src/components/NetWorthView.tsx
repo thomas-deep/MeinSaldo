@@ -11,8 +11,13 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
-import { NetWorthEntry, NetWorthHistoryPoint } from "../lib/types";
+import { Plus, Trash2, Activity } from "lucide-react";
+import {
+  NetWorthEntry,
+  NetWorthHistoryPoint,
+  NetWorthSnapshot,
+} from "../lib/types";
+import ConfirmDialog from "./ConfirmDialog";
 
 const eur = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -63,10 +68,22 @@ export default function NetWorthView() {
         <h2 className="font-editorial text-2xl text-fg">Vermögen</h2>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Vermögen" value={totals.assets} positive />
-        <SummaryCard label="Verbindlichkeiten" value={totals.liabilities} negative />
-        <SummaryCard label="Net Worth" value={totals.net} primary />
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <SummaryCard
+          label="Vermögen"
+          value={totals.assets}
+          valueColor="text-positive"
+        />
+        <SummaryCard
+          label="Verbindlichkeiten"
+          value={totals.liabilities}
+          valueColor="text-danger"
+        />
+        <SummaryCard
+          label="Nettovermögen"
+          value={totals.net}
+          valueColor={totals.net >= 0 ? "text-positive" : "text-danger"}
+        />
       </section>
 
       {history.length > 0 && (
@@ -164,35 +181,22 @@ export default function NetWorthView() {
 function SummaryCard({
   label,
   value,
-  positive,
-  negative,
-  primary,
+  valueColor,
 }: {
   label: string;
   value: number;
-  positive?: boolean;
-  negative?: boolean;
-  primary?: boolean;
+  valueColor: string;
 }) {
-  const Icon = value >= 0 ? TrendingUp : TrendingDown;
-  const color = primary
-    ? value >= 0
-      ? "text-emerald-500"
-      : "text-red-500"
-    : positive
-    ? "text-emerald-500"
-    : negative
-    ? "text-red-500"
-    : "text-fg";
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <div className="flex items-center justify-between text-xs text-fg-muted">
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-shadow hover:shadow-[var(--shadow-md)]">
+      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fg-faint">
         {label}
-        <Icon className={`h-4 w-4 ${color}`} />
-      </div>
-      <div className={`mt-1 font-editorial text-2xl tabular-nums ${color}`}>
-        {eur.format(value)}
-      </div>
+      </p>
+      <p
+        className={`mt-3 font-editorial text-[44px] leading-[0.95] tracking-tight ${valueColor}`}
+      >
+        <span className="tabular-nums">{eur.format(value)}</span>
+      </p>
     </div>
   );
 }
@@ -249,12 +253,21 @@ function EntryRow({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [history, setHistory] = useState<NetWorthSnapshot[] | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const isManual = e.source === "manual";
+  const path = kind === "asset" ? "assets" : "liabilities";
+
+  async function loadHistory() {
+    const res = await fetch(`/api/${path}/${e.id}/snapshots`);
+    const json = await res.json();
+    setHistory(json.snapshots as NetWorthSnapshot[]);
+  }
 
   async function handleSave() {
     const v = parseFloat(value.replace(",", "."));
     if (!isFinite(v)) return;
-    const path = kind === "asset" ? "assets" : "liabilities";
     await fetch(`/api/${path}/${e.id}/snapshots`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -262,14 +275,20 @@ function EntryRow({
     });
     setEditing(false);
     setValue("");
+    if (showHistory) await loadHistory();
     onReload();
   }
 
-  async function handleDelete() {
-    if (!confirm(`„${e.name}" löschen?`)) return;
-    const path = kind === "asset" ? "assets" : "liabilities";
+  async function confirmDelete() {
     await fetch(`/api/${path}/${e.id}`, { method: "DELETE" });
+    setConfirmOpen(false);
     onReload();
+  }
+
+  async function toggleHistory() {
+    const next = !showHistory;
+    setShowHistory(next);
+    if (next && history === null) await loadHistory();
   }
 
   return (
@@ -285,7 +304,7 @@ function EntryRow({
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                 isManual
                   ? "bg-surface text-fg-muted border border-border"
-                  : "bg-emerald-500/10 text-emerald-500"
+                  : "bg-positive-soft text-positive"
               }`}
             >
               {isManual ? e.kind : "aus Konto"}
@@ -305,15 +324,27 @@ function EntryRow({
             {isManual && (
               <>
                 <button
+                  onClick={toggleHistory}
+                  aria-label="Verlauf anzeigen"
+                  title="Werteverlauf"
+                  className={`rounded border border-border p-1 ${
+                    showHistory
+                      ? "bg-bg-muted text-fg"
+                      : "text-fg-muted hover:text-fg"
+                  }`}
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                </button>
+                <button
                   onClick={() => setEditing((v) => !v)}
                   className="rounded border border-border px-1.5 py-0.5 text-[10px] text-fg-muted hover:text-fg"
                 >
                   Wert
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => setConfirmOpen(true)}
                   aria-label="Löschen"
-                  className="text-fg-muted hover:text-red-500"
+                  className="text-fg-muted hover:text-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -346,6 +377,80 @@ function EntryRow({
           </button>
         </div>
       )}
+      {showHistory && isManual && (
+        <div className="mt-3 border-t border-border pt-3">
+          {history === null ? (
+            <p className="text-xs text-fg-muted">Lade Verlauf…</p>
+          ) : history.length === 0 ? (
+            <p className="text-xs text-fg-muted">
+              Noch keine Werte erfasst — über &bdquo;Wert&ldquo; einen
+              datierten Eintrag anlegen.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {history.length >= 2 && (
+                <div className="h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={history}>
+                      <CartesianGrid stroke="currentColor" strokeOpacity={0.1} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 10, fill: "currentColor" }}
+                        tickFormatter={(s: string) => s.slice(0, 7)}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "currentColor" }}
+                        tickFormatter={(v: number) => eurCompact.format(v)}
+                        width={56}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--surface)",
+                          border: "1px solid var(--border)",
+                          fontSize: 12,
+                        }}
+                        formatter={(v) =>
+                          typeof v === "number" ? eur.format(v) : String(v)
+                        }
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name={e.name}
+                        stroke="currentColor"
+                        dot
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              <ul className="space-y-0.5">
+                {[...history].reverse().map((s) => (
+                  <li
+                    key={s.date}
+                    className="flex justify-between text-xs text-fg-muted"
+                  >
+                    <span>{formatDate(s.date)}</span>
+                    <span className="tabular-nums text-fg">
+                      {eur.format(s.value)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={kind === "asset" ? "Vermögensposten löschen?" : "Verbindlichkeit löschen?"}
+        message={`„${e.name}" und alle erfassten Werte werden gelöscht.`}
+        confirmLabel="Löschen"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </li>
   );
 }
@@ -360,7 +465,7 @@ function AddEntryModal({
   onCreated: () => void;
 }) {
   const [name, setName] = useState("");
-  const [type, setType] = useState(kind === "asset" ? "depot" : "kredit");
+  const [type, setType] = useState("");
   const [note, setNote] = useState("");
 
   async function handleCreate(e: React.FormEvent) {
@@ -370,16 +475,20 @@ function AddEntryModal({
     await fetch(`/api/${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), kind: type, note: note.trim() || null }),
+      body: JSON.stringify({
+        name: name.trim(),
+        kind: type.trim() || "Sonstiges",
+        note: note.trim() || null,
+      }),
     });
     onCreated();
     onClose();
   }
 
-  const types =
+  const typeHint =
     kind === "asset"
-      ? ["depot", "immobilie", "bargeld", "sonstiges"]
-      : ["hypothek", "kredit", "sonstiges"];
+      ? "z. B. Depot, Immobilie, Bargeld, Kryptowallet"
+      : "z. B. Hypothek, Kredit, Ratenzahlung";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -399,17 +508,17 @@ function AddEntryModal({
           className="w-full rounded border border-border bg-bg px-3 py-2 text-sm text-fg"
           autoFocus
         />
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="w-full rounded border border-border bg-bg px-3 py-2 text-sm text-fg"
-        >
-          {types.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <div>
+          <input
+            type="text"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            placeholder="Typ (optional)"
+            maxLength={32}
+            className="w-full rounded border border-border bg-bg px-3 py-2 text-sm text-fg"
+          />
+          <p className="mt-1 text-xs text-fg-subtle">{typeHint}</p>
+        </div>
         <input
           type="text"
           value={note}
