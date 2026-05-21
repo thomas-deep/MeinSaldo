@@ -147,7 +147,7 @@ function SeriesRow({
     setBusy(true);
     setDone(null);
     try {
-      const res = await fetch("/api/transactions/bulk", {
+      const res = await fetch("/api/transactions-bulk", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ids: s.transactionIds, ...body }),
