@@ -28,9 +28,10 @@ Stand: **v0.1.0**.
 │  /api/transactions     GET/DELETE                            │
 │  /api/transactions/[id]   PATCH                              │
 │  /api/transactions/[id]/tags  PUT                            │
-│  /api/transactions/bulk   PATCH/DELETE                       │
+│  /api/transactions-bulk   PATCH/DELETE                       │
 │  /api/inhaber(/[id])   GET/POST · PATCH/DELETE               │
 │  /api/kontogruppen(/[id])  GET/POST · PATCH/DELETE           │
+│  /api/kontogruppen/[id]/anchor  PUT/DELETE  (Konto-Anker)    │
 │  /api/kategorien(/[id])   GET/POST · PATCH/DELETE            │
 │  /api/search           GET (FTS5-Volltextsuche)             │
 │  /api/recurring        GET (wiederkehrende Zahlungen)        │
@@ -105,6 +106,7 @@ app/
 │   │   ├── DbStatus.tsx           Counts + Zeitraum + DB leeren
 │   │   ├── LogsView.tsx           Audit-Trail mit Event-Filter
 │   │   ├── AiSettings.tsx         Ollama URL + Modell + Test
+│   │   ├── ConfirmDialog.tsx      Wiederverwendbarer Bestätigungs-Dialog
 │   │   └── Toggle.tsx             Shared Toggle-Slider
 │   ├── lib/                       Reine Logik & Utilities
 │   │   ├── types.ts               Domain-Typen
@@ -114,7 +116,9 @@ app/
 │   │   ├── categories.ts          Default-Regeln (Seed)
 │   │   ├── umbuchung-detection.ts Paar-Matching (pure, getestet)
 │   │   ├── recurring.ts           Recurring-Detection (pure, getestet)
-│   │   ├── networth.ts            Net-Worth-History-Aggregation (pure)
+│   │   ├── networth.ts            Net-Worth-History + balanceAsOf (pure)
+│   │   ├── category-history.ts    Kategorie-Übernahme aus Verlauf (pure)
+│   │   ├── number-format.ts       DE-Zahlen parsen/formatieren (pure)
 │   │   ├── date-range.ts          Zeitraum-Presets (pure, getestet)
 │   │   ├── api-validation.ts      Zod-Schemas + parseBody-Helper
 │   │   ├── test-helpers.ts        In-Memory-DB-Setup für Tests
@@ -229,6 +233,24 @@ dupliziert. Implementierung: `getKontogruppenAsEntries()` und
 `getKontogruppenMonthlySnapshots()` in `lib/db.ts`, History-Aggregation
 über pure `buildMonthlyNetWorthHistory()` aus `lib/networth.ts`
 (Forward-Fill je Entity).
+
+### Konto-Anker (Migration v8)
+
+`kontogruppen.anchor_date` / `anchor_value` — optionaler bekannter
+Kontostand zu einem Stichtag. Ist er gesetzt, rekonstruiert
+`balanceAsOf()` (pure, in `lib/networth.ts`) den Saldo-Verlauf aus Anker
+plus kumulierten Buchungsbeträgen — rück- und vorwärts. So bekommen auch
+Konten ohne brauchbaren CSV-Saldo einen korrekten Net-Worth-Verlauf.
+Eingabe über `PUT/DELETE /api/kontogruppen/[id]/anchor`.
+
+### FTS5-Index als reguläre Tabelle (Migration v9)
+
+`transactions_fts` war ursprünglich (v5) eine external-content-FTS5-
+Tabelle. Deren `'delete'`-Trigger verlangen exakt übereinstimmende
+Alt-Werte; jede Desynchronisation führt zu `SQLITE_CORRUPT_VTAB` und
+lässt danach **jedes** `UPDATE` auf `transactions` fehlschlagen. v9 baut
+`transactions_fts` als reguläre FTS5-Tabelle neu auf — die Trigger nutzen
+einfaches `DELETE … WHERE rowid = …` ohne die fragile Anforderung.
 
 ## CSV-Parser-Pipeline
 
@@ -395,13 +417,20 @@ liefern 400 mit `issues[]`. Origin-Check via Middleware.
 `GET /api/transactions` → `{ transactions[], stats }`
 `DELETE /api/transactions` → alle löschen
 `PATCH /api/transactions/[id]` → `{ kategorie? }` oder `{ umbuchung? }`
-`PATCH /api/transactions/bulk` → `{ ids, kategorie? | umbuchung? | kontogruppeId? }`
-`DELETE /api/transactions/bulk` → `{ ids }`
+`PUT /api/transactions/[id]/tags` → `{ tagIds }` (ersetzt die Tag-Menge)
+`PATCH /api/transactions-bulk` → `{ ids, kategorie? | umbuchung? | kontogruppeId? | addTagId? }`
+`DELETE /api/transactions-bulk` → `{ ids }`
+
+Hinweis: Die Bulk-Route liegt als Geschwister-Route unter
+`/api/transactions-bulk` (nicht `/api/transactions/bulk`), um den
+Next-16-Routing-Konflikt mit `[id]` zu vermeiden.
 
 ### Inhaber & Kontogruppen
 
 `GET/POST /api/inhaber`, `PATCH/DELETE /api/inhaber/[id]`
 `GET/POST /api/kontogruppen`, `PATCH/DELETE /api/kontogruppen/[id]`
+`PUT/DELETE /api/kontogruppen/[id]/anchor` → `{ date, value }` setzt bzw.
+löscht den Konto-Anker für die Saldo-Rekonstruktion
 
 ### Kategorien
 
@@ -431,9 +460,12 @@ kombiniert Kontogruppen-Salden (`source: "konto"`) und manuelle Posten
 (`source: "manual"`).
 
 `GET/POST /api/assets`, `DELETE /api/assets/[id]`
-`POST /api/assets/[id]/snapshots { date, value }` — Upsert je `(asset, date)`
+`GET/POST /api/assets/[id]/snapshots` — `POST { date, value }` Upsert je
+`(asset, date)`, `GET` liefert den Werteverlauf.
 
 Analog `/api/liabilities` und `/api/liabilities/[id]/snapshots`.
+
+Konto-Anker: `PUT/DELETE /api/kontogruppen/[id]/anchor` (siehe oben).
 
 ### Settings, Logs, KI
 
@@ -495,7 +527,8 @@ DB würde ein nacktes `ADD COLUMN` mit „duplicate column" crashen. `ensureColu
 prüft via `PRAGMA table_info` und ist daher auf frischen wie bestehenden DBs
 sicher. Migrationen v2–v4 sind entsprechend umgestellt.
 
-Aktueller Stand: **v7**. v5 = FTS5-Index, v6 = Tags, v7 = Net-Worth.
+Aktueller Stand: **v9**. v5 = FTS5-Index, v6 = Tags, v7 = Net-Worth,
+v8 = Konto-Anker, v9 = FTS5 als reguläre Tabelle (Korruptionsfix).
 
 ## Build & Test
 
@@ -509,11 +542,13 @@ npx tsc --noEmit # TypeScript-Check
 npx eslint .     # Lint
 ```
 
-**Tests** (115):
+**Tests** (145):
 - *Domain-Logik* (pure): `parse-csv`, `categories`, `field-mapping`,
-  `umbuchung-detection`, `date-range`, `recurring`, `networth`,
+  `umbuchung-detection`, `date-range`, `recurring`, `networth`
+  (inkl. `balanceAsOf`), `category-history`, `number-format`,
   `api-validation` (URL-Sicherheit).
-- *API-Routes*: `/api/transactions`, `/api/inhaber`, `/api/kontogruppen`,
+- *API-Routes*: `/api/transactions` (inkl. Kategorie-Übernahme aus
+  Verlauf), `/api/transactions-bulk`, `/api/inhaber`, `/api/kontogruppen`,
   `/api/kategorien`, `/api/search`, `/api/recurring`, `/api/tags`. Jeder Test
   bekommt über `setupFreshInMemoryDb()` (aus `lib/test-helpers.ts`) eine
   isolierte `:memory:`-SQLite — gesteuert über die `FINANZEN_DB_PATH`-Env-Var

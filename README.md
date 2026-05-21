@@ -70,7 +70,7 @@ App läuft danach auf [http://localhost:3000](http://localhost:3000). Die SQLite
 - **Concurrency-Lock** auf AI-Endpoint (parallele Läufe → 429)
 
 ### Tooling
-- **Vitest** mit 115 Tests — Domain-Logik (parser, categories, umbuchung-detection, date-range, recurring, networth, validation) **und** API-Routes mit isolierter In-Memory-SQLite pro Test
+- **Vitest** mit 145 Tests — Domain-Logik (parser, categories, umbuchung-detection, date-range, recurring, networth, category-history, number-format, validation) **und** API-Routes mit isolierter In-Memory-SQLite pro Test
 - **Light/Dark-Mode** mit Token-System auf oklch-Basis, Theme-Toggle persistiert in localStorage
 - Editorial-Typographie: Instrument Serif für Hero-Zahlen, Geist Sans + Mono für UI
 

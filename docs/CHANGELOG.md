@@ -4,6 +4,60 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+### Umbenennung
+
+- Das Tool heißt jetzt **MeinSaldo** (App-Header, Browser-Titel,
+  README, CONTRIBUTING).
+
+### Eingabe-Zahlenformat
+
+- Beträge in den Vermögens-Eingaben (manuelle Posten, Konto-Anker) werden
+  im deutschen Format geparst: `1.234,56` funktioniert wie `1234,56`. Ein
+  einzelner Punkt mit genau drei Folgeziffern gilt als Tausender-Trennung
+  (`1.234` → 1234). Anzeige durchgängig im DE-Format. Pure, getestete
+  Logik in `lib/number-format.ts`.
+
+### Vermögen — Verfeinerungen
+
+- KPI-Kacheln im Vermögen-Tab an die StatCards der Auswertung angeglichen
+  (rounded-2xl, Editorial-Schrift, Design-Tokens); „Net Worth" →
+  „Nettovermögen".
+- **Konto-Anker** (Migration v8): optionaler Wert + Datum pro Kontogruppe,
+  eingegeben per Anker-Button in der Kontogruppen-Verwaltung. Ist er
+  gesetzt, wird der Saldo-Verlauf für die Vermögensübersicht via
+  `balanceAsOf` aus dem Anker und den kumulierten Buchungsbeträgen rück-
+  und vorwärts rekonstruiert — nützlich für Konten ohne CSV-Saldo.
+- Asset-/Liability-Typ von festem Enum auf Freitext umgestellt.
+- Verlaufsanzeige (Mini-Chart + Snapshot-Liste) für manuelle Posten.
+
+### Wiederkehrend — serienweise Zuordnung
+
+- Pro erkannter Serie lassen sich Kategorie und Tag auf alle zugehörigen
+  Buchungen anwenden; jede Serie zeigt ihre aktuellen Kategorien/Tags als
+  Chips. `addTagId` ergänzt den Bulk-Endpoint.
+
+### UI-Vereinheitlichung
+
+- Neue `ConfirmDialog`-Komponente ersetzt `window.confirm` bei
+  Lösch-Aktionen in NetWorthView und TagManager.
+- TagManager-Einstellungsseite an den Container-/Header-Stil der übrigen
+  Einstellungs-Sektionen angeglichen.
+
+### Fixes
+
+- **FTS5-Index-Korruption** (Migration v9): Der Volltextindex
+  `transactions_fts` war als external-content-Tabelle angelegt; deren
+  fragile `'delete'`-Trigger führten zu `SQLITE_CORRUPT_VTAB`, wodurch
+  jedes `UPDATE` auf `transactions` mit 500 scheiterte (u. a. die
+  Kategorie-Zuweisung aus Wiederkehrend). Index als reguläre FTS5-Tabelle
+  mit einfachen `DELETE`-Triggern neu aufgebaut.
+- TagPicker-Popover wurde von der `overflow-hidden`-Tabellenzelle
+  abgeschnitten — jetzt via Portal gerendert.
+- Recurring-Bulk rief `/api/transactions/bulk` auf (traf die `[id]`-Route,
+  stilles No-op) statt `/api/transactions-bulk`.
+- Import + „KI für Sonstiges" klassifiziert nur noch die neu importierten
+  Buchungen statt der gesamten Datenbank.
+
 ### Kategorie-Übernahme aus dem Verlauf
 
 - Beim Import erben neue Buchungen automatisch die Kategorie gleicher
