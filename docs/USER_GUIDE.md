@@ -4,7 +4,7 @@
 
 Die App arbeitet mit drei sauber getrennten Konzepten:
 
-- **Inhaber** = *wem gehört's* (Thomas, Gemeinsam, GmbH X). Trägt Typ (privat / gemeinsam / firma) und Farbe.
+- **Inhaber** = *wem gehört's* (z. B. eine Privatperson, ein gemeinsames Konto, eine Firma). Trägt Typ (privat / gemeinsam / firma) und Farbe.
 - **Kontogruppe** = *welches konkrete Konto* (Giro, Visa, Tagesgeld, Depot). Gehört zu einem Inhaber, hat eine Kontoart (Girokonto / Sparkonto / Kreditkarte / Depot / Sonstiges) und optional eine Bank-Voreinstellung.
 - **Bank-Preset** = *wie eine CSV zu parsen ist* (Trennzeichen, Spalten-Mapping, Encoding, Vorzeichen). Pro Bank fest hinterlegt.
 
@@ -13,7 +13,7 @@ Ein Inhaber kann beliebig viele Kontogruppen haben. Mehrere Kontogruppen können
 ## Erstmaliger Setup
 
 1. **Inhaber anlegen** (rechts oben → **Einstellungen → Inhaber & Konten**)
-   - Z.B. „Thomas", „Gemeinsam", „Firma X"
+   - Z.B. „Privat", „Gemeinsam", „Firma X"
    - Typ und Farbe wählen
 2. **Kontogruppen anlegen** (gleiche Seite, untere Sektion)
    - Klick auf „+ Konto" am Inhaber-Header
@@ -88,7 +88,7 @@ Anzahl gespeicherter Transaktionen, Zeitraum, Ergebnis des letzten Imports, **�
 ### Transaktionen
 Volltextsuche, Typ-/Kategorie-Filter, sortierbar nach Datum/Name/Kategorie/Betrag, paginiert (200/Seite).
 
-**Pro Zeile**: manueller Umbuchungs-Toggle (gelbes Badge), Kontogruppen-Badge mit Farbe, Kategorie-Dropdown.
+**Pro Zeile**: manueller Umbuchungs-Toggle (gelbes Badge), Kontogruppen-Badge mit Farbe, Kategorie-Dropdown, Tag-Chips + Tag-Button (Popover zum Zuweisen).
 
 **Multiselect mit Bulk-Aktionen** (Checkbox-Spalte + Header-Checkbox „alle dieser Seite"):
 - **Kategorie ändern…** — Dropdown
@@ -96,6 +96,40 @@ Volltextsuche, Typ-/Kategorie-Filter, sortierbar nach Datum/Name/Kategorie/Betra
 - **Umbuchung** / **keine** — markieren oder Markierung entfernen
 - **KI** — Re-Klassifikation der Auswahl (force-Modus)
 - **Löschen** — mit Bestätigungs-Dialog
+
+## Globale Suche
+
+Mit **⌘K** (Mac) bzw. **Strg+K** oder dem Such-Button im Header öffnet sich eine
+Suchpalette. Sie durchsucht Verwendungszweck, Empfänger und Buchungstext aller
+Transaktionen per Volltextindex — Umlaute spielen keine Rolle, ab zwei Zeichen
+wird als Wortanfang gesucht. Klick auf ein Ergebnis öffnet die Auswertung,
+gefiltert auf den jeweiligen Empfänger. **Esc** schließt.
+
+## Wiederkehrend
+
+Der Tab **Wiederkehrend** erkennt automatisch regelmäßige Zahlungen (Abos,
+Miete, Gehalt). Eine Serie braucht mindestens drei Buchungen vom selben
+Empfänger in regelmäßigem Abstand (monatlich, quartalsweise oder jährlich).
+
+- Posten mit **Preisänderung** (letzter Betrag weicht > 8 % vom Durchschnitt ab)
+  werden oben in einer eigenen Sektion hervorgehoben — praktisch zum Aufspüren
+  stillschweigender Abo-Erhöhungen.
+- Pro Serie: Intervall, Anzahl Buchungen, letzter und ø-Betrag, geschätzter
+  nächster Termin.
+
+## Vermögen
+
+Der Tab **Vermögen** zeigt den Net Worth: Vermögen minus Verbindlichkeiten.
+
+- **Bankkonten zählen automatisch** — der letzte bekannte Saldo jeder
+  Kontogruppe wird übernommen (Giro/Sparkonto als Vermögen, Kreditkarte als
+  Verbindlichkeit). Diese Einträge tragen das Badge „aus Konto" und müssen
+  nicht gepflegt werden.
+- **Manuelle Posten** für alles, was nicht im CSV steht: Depot-Werte,
+  Immobilien, Kredite. Über „Hinzufügen" anlegen, dann per „Wert" einen
+  datierten Eintrag setzen. Mehrere Einträge ergeben den Verlauf.
+- Das Verlaufsdiagramm kombiniert Konto-Monatsenden mit den manuellen
+  Snapshots zu einer monatlichen Net-Worth-Kurve.
 
 ## Einstellungen
 
@@ -110,13 +144,23 @@ Volltextsuche, Typ-/Kategorie-Filter, sortierbar nach Datum/Name/Kategorie/Betra
 - Fallback-Kategorien (Sonstiges / Sonstige Einnahmen) sind gesperrt
 - Beim Löschen einer Kategorie werden Buchungen auf „Sonstiges" zurückgesetzt
 
+### Tags
+- Frei vergebbare Labels **quer zu Kategorien** — z. B. `urlaub-2025`,
+  `renovierung`, `steuer`. Eine Transaktion kann beliebig viele Tags tragen.
+- Hier werden Tags angelegt und gelöscht (mit Farbauswahl). Das Zuweisen
+  an Buchungen passiert in der Transaktionen-Tabelle über das Tag-Popover
+  pro Zeile.
+- Beim Löschen eines Tags verschwinden nur die Verknüpfungen — die
+  Buchungen selbst bleiben unberührt.
+
 ### KI-Kategorisierung
 - Ollama-Toggle (Toggle-Slider)
 - URL (Default `http://localhost:11434`, nur Loopback-Hosts erlaubt)
 - Modell-Auswahl nach Verbindungstest
 - Empfehlung: `llama3.2:3b` (schnell) oder `qwen2.5:7b` (genauer, langsamer)
 - Drei Eintrittspunkte für die KI:
-  1. **Banner auf der Auswertung** — klassifiziert alle Buchungen mit Kategorie Sonstiges/Sonstige Einnahmen (ohne manuellen Override)
+  1. **„Neukategorisieren" auf der Daten-Seite** — Dropdown am DB-Status:
+     KI auf „Sonstiges" oder Komplett-KI über alle Buchungen
   2. **Multiselect-Bulk in der Tabelle** — force-Modus, überschreibt alles
   3. **Bei Import** — automatisch über die zwei Import-Buttons mit Sparkle-Icon
 
@@ -135,8 +179,8 @@ Eine Buchung gilt als Umbuchung wenn:
 Umbuchungen werden aus Summen und Charts ausgeschlossen, bleiben aber in der Tabelle sichtbar (gelbes Badge).
 
 **Beispiel Kreditkartenflow**:
-- AmEx-CSV in Kontogruppe „Thomas · Visa" (Art: Kreditkarte) hochladen → 50 Einzelbuchungen (Spotify, Amazon, …)
-- Bank-CSV in „Thomas · Giro" hochladen → die monatliche AmEx-Sammelabbuchung von 280 € wird automatisch als Umbuchung erkannt
+- AmEx-CSV in Kontogruppe „Privat · Visa" (Art: Kreditkarte) hochladen → 50 Einzelbuchungen (Spotify, Amazon, …)
+- Bank-CSV in „Privat · Giro" hochladen → die monatliche AmEx-Sammelabbuchung von 280 € wird automatisch als Umbuchung erkannt
 - Im Filter „Gesamt": echte Ausgaben aus AmEx-CSV werden gezählt, Sammelabbuchung wird ignoriert → keine Doppelzählung
 
 ## Tipps

@@ -29,10 +29,25 @@ App läuft danach auf [http://localhost:3000](http://localhost:3000). Die SQLite
 - **CategoryChart** als Balken oder Donut, Mini-Slices unter 1 % zu „Übrige Kleinposten" gebündelt, Beschriftung nur bei Hover
 - **DrillDown** Kategorie → Empfänger/Absender → Einzelbuchungen, mit klickbaren Breadcrumbs
 
+### Globale Suche
+- **⌘K / Strg+K** öffnet eine Command-Palette mit Volltext-Suche über alle Transaktionen
+- **FTS5-Index** in SQLite, Umlaut-toleranter `unicode61`-Tokenizer, Prefix-Suche pro Token
+- Klick auf ein Ergebnis öffnet die Auswertung mit dem Empfänger als Filter
+
+### Wiederkehrende Zahlungen
+- Automatische Erkennung von **Abos, Miete, Gehalt** und ähnlichen Serien aus Counterparty + Betrag + Intervall (monatlich / quartalsweise / jährlich)
+- **Preisänderungs-Alert** wenn der letzte Betrag mehr als 8 % vom Durchschnitt abweicht — Highlight-Sektion oben
+
+### Vermögensübersicht
+- Eigener **Net-Worth-Tab** mit Summary-Cards und monatlichem Verlaufs-Chart
+- Kontogruppen-Salden werden **automatisch übernommen** (Giro/Spar als Asset, Kreditkarte als Liability)
+- Daneben **manuell pflegbare Posten** für Depot-Werte, Immobilien, Kredite — mit Snapshot-Historie
+
 ### Transaktionen-Tabelle
 - Multiselect mit **Bulk-Aktionen**: Kategorie wechseln · Konto wechseln · Umbuchung markieren · KI-Klassifikation · Löschen
 - Paginierung, lokalisierte Sortierung (`Intl.Collator('de-DE')`)
 - Manuelle Kategorie- und Umbuchungs-Override pro Buchung
+- **Tags** pro Zeile via Popover (z. B. `urlaub-2025`, `renovierung`) quer zu Kategorien
 
 ### Umbuchungs-Erkennung
 - **Paarweise**: negative Buchung sucht passende positive Buchung auf anderer Kontogruppe (gleicher absoluter Betrag, ±3 Tage, greedy)
@@ -55,7 +70,7 @@ App läuft danach auf [http://localhost:3000](http://localhost:3000). Die SQLite
 - **Concurrency-Lock** auf AI-Endpoint (parallele Läufe → 429)
 
 ### Tooling
-- **Vitest** mit 68 Unit-Tests (parser, categories, umbuchung-detection, date-range, validation)
+- **Vitest** mit 115 Tests — Domain-Logik (parser, categories, umbuchung-detection, date-range, recurring, networth, validation) **und** API-Routes mit isolierter In-Memory-SQLite pro Test
 - **Light/Dark-Mode** mit Token-System auf oklch-Basis, Theme-Toggle persistiert in localStorage
 - Editorial-Typographie: Instrument Serif für Hero-Zahlen, Geist Sans + Mono für UI
 
@@ -66,6 +81,8 @@ App läuft danach auf [http://localhost:3000](http://localhost:3000). Die SQLite
 - **[docs/CSV_FORMATS.md](docs/CSV_FORMATS.md)** — Bank-spezifische Eigenheiten und Mapping-Details
 - **[docs/CHANGELOG.md](docs/CHANGELOG.md)** — Releases und Iterations-Historie
 - **[docs/AUDIT.md](docs/AUDIT.md)** — Historischer Audit-Report (alle Befunde sind in v0.1.0 adressiert)
+- **[ROADMAP.md](ROADMAP.md)** — A/B/C-Priorisierung der nächsten Features
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Setup, Checks, Bank-Preset-Beitrag-Workflow
 
 ## Technik-Stack
 

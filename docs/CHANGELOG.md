@@ -4,6 +4,73 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+### Vermögen (Net-Worth)
+
+- **Neuer Nav-Tab „Vermögen"** mit Summary-Cards (Vermögen / Verbindlichkeiten
+  / Net Worth) und monatlichem Verlaufs-Chart.
+- **Automatische Konto-Übernahme**: Kontogruppen-Salden (letzter
+  `saldoNachBuchung` pro Konto) zählen automatisch — Giro/Spar/Bargeld als
+  Asset, Kreditkarte als Liability (`Math.abs`). Kein Doppelpflegen.
+- **Manuell pflegbare Posten** für Depot-Werte, Immobilien, Kredite — alles,
+  was nicht im CSV vorkommt. Mit Snapshot-Historie via Upsert.
+- Migration v7: `assets`, `liabilities`, `asset_snapshots`,
+  `liability_snapshots` mit Cascade-Delete und `UNIQUE(entity, date)`.
+- Monatsverlauf kombiniert Konto-Monatsenden (per Window-Function) mit
+  manuellen Snapshots; Forward-Fill je Entity in pure-Lib (`networth.ts`).
+
+### Tags
+
+- **Frei vergebbare Labels** quer zu Kategorien (z. B. `urlaub-2025`,
+  `renovierung`) für Querschnitts-Auswertungen.
+- **Tag-Manager** im Einstellungen-Bereich (CRUD mit Farbpalette).
+- **TagPicker-Popover** in der TransactionTable pro Zeile, Tag-Chips inline
+  in der Verwendungszweck-Zelle.
+- Migration v6: `tags` (UNIQUE name) + `transaction_tags` Many-to-Many
+  mit Cascade-Delete in beide Richtungen.
+
+### Wiederkehrende Zahlungen (Recurring-Detection)
+
+- **Neuer Nav-Tab „Wiederkehrend"** erkennt monatlich/quartalsweise/jährlich
+  wiederkehrende Buchungen aus Counterparty + Betrags-Stabilität +
+  Intervall-Regularität (mindestens 3 Buchungen, ≥75 % der Intervalle müssen
+  einem Muster folgen).
+- **Preisänderungs-Alert**: Posten, deren letzter Betrag mehr als 8 % vom
+  Durchschnitt der vorigen abweicht, werden in einer Highlight-Sektion
+  oben separat gezeigt.
+- `lib/recurring.ts` ist pure (Counterparty-Normalisierung inkl. Umlaut-
+  Strip + Bank-Routing-Suffix-Trim) und vollständig getestet.
+
+### First-class Search
+
+- **Globale Such-Palette** (⌘K / Strg+K oder Such-Button im Header) mit
+  debounced Live-Suche und Click-Result → Auswertung mit vorbefüllter
+  Filter-Suche.
+- FTS5-Volltextindex über `verwendungszweck`, `name_zahlungsbeteiligter`,
+  `buchungstext` mit `unicode61 remove_diacritics 2`-Tokenizer
+  (Umlaut-tolerant) und Sync-Triggern auf INSERT/UPDATE/DELETE.
+- `buildFtsQuery` sanitisiert User-Input (Prefix-Suche pro Token,
+  FTS5-Sonderzeichen entfernt) und ist ebenfalls getestet.
+- Migration v5.
+
+### Tests + Infrastruktur
+
+- **API-Route-Tests** mit isolierter `:memory:`-SQLite pro Test via
+  `setupFreshInMemoryDb`-Hilfe. Vorher waren nur `lib/*` getestet.
+- 22 neue API-Tests + 16 neue Domain-Lib-Tests (insgesamt 115 grün).
+- **Fresh-DB-Fix**: `ensureColumn`-Helper macht die Migrationen v2-v4
+  idempotent. Vorher crashten ALTER-TABLE-ADD-COLUMN-Statements auf
+  frischen DBs, weil `SCHEMA_V1` die Spalten bereits enthielt.
+- **FINANZEN_DB_PATH**-Env-Override und `__resetDbForTests()` für
+  isolierte Tests.
+
+### Open-Source-Vorbereitung
+
+- **ROADMAP.md** im Repo-Root mit A/B/C/X-Priorisierung.
+- **CONTRIBUTING.md** mit Setup, Pflicht-Checks, Datenschutz-Hinweisen
+  und Bank-Preset-Beitrag-Workflow.
+- **docs/CSV_FORMATS.md**: neue Sektion „Beitrag neuer Bank-Presets"
+  mit Anonymisierungs-Anleitung (IBANs, Namen, Verwendungszwecke).
+
 ### Daten-Seite (Refactor)
 
 - **Linearer Upload-Flow** ohne Vorab-Auswahl: nach CSV-Drop erscheint die

@@ -7,15 +7,18 @@ Stand: **v0.1.0**.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Browser (React 19)                      │
-│  page.tsx (Auswertung · Daten · Einstellungen)               │
+│  page.tsx (Auswertung · Wiederkehrend · Vermögen ·           │
+│            Daten · Einstellungen) + globale Such-Palette ⌘K  │
 │  ├─ Auswertung: AuswertungFilter, SummaryCards,              │
 │  │              MonthlyChart, CategoryChart, DrillDown,      │
 │  │              KontogruppeFilter (hierarchisch)             │
-│  ├─ TransactionTable mit Multiselect + Bulk-Aktionen         │
+│  ├─ TransactionTable mit Multiselect + Bulk + TagPicker      │
+│  ├─ Wiederkehrend: RecurringView                             │
+│  ├─ Vermögen: NetWorthView                                   │
 │  ├─ Daten: CsvUpload, FieldMapping, CsvImportPreview,        │
 │  │         ImportHistory, DbStatus                           │
 │  └─ Einstellungen: InhaberManager, KontogruppenManager,      │
-│                    CategoriesView, AiSettings, LogsView      │
+│              CategoriesView, TagManager, AiSettings, LogsView│
 └─────────────────────┬───────────────────────────────────────┘
                       │ fetch (mit Origin-Check via Middleware)
 ┌─────────────────────▼───────────────────────────────────────┐
@@ -24,13 +27,17 @@ Stand: **v0.1.0**.
 │  /api/imports          GET/PATCH/DELETE  (Import-Historie)   │
 │  /api/transactions     GET/DELETE                            │
 │  /api/transactions/[id]   PATCH                              │
+│  /api/transactions/[id]/tags  PUT                            │
 │  /api/transactions/bulk   PATCH/DELETE                       │
-│  /api/inhaber          GET/POST                              │
-│  /api/inhaber/[id]     PATCH/DELETE                          │
-│  /api/kontogruppen     GET/POST                              │
-│  /api/kontogruppen/[id]   PATCH/DELETE                       │
-│  /api/kategorien       GET/POST                              │
-│  /api/kategorien/[id]  PATCH/DELETE                          │
+│  /api/inhaber(/[id])   GET/POST · PATCH/DELETE               │
+│  /api/kontogruppen(/[id])  GET/POST · PATCH/DELETE           │
+│  /api/kategorien(/[id])   GET/POST · PATCH/DELETE            │
+│  /api/search           GET (FTS5-Volltextsuche)             │
+│  /api/recurring        GET (wiederkehrende Zahlungen)        │
+│  /api/tags(/[id])      GET/POST · PATCH/DELETE               │
+│  /api/networth         GET (Vermögens-Gesamtbild)           │
+│  /api/assets(/[id])    GET/POST · DELETE  (+/snapshots POST) │
+│  /api/liabilities(/[id])  GET/POST · DELETE (+/snapshots)    │
 │  /api/settings         GET/PUT                               │
 │  /api/logs             GET/DELETE                            │
 │  /api/ai/models        GET (Proxy auf Ollama)                │
@@ -41,7 +48,7 @@ Stand: **v0.1.0**.
        ▼                              ▼
   ┌─────────────┐              ┌──────────────┐
   │  SQLite     │              │  Ollama      │
-  │  WAL-Mode   │              │  (optional)  │
+  │  WAL + FTS5 │              │  (optional)  │
   │  app/data/  │              │  localhost   │
   └─────────────┘              └──────────────┘
 ```
@@ -56,30 +63,41 @@ app/
 │   ├── app/                       Next.js App Router
 │   │   ├── layout.tsx             Root-Layout (Geist, Geist Mono, Instrument Serif)
 │   │   ├── globals.css            Token-System (oklch, Light + Dark)
-│   │   ├── page.tsx               Hauptseite (View-Switch: Auswertung/Daten/Einstellungen)
+│   │   ├── page.tsx               Hauptseite (5 Views + Such-Palette)
 │   │   └── api/                   Server-Routes
 │   │       ├── import/            POST multipart, dryRun-Flag
 │   │       ├── imports/           Import-Historie (GET/PATCH/DELETE)
-│   │       ├── transactions/      List + single + bulk
+│   │       ├── transactions/      List + single + bulk + [id]/tags
 │   │       ├── inhaber/           Inhaber-CRUD
 │   │       ├── kontogruppen/      Konten-CRUD
 │   │       ├── kategorien/        Kategorien-CRUD mit Regel-Editor
+│   │       ├── search/            FTS5-Volltextsuche
+│   │       ├── recurring/         Wiederkehrende Zahlungen
+│   │       ├── tags/              Tag-CRUD
+│   │       ├── networth/          Vermögens-Gesamtbild
+│   │       ├── assets/            Vermögensposten + snapshots
+│   │       ├── liabilities/       Verbindlichkeiten + snapshots
 │   │       ├── settings/          KV-Store
 │   │       ├── logs/              Audit-Trail
 │   │       └── ai/                Ollama-Proxy + Klassifikation
 │   ├── components/                React-Komponenten
 │   │   ├── ThemeProvider.tsx      System/Light/Dark mit Persistenz
 │   │   ├── ThemeToggle.tsx        3-State Pill im Header
+│   │   ├── SearchPalette.tsx      ⌘K-Volltextsuche-Modal
 │   │   ├── AuswertungFilter.tsx   Collapsable mit Zeitraum + Direction + …
 │   │   ├── SummaryCards.tsx       Hero-Zahlen + Vorjahresvergleich
 │   │   ├── MonthlyChart.tsx       theme-aware, klickbare Bars
 │   │   ├── CategoryChart.tsx      Bar/Donut, Mini-Cluster, oklch-Palette
 │   │   ├── CategoryDrillDown.tsx  klickbare Breadcrumbs
-│   │   ├── TransactionTable.tsx   Multiselect + Bulk-Bar
+│   │   ├── TransactionTable.tsx   Multiselect + Bulk-Bar + TagPicker
+│   │   ├── RecurringView.tsx      Wiederkehrende Zahlungen + Preis-Alert
+│   │   ├── NetWorthView.tsx       Vermögen, Verlaufs-Chart, Posten-Listen
 │   │   ├── KontogruppeFilter.tsx  hierarchisch (Inhaber → Konten)
 │   │   ├── KontogruppenManager.tsx gruppiert nach Inhaber
 │   │   ├── InhaberManager.tsx     CRUD für Inhaber
 │   │   ├── CategoriesView.tsx     Regel-Editor
+│   │   ├── TagManager.tsx         Tag-CRUD mit Farbpalette
+│   │   ├── TagPicker.tsx          Inline-Popover zum Tag-Zuweisen
 │   │   ├── ImportHistory.tsx      Batch-Konto-Wechsel/Delete
 │   │   ├── CsvImportPreview.tsx   Vorschau mit 3 Import-Buttons
 │   │   ├── CsvUpload.tsx          Dropzone + Settings-Bar
@@ -87,7 +105,6 @@ app/
 │   │   ├── DbStatus.tsx           Counts + Zeitraum + DB leeren
 │   │   ├── LogsView.tsx           Audit-Trail mit Event-Filter
 │   │   ├── AiSettings.tsx         Ollama URL + Modell + Test
-│   │   ├── AiCategorizeButton.tsx Banner auf der Auswertung
 │   │   └── Toggle.tsx             Shared Toggle-Slider
 │   ├── lib/                       Reine Logik & Utilities
 │   │   ├── types.ts               Domain-Typen
@@ -96,8 +113,11 @@ app/
 │   │   ├── field-mapping.ts       Bank-Presets + Preprocess-Hooks
 │   │   ├── categories.ts          Default-Regeln (Seed)
 │   │   ├── umbuchung-detection.ts Paar-Matching (pure, getestet)
+│   │   ├── recurring.ts           Recurring-Detection (pure, getestet)
+│   │   ├── networth.ts            Net-Worth-History-Aggregation (pure)
 │   │   ├── date-range.ts          Zeitraum-Presets (pure, getestet)
 │   │   ├── api-validation.ts      Zod-Schemas + parseBody-Helper
+│   │   ├── test-helpers.ts        In-Memory-DB-Setup für Tests
 │   │   ├── use-ai-categorize.ts   Client-Hook + Runner
 │   │   ├── chart-theme.ts         CSS-Var-Lesen für Recharts
 │   │   ├── icons.ts               Lucide-Icon-Map für Kontogruppen
@@ -118,7 +138,7 @@ Zukünftige Schema-Änderungen kommen als zusätzliche Migrationen ans Ende.
 | Spalte | Typ | Notiz |
 |---|---|---|
 | `id` | INTEGER PK | autoincrement |
-| `name` | TEXT UNIQUE | „Thomas", „Gemeinsam", … |
+| `name` | TEXT UNIQUE | „Privat", „Gemeinsam", … |
 | `type` | TEXT | `privat` / `gemeinsam` / `firma` |
 | `color` | TEXT | Hex |
 | `created_at` | TEXT | ISO |
@@ -175,6 +195,40 @@ Indizes auf `buchungstag`, `kategorie_id`, `kontogruppe_id`, `betrag`.
 | `settings` (key/value) | Aktuelle Keys: `ollama_enabled`, `ollama_url`, `ollama_model` |
 | `logs` (id, created_at, level, event, message, details JSON) | Audit-Trail, indiziert auf `created_at` + `event`, Auto-Trim bei >5000 Einträgen |
 | `schema_migrations` (version, applied_at) | Verfolgung angewendeter Migrationen |
+
+### `transactions_fts` (Migration v5)
+
+FTS5-Virtual-Table als Volltextindex über `verwendungszweck`,
+`name_zahlungsbeteiligter`, `buchungstext`. `content='transactions'`,
+`content_rowid='rowid'`, Tokenizer `unicode61 remove_diacritics 2` (macht
+Umlaute suchbar). Sync via drei Trigger (`_ai_fts`, `_ad_fts`, `_au_fts`)
+auf INSERT/UPDATE/DELETE der `transactions`-Tabelle. Anfragen werden über
+`buildFtsQuery` sanitisiert (Sonderzeichen entfernt, Prefix-Suche pro Token).
+
+### `tags` & `transaction_tags` (Migration v6)
+
+Many-to-Many zwischen Tags (`name UNIQUE`, `color`) und Transaktionen mit
+Cascade-Delete in beide Richtungen. Tags sind frei vergebbare Labels quer
+zu Kategorien (z. B. `urlaub-2025`). API-Zuweisung pro Transaktion über
+`PUT /api/transactions/[id]/tags { tagIds }` (Set-Semantik: ersetzt
+komplett, nicht inkrementell).
+
+### Net-Worth (Migration v7)
+
+- `assets (id, name, kind, note, created_at)` — manuell gepflegte Vermögens-
+  posten (Depot, Immobilie, Bargeld, sonstiges)
+- `liabilities (id, name, kind, note, created_at)` — Kredite und Hypotheken
+- `asset_snapshots (asset_id, date, value)` / `liability_snapshots` —
+  Werteverläufe mit `UNIQUE(entity, date)` für Upsert-Semantik
+
+**Wichtig**: Kontogruppen-Salden (letzter `saldoNachBuchung` pro
+`kontogruppe_id`) zählen **zusätzlich** automatisch — Giro/Spar/Bargeld
+als Asset, Kreditkarte als Liability (`Math.abs`). Diese Werte stehen in
+den `transactions`-Daten und werden nicht in `assets`/`liabilities`
+dupliziert. Implementierung: `getKontogruppenAsEntries()` und
+`getKontogruppenMonthlySnapshots()` in `lib/db.ts`, History-Aggregation
+über pure `buildMonthlyNetWorthHistory()` aus `lib/networth.ts`
+(Forward-Fill je Entity).
 
 ## CSV-Parser-Pipeline
 
@@ -353,6 +407,34 @@ liefern 400 mit `issues[]`. Origin-Check via Middleware.
 
 `GET/POST /api/kategorien`, `PATCH/DELETE /api/kategorien/[id]`
 
+### Suche
+
+`GET /api/search?q=…&limit=…` → `{ transactions[], query }` (FTS5, Prefix-Suche
+pro Token, Limit hart auf 1–500 geclampt). Leere Query liefert `[]`.
+
+### Tags
+
+`GET/POST /api/tags`, `PATCH/DELETE /api/tags/[id]`
+`PUT /api/transactions/[id]/tags { tagIds }` — ersetzt die Tag-Menge
+komplett für diese Transaktion (Set-Semantik).
+
+### Recurring
+
+`GET /api/recurring` → `{ series[] }` mit Intervall, ø-Betrag, letzter Betrag,
+`priceChanged`-Flag, `nextExpected` und allen `transactionIds`. Wird bei
+jedem Request frisch berechnet (Cache wäre eine Optimierung für später).
+
+### Net-Worth
+
+`GET /api/networth` → `{ assets[], liabilities[], history[], totals }` —
+kombiniert Kontogruppen-Salden (`source: "konto"`) und manuelle Posten
+(`source: "manual"`).
+
+`GET/POST /api/assets`, `DELETE /api/assets/[id]`
+`POST /api/assets/[id]/snapshots { date, value }` — Upsert je `(asset, date)`
+
+Analog `/api/liabilities` und `/api/liabilities/[id]/snapshots`.
+
 ### Settings, Logs, KI
 
 `GET/PUT /api/settings`
@@ -396,15 +478,24 @@ liefern 400 mit `issues[]`. Origin-Check via Middleware.
 Neue Migration ans Ende des `migrations[]`-Arrays in `lib/db.ts`:
 ```ts
 {
-  version: 2,
+  version: 8,
   description: "…",
   up: (db) => {
-    db.exec("ALTER TABLE … ADD COLUMN …");
+    ensureColumn(db, "transactions", "neue_spalte", "TEXT");
     // Backfill / Daten-Migration
   },
 }
 ```
 Wird beim nächsten `getDb()`-Aufruf einmal angewendet.
+
+**Wichtig — Idempotenz**: Spalten-Ergänzungen über `ensureColumn(db, table,
+column, definition)` statt direktem `ALTER TABLE … ADD COLUMN`. Grund:
+`SCHEMA_V1` enthält den aktuellen Vollausbau aller Spalten; auf einer frischen
+DB würde ein nacktes `ADD COLUMN` mit „duplicate column" crashen. `ensureColumn`
+prüft via `PRAGMA table_info` und ist daher auf frischen wie bestehenden DBs
+sicher. Migrationen v2–v4 sind entsprechend umgestellt.
+
+Aktueller Stand: **v7**. v5 = FTS5-Index, v6 = Tags, v7 = Net-Worth.
 
 ## Build & Test
 
@@ -418,9 +509,16 @@ npx tsc --noEmit # TypeScript-Check
 npx eslint .     # Lint
 ```
 
-**Tests** (68): `parse-csv`, `categories`, `field-mapping`,
-`umbuchung-detection`, `date-range`, `api-validation` (URL-Sicherheit). Tests
-sind pure Funktionen — keine DB- oder API-Integrationstests.
+**Tests** (115):
+- *Domain-Logik* (pure): `parse-csv`, `categories`, `field-mapping`,
+  `umbuchung-detection`, `date-range`, `recurring`, `networth`,
+  `api-validation` (URL-Sicherheit).
+- *API-Routes*: `/api/transactions`, `/api/inhaber`, `/api/kontogruppen`,
+  `/api/kategorien`, `/api/search`, `/api/recurring`, `/api/tags`. Jeder Test
+  bekommt über `setupFreshInMemoryDb()` (aus `lib/test-helpers.ts`) eine
+  isolierte `:memory:`-SQLite — gesteuert über die `FINANZEN_DB_PATH`-Env-Var
+  und `__resetDbForTests()`. Route-Handler werden direkt mit `NextRequest`
+  aufgerufen, ohne laufenden Server.
 
 ## Theme-System
 
