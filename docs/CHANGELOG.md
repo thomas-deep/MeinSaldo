@@ -4,6 +4,15 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+### Kategorie-Übernahme aus dem Verlauf
+
+- Beim Import erben neue Buchungen automatisch die Kategorie gleicher
+  früherer Buchungen (Match über den normalisierten Counterparty-Namen).
+- Wirkt nur auf Buchungen, die nach der Regel-Kategorisierung in einer
+  Fallback-Kategorie („Sonstiges") landen — bestehende Regel-Treffer
+  bleiben unangetastet. Manuell gesetzte Verlaufs-Kategorien haben Vorrang
+  vor automatischen. Pure, getestete Logik in `lib/category-history.ts`.
+
 ### Vermögen (Net-Worth)
 
 - **Neuer Nav-Tab „Vermögen"** mit Summary-Cards (Vermögen / Verbindlichkeiten

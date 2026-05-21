@@ -82,3 +82,82 @@ describe("/api/transactions", () => {
     expect(json.transactions).toEqual([]);
   });
 });
+
+describe("/api/transactions — Kategorie-Übernahme aus Verlauf", () => {
+  async function post(transactions: unknown[]) {
+    return POST(
+      nextReq("http://localhost/api/transactions", "POST", { transactions })
+    );
+  }
+
+  it("neuer Import erbt die Kategorie gleicher früherer Buchung", async () => {
+    // Historie: REWE wurde als Lebensmittel kategorisiert
+    await post([
+      txInput({
+        nameZahlungsbeteiligter: "REWE Markt",
+        verwendungszweck: "Einkauf Januar",
+        betrag: -55,
+        kategorie: "Lebensmittel",
+      }),
+    ]);
+    // Neuer Import: REWE ohne Kategorie (→ Sonstiges)
+    await post([
+      txInput({
+        nameZahlungsbeteiligter: "REWE Markt",
+        verwendungszweck: "Einkauf Februar",
+        betrag: -61,
+        buchungstag: "2025-02-10",
+        valutadatum: "2025-02-10",
+        kategorie: "",
+      }),
+    ]);
+
+    const json = await (await GET()).json();
+    const februar = json.transactions.find(
+      (t: { verwendungszweck: string }) =>
+        t.verwendungszweck === "Einkauf Februar"
+    );
+    expect(februar.kategorie).toBe("Lebensmittel");
+  });
+
+  it("lässt Regel-Treffer der neuen Buchung unangetastet", async () => {
+    await post([
+      txInput({
+        nameZahlungsbeteiligter: "REWE Markt",
+        verwendungszweck: "Einkauf Januar",
+        betrag: -55,
+        kategorie: "Lebensmittel",
+      }),
+    ]);
+    // Neue REWE-Buchung, die bereits eine Nicht-Fallback-Kategorie trägt
+    await post([
+      txInput({
+        nameZahlungsbeteiligter: "REWE Markt",
+        verwendungszweck: "Einkauf Februar",
+        betrag: -61,
+        buchungstag: "2025-02-10",
+        valutadatum: "2025-02-10",
+        kategorie: "Geschenke",
+      }),
+    ]);
+
+    const json = await (await GET()).json();
+    const februar = json.transactions.find(
+      (t: { verwendungszweck: string }) =>
+        t.verwendungszweck === "Einkauf Februar"
+    );
+    expect(februar.kategorie).toBe("Geschenke");
+  });
+
+  it("unbekannter Counterparty bleibt Sonstiges", async () => {
+    await post([
+      txInput({
+        nameZahlungsbeteiligter: "Noch Nie Gesehen GmbH",
+        verwendungszweck: "Erstkontakt",
+        kategorie: "",
+      }),
+    ]);
+    const json = await (await GET()).json();
+    expect(json.transactions[0].kategorie).toBe("Sonstiges");
+  });
+});

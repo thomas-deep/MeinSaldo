@@ -16,6 +16,12 @@ import {
 import { buildMonthlyNetWorthHistory, balanceAsOf, SnapshotInput } from "./networth";
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
+import {
+  buildCategoryHistory,
+  lookupHistoricalCategory,
+  isFallbackCategory,
+  HistoryEntry,
+} from "./category-history";
 
 function resolveDbPath(): string {
   return (
@@ -1308,6 +1314,64 @@ export interface InsertResult {
   insertedIds: string[];
 }
 
+/**
+ * Übernimmt für frisch importierte Buchungen die Kategorie gleicher früherer
+ * Buchungen (gleicher Counterparty). Wirkt nur auf Buchungen, die nach der
+ * Regel-Kategorisierung noch in einer Fallback-Kategorie („Sonstiges") sind —
+ * Regel-Treffer bleiben unangetastet. Gibt die Anzahl geänderter Buchungen
+ * zurück.
+ */
+function applyHistoricalCategories(
+  db: Database.Database,
+  insertedIds: string[]
+): number {
+  if (insertedIds.length === 0) return 0;
+
+  const rows = db
+    .prepare(
+      `SELECT t.id, t.name_zahlungsbeteiligter AS name,
+              k.name AS kategorie, t.is_manual_override AS manual
+       FROM transactions t
+       LEFT JOIN kategorien k ON k.id = t.kategorie_id`
+    )
+    .all() as {
+    id: string;
+    name: string;
+    kategorie: string | null;
+    manual: number;
+  }[];
+
+  const history = buildCategoryHistory(
+    rows.map(
+      (r): HistoryEntry => ({
+        name: r.name,
+        kategorie: r.kategorie ?? "Sonstiges",
+        manual: r.manual === 1,
+      })
+    )
+  );
+
+  const newSet = new Set(insertedIds);
+  const update = db.prepare(
+    "UPDATE transactions SET kategorie_id = ? WHERE id = ?"
+  );
+
+  let applied = 0;
+  const tx = db.transaction(() => {
+    for (const r of rows) {
+      if (!newSet.has(r.id)) continue;
+      if (!isFallbackCategory(r.kategorie ?? "Sonstiges")) continue;
+      const winner = lookupHistoricalCategory(history, r.name);
+      if (winner) {
+        update.run(getKategorieId(db, winner), r.id);
+        applied++;
+      }
+    }
+  });
+  tx();
+  return applied;
+}
+
 export function insertTransactions(
   transactions: Transaction[],
   kontogruppeId: number | null,
@@ -1382,6 +1446,17 @@ export function insertTransactions(
   });
 
   tx(transactions);
+
+  const inheritedCount = applyHistoricalCategories(db, insertedIds);
+  if (inheritedCount > 0) {
+    logEvent(
+      "info",
+      "import.history",
+      `${inheritedCount} neue Buchungen aus dem Verlauf kategorisiert`,
+      { count: inheritedCount }
+    );
+  }
+
   recomputeUmbuchungen(db);
 
   return { inserted, skipped, total: transactions.length, insertedIds };
