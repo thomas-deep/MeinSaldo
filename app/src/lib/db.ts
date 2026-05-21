@@ -288,6 +288,46 @@ const migrations: Migration[] = [
       ensureColumn(db, "kontogruppen", "anchor_value", "REAL");
     },
   },
+  {
+    version: 9,
+    description:
+      "FTS5 von external-content auf reguläre Tabelle umstellen (behebt " +
+      "SQLITE_CORRUPT_VTAB durch fragile 'delete'-Trigger) + Index-Neuaufbau",
+    up: (db) => {
+      db.exec(`
+        DROP TRIGGER IF EXISTS transactions_ai_fts;
+        DROP TRIGGER IF EXISTS transactions_ad_fts;
+        DROP TRIGGER IF EXISTS transactions_au_fts;
+        DROP TABLE IF EXISTS transactions_fts;
+
+        CREATE VIRTUAL TABLE transactions_fts USING fts5(
+          verwendungszweck,
+          name_zahlungsbeteiligter,
+          buchungstext,
+          tokenize='unicode61 remove_diacritics 2'
+        );
+
+        CREATE TRIGGER transactions_ai_fts AFTER INSERT ON transactions BEGIN
+          INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES (new.rowid, new.verwendungszweck, new.name_zahlungsbeteiligter, new.buchungstext);
+        END;
+
+        CREATE TRIGGER transactions_ad_fts AFTER DELETE ON transactions BEGIN
+          DELETE FROM transactions_fts WHERE rowid = old.rowid;
+        END;
+
+        CREATE TRIGGER transactions_au_fts AFTER UPDATE ON transactions BEGIN
+          DELETE FROM transactions_fts WHERE rowid = new.rowid;
+          INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+          VALUES (new.rowid, new.verwendungszweck, new.name_zahlungsbeteiligter, new.buchungstext);
+        END;
+
+        INSERT INTO transactions_fts(rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext)
+        SELECT rowid, verwendungszweck, name_zahlungsbeteiligter, buchungstext
+        FROM transactions;
+      `);
+    },
+  },
 ];
 
 const MAX_LOG_ENTRIES = 5000;
