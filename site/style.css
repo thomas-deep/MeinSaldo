@@ -398,6 +398,12 @@ kbd {
   max-width: 38ch;
 }
 
+.showcase-text a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .showcase-shot {
   border-radius: var(--radius);
   overflow: hidden;
