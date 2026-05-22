@@ -33,6 +33,10 @@ yarn-error.log*
 # Test-Daten
 app/test-data.csv
 
+# Screenshot-Quellordner (Original-Aufnahmen) — die kuratierten,
+# webfertigen Kopien liegen in site/img/ und werden committet
+screenshots/
+
 # Skill-Installationsverzeichnisse
 .agents/
 skills-lock.json

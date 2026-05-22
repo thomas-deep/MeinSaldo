@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MeinSaldo — Kontoauszüge lokal auswerten</title>
+    <meta
+      name="description"
+      content="MeinSaldo verwandelt rohe Bank- und Kreditkarten-CSV-Exporte in eine klare Auswertung — Kategorien, wiederkehrende Zahlungen, Vermögen. Open Source, komplett lokal, keine Cloud."
+    />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:title" content="MeinSaldo — Kontoauszüge lokal auswerten" />
+    <meta
+      property="og:description"
+      content="Aus CSV-Exporten wird eine klare Finanzauswertung. Open Source, lokal-first, keine Cloud."
+    />
+    <meta property="og:type" content="website" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ── Navigation ─────────────────────────────────────────── -->
+    <header class="nav" id="top">
+      <a class="wordmark" href="#top" aria-label="MeinSaldo">
+        <span class="wordmark-bar" aria-hidden="true"></span>
+        <span><em>Mein</em>Saldo</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#funktionen">Funktionen</a>
+        <a href="#datenschutz">Datenschutz</a>
+        <a href="#start">Schnellstart</a>
+        <a class="nav-cta" href="https://github.com/your-name/MeinSaldo">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- ── Hero ─────────────────────────────────────────────── -->
+      <section class="hero">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="container hero-inner">
+          <p class="eyebrow reveal">Open Source · Lokal-first · Kostenlos</p>
+          <h1 class="reveal" style="--d: 1">
+            Vom Kontoauszug<br />zur <em>Auswertung</em>.
+          </h1>
+          <p class="hero-sub reveal" style="--d: 2">
+            MeinSaldo verwandelt rohe CSV-Exporte deiner Bank in eine klare
+            Auswertung — Einnahmen, Kategorien, wiederkehrende Zahlungen,
+            Vermögen. Alles bleibt lokal auf deinem Rechner.
+          </p>
+          <div class="hero-actions reveal" style="--d: 3">
+            <a class="btn btn-primary" href="https://github.com/your-name/MeinSaldo">
+              Auf GitHub ansehen
+            </a>
+            <a class="btn btn-ghost" href="#funktionen">Funktionen ansehen</a>
+          </div>
+        </div>
+        <div class="container">
+          <figure class="hero-shot reveal" style="--d: 4">
+            <img
+              src="img/dashboard.png"
+              alt="MeinSaldo Auswertungs-Dashboard mit Monatschart"
+              width="1920"
+              height="1075"
+              loading="eager"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <!-- ── Stats ────────────────────────────────────────────── -->
+      <section class="stats">
+        <div class="container stats-grid">
+          <div class="stat reveal">
+            <span class="stat-num">100&thinsp;%</span>
+            <span class="stat-label">lokal verarbeitet</span>
+          </div>
+          <div class="stat reveal" style="--d: 1">
+            <span class="stat-num">0</span>
+            <span class="stat-label">Cloud-Dienste</span>
+          </div>
+          <div class="stat reveal" style="--d: 2">
+            <span class="stat-num">8</span>
+            <span class="stat-label">Bank-Formate</span>
+          </div>
+          <div class="stat reveal" style="--d: 3">
+            <span class="stat-num">∞</span>
+            <span class="stat-label">Konten &amp; Inhaber</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Idee ─────────────────────────────────────────────── -->
+      <section class="idea">
+        <div class="container">
+          <p class="eyebrow reveal">Die Idee</p>
+          <p class="idea-text reveal" style="--d: 1">
+            Bank-CSVs sind roh, kryptisch und über Institute verstreut.
+            MeinSaldo importiert sie, erkennt Dubletten und Umbuchungen,
+            kategorisiert automatisch — und macht aus Zahlenkolonnen eine
+            <em>Auswertung, die man versteht</em>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── Feature-Showcases ────────────────────────────────── -->
+      <section class="funktionen" id="funktionen">
+        <div class="container">
+          <p class="eyebrow section-eyebrow reveal">Funktionen</p>
+          <h2 class="section-title reveal" style="--d: 1">
+            Alles, was rohe Kontodaten<br />zu Einsicht macht.
+          </h2>
+        </div>
+
+        <article class="showcase container">
+          <div class="showcase-text reveal">
+            <span class="showcase-kicker">Auswertung</span>
+            <h3>Drill-down bis zur einzelnen Buchung</h3>
+            <p>
+              Zeitraum-Filter, Vorjahresvergleich, Monats- und Kategorie-Charts.
+              Klick dich von der Kategorie über den Empfänger bis zur einzelnen
+              Buchung — mit klickbaren Breadcrumbs zurück.
+            </p>
+          </div>
+          <figure class="showcase-shot reveal" style="--d: 1">
+            <img src="img/drilldown.png" alt="Kategorie-Drilldown in der Auswertung" width="1920" height="1075" loading="lazy" />
+          </figure>
+        </article>
+
+        <article class="showcase container showcase-reverse">
+          <div class="showcase-text reveal">
+            <span class="showcase-kicker">Wiederkehrend</span>
+            <h3>Abos erkennen — bevor sie teurer werden</h3>
+            <p>
+              MeinSaldo erkennt monatliche, quartalsweise und jährliche
+              Zahlungen automatisch. Steigt ein Betrag merklich, landet der
+              Posten im Preisänderungs-Alert. Stille Abo-Erhöhungen fallen auf.
+            </p>
+          </div>
+          <figure class="showcase-shot reveal" style="--d: 1">
+            <img src="img/recurring.png" alt="Wiederkehrende Zahlungen mit Preisänderungs-Alert" width="1920" height="1075" loading="lazy" />
+          </figure>
+        </article>
+
+        <article class="showcase container">
+          <div class="showcase-text reveal">
+            <span class="showcase-kicker">Vermögen</span>
+            <h3>Net Worth statt nur Cashflow</h3>
+            <p>
+              Kontostände zählen automatisch, Depots, Immobilien und Kredite
+              pflegst du dazu. Ein monatlicher Verlauf zeigt, wohin sich
+              Vermögen und Verbindlichkeiten entwickeln.
+            </p>
+          </div>
+          <figure class="showcase-shot reveal" style="--d: 1">
+            <img src="img/networth.png" alt="Vermögensübersicht mit monatlichem Verlauf" width="1920" height="1075" loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- ── Feature-Grid ───────────────────────────────────── -->
+        <div class="container feature-grid">
+          <div class="feature reveal">
+            <h4>Mehrkonten-Import</h4>
+            <p>
+              CSV von Volksbank, DKB, Sparkasse, comdirect, Commerzbank,
+              Deutsche Bank, American Express &amp; Co. — mit Vorschau vor dem
+              Einfügen und inhaltsbasierter Dublettenerkennung.
+            </p>
+          </div>
+          <div class="feature reveal" style="--d: 1">
+            <h4>Kategorisierung</h4>
+            <p>
+              23+ Regelsätze mit hunderten Merchant-Mustern. Optional klassiert
+              ein lokales Ollama-Modell den Rest — kein externer Dienst.
+            </p>
+          </div>
+          <div class="feature reveal" style="--d: 2">
+            <h4>Volltextsuche</h4>
+            <p>
+              Globale Suchpalette per <kbd>⌘</kbd><kbd>K</kbd> über alle
+              Buchungen — umlauttolerant, mit Sprung direkt in die Auswertung.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <h4>Tags</h4>
+            <p>
+              Freie Labels quer zu Kategorien — <code>urlaub-2025</code>,
+              <code>renovierung</code> — für Auswertungen, die Kategorien nicht
+              abbilden.
+            </p>
+          </div>
+          <div class="feature reveal" style="--d: 1">
+            <h4>Umbuchungs-Erkennung</h4>
+            <p>
+              Überweisungen zwischen eigenen Konten werden paarweise erkannt
+              und aus Einnahmen und Ausgaben herausgerechnet — keine
+              Doppelzählung.
+            </p>
+          </div>
+          <div class="feature reveal" style="--d: 2">
+            <h4>Mehrere Inhaber</h4>
+            <p>
+              Privat, gemeinsam, Firma — beliebig viele Inhaber und Konten,
+              hierarchisch gefiltert. Vom Gesamtbild bis zum einzelnen Konto.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Datenschutz ──────────────────────────────────────── -->
+      <section class="privacy" id="datenschutz">
+        <div class="privacy-glow" aria-hidden="true"></div>
+        <div class="container privacy-inner">
+          <p class="eyebrow reveal">Datenschutz</p>
+          <h2 class="reveal" style="--d: 1">
+            Deine Daten bleiben,<br />wo sie hingehören: <em>bei dir</em>.
+          </h2>
+          <ul class="privacy-list">
+            <li class="reveal">
+              <span class="privacy-mark" aria-hidden="true"></span>
+              Keine Cloud, kein Konto, keine Anmeldung. Die App läuft auf
+              <code>localhost</code>.
+            </li>
+            <li class="reveal" style="--d: 1">
+              <span class="privacy-mark" aria-hidden="true"></span>
+              Alle Buchungen liegen in einer einzigen SQLite-Datei auf deiner
+              Festplatte.
+            </li>
+            <li class="reveal" style="--d: 2">
+              <span class="privacy-mark" aria-hidden="true"></span>
+              Optionale KI-Kategorisierung über ein lokales Ollama-Modell —
+              auch hier verlässt nichts den Rechner.
+            </li>
+            <li class="reveal" style="--d: 3">
+              <span class="privacy-mark" aria-hidden="true"></span>
+              Keine Telemetrie, kein Tracking, keine Analytics. Es gibt
+              schlicht nichts zu sammeln.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── Schnellstart ─────────────────────────────────────── -->
+      <section class="start" id="start">
+        <div class="container start-inner">
+          <div class="start-text reveal">
+            <p class="eyebrow">Schnellstart</p>
+            <h2>In vier Zeilen<br />einsatzbereit.</h2>
+            <p class="start-note">
+              Voraussetzung: Node.js&nbsp;20+. Die App startet danach unter
+              <code>localhost:3000</code>. Optional ein lokales
+              <a href="https://ollama.com">Ollama</a> für die KI-Kategorisierung.
+            </p>
+          </div>
+          <figure class="terminal reveal" style="--d: 1">
+            <div class="terminal-bar" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <pre><code><span class="c-dim">$</span> git clone https://github.com/your-name/MeinSaldo.git
+<span class="c-dim">$</span> cd MeinSaldo/app
+<span class="c-dim">$</span> npm install
+<span class="c-dim">$</span> npm run dev</code></pre>
+          </figure>
+        </div>
+        <div class="container">
+          <figure class="wide-shot reveal">
+            <img src="img/import.png" alt="CSV-Import mit Vorschau" width="1920" height="1075" loading="lazy" />
+          </figure>
+        </div>
+      </section>
+
+      <!-- ── Mitmachen ────────────────────────────────────────── -->
+      <section class="contribute">
+        <div class="container contribute-inner">
+          <p class="eyebrow reveal">Mitmachen</p>
+          <h2 class="reveal" style="--d: 1">Open Source — Beiträge willkommen.</h2>
+          <p class="reveal" style="--d: 2">
+            Besonders gefragt: anonymisierte CSV-Beispiele weiterer Banken,
+            damit MeinSaldo mehr Institute out of the box versteht. Der
+            Workflow steht in <code>CONTRIBUTING.md</code>.
+          </p>
+          <div class="hero-actions reveal" style="--d: 3">
+            <a class="btn btn-primary" href="https://github.com/your-name/MeinSaldo">
+              Repository öffnen
+            </a>
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/your-name/MeinSaldo/blob/main/CONTRIBUTING.md"
+            >
+              CONTRIBUTING.md
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Footer ───────────────────────────────────────────── -->
+    <footer class="footer">
+      <div class="container footer-inner">
+        <a class="wordmark" href="#top" aria-label="MeinSaldo">
+          <span class="wordmark-bar" aria-hidden="true"></span>
+          <span><em>Mein</em>Saldo</span>
+        </a>
+        <p class="footer-meta">
+          Lokale Finanzauswertung · gebaut mit Next.js, React &amp; SQLite
+        </p>
+        <p class="footer-meta footer-year">© <span id="year"></span> MeinSaldo</p>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
