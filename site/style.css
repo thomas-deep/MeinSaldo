@@ -575,21 +575,22 @@ kbd {
 .start-terminals {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-.terminal-bar .terminal-tag {
-  margin-left: auto;
+.terminal-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.terminal-label {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--fg-muted);
-  background: none;
-  border-radius: 0;
-  width: auto;
-  height: auto;
-  padding: 2px 0;
 }
 
 .terminal {
@@ -759,4 +760,55 @@ kbd {
   .hero-shot {
     margin-top: 44px;
   }
+}
+
+/* ── Lightbox für Screenshots ───────────────────────────────────────── */
+.hero-shot img,
+.showcase-shot img,
+.wide-shot img {
+  cursor: zoom-in;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 32px;
+}
+
+.lightbox.is-open {
+  display: flex;
+}
+
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+  cursor: zoom-out;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  padding: 8px 12px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.lightbox-close:hover,
+.lightbox-close:focus-visible {
+  opacity: 1;
 }

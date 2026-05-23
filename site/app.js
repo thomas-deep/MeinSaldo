@@ -25,3 +25,51 @@
 
   items.forEach((el) => observer.observe(el));
 })();
+
+// Lightbox: Klick auf Screenshots öffnet sie groß.
+(() => {
+  const targets = document.querySelectorAll(
+    ".hero-shot img, .showcase-shot img, .wide-shot img"
+  );
+  if (targets.length === 0) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "lightbox";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Bildansicht");
+  overlay.innerHTML =
+    '<button class="lightbox-close" type="button" aria-label="Schließen">×</button><img alt="" />';
+  document.body.appendChild(overlay);
+
+  const overlayImg = overlay.querySelector("img");
+  const closeBtn = overlay.querySelector(".lightbox-close");
+  let prevOverflow = "";
+
+  function open(src, alt) {
+    overlayImg.src = src;
+    overlayImg.alt = alt || "";
+    overlay.classList.add("is-open");
+    prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeBtn.focus();
+  }
+
+  function close() {
+    overlay.classList.remove("is-open");
+    overlayImg.removeAttribute("src");
+    document.body.style.overflow = prevOverflow;
+  }
+
+  targets.forEach((img) => {
+    img.addEventListener("click", () => open(img.currentSrc || img.src, img.alt));
+  });
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target === closeBtn) close();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+  });
+})();
