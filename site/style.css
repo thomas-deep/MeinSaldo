@@ -566,6 +566,32 @@ kbd {
   text-underline-offset: 3px;
 }
 
+.start-note-doc {
+  margin-top: 14px;
+  font-size: 0.92rem;
+  color: var(--fg-faint);
+}
+
+.start-terminals {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.terminal-bar .terminal-tag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  background: none;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+  padding: 2px 0;
+}
+
 .terminal {
   background: var(--bg-elev);
   border: 1px solid var(--border);

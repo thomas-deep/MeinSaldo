@@ -27,20 +27,17 @@ Stoppen mit `docker compose down` — die Daten bleiben erhalten.
 
 ## Was passiert da?
 
-Compose startet zwei Container:
-
-| Container | Zweck | Port |
-|---|---|---|
-| `meinsaldo` | die App selbst (Next.js) | 3000 (auf den Host gemappt) |
-| `ollama` | *optional* lokales Sprachmodell für die KI-Kategorisierung | nur intern |
+| Container | Zweck | Port | Standard |
+|---|---|---|---|
+| `meinsaldo` | die App selbst (Next.js) | 3000 (auf den Host gemappt) | **an** |
+| `ollama` | lokales Sprachmodell für die KI-Kategorisierung | nur intern | **an** |
 
 Die SQLite-Datenbank liegt im benannten Volume `meinsaldo-data` und überlebt
-`docker compose down`. Ollama-Modelle liegen analog in `ollama-data`.
+`docker compose down`. Ollama-Modelle analog in `ollama-data`.
 
-## Optional: KI-Kategorisierung aktivieren
+## KI-Kategorisierung einrichten
 
-Standardmäßig läuft der Ollama-Container, ist aber leer. Einmalig ein
-kleines Modell laden:
+Der Ollama-Container läuft, ist aber leer. Einmalig ein kleines Modell laden:
 
 ```bash
 docker compose exec ollama ollama pull llama3.2:3b
@@ -55,9 +52,22 @@ Dann in der App: **Einstellungen → KI-Kategorisierung**
 Größere Modelle (`llama3.1:8b`, `qwen2.5:7b` …) treffen besser, brauchen aber
 mehr RAM und Zeit pro Buchung.
 
-**Ohne KI:** Den `ollama`-Block in `docker-compose.yml` auskommentieren und
-`ALLOWED_OLLAMA_HOSTS` ignorieren. Die regelbasierte Kategorisierung läuft
-unabhängig.
+Die regelbasierte Kategorisierung läuft auch ohne — die KI ist Kür.
+
+### Du hast Ollama schon auf dem Host?
+
+Wer Ollama bereits direkt auf dem Rechner laufen hat, braucht den zweiten
+Container nicht. Starte nur die App und zeige sie auf den Host-Ollama:
+
+```bash
+docker compose up -d meinsaldo
+```
+
+In der App **Einstellungen → KI-Kategorisierung**:
+- Ollama-URL: `http://host.docker.internal:11434`
+
+`host.docker.internal` und die passende Allowlist sind im Compose schon
+vorbereitet — das funktioniert auf Docker Desktop (macOS/Windows) und Linux.
 
 ## Daten
 

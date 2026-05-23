@@ -20,17 +20,23 @@ services:
     environment:
       # CSRF-Allowlist — auf abweichendem Host/Port anpassen
       ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
-      # KI-Host-Allowlist — "ollama" für den Service-Namen im Compose-Netz
-      ALLOWED_OLLAMA_HOSTS: "localhost,127.0.0.1,::1,ollama"
+      # KI-Host-Allowlist:
+      #   "ollama"              → Compose-interner Service (Default)
+      #   "host.docker.internal" → Ollama läuft direkt auf deinem Host
+      ALLOWED_OLLAMA_HOSTS: "localhost,127.0.0.1,::1,ollama,host.docker.internal"
     volumes:
       - meinsaldo-data:/data
+    # macht http://host.docker.internal:11434 aus dem Container erreichbar —
+    # auf Docker Desktop ohnehin Standard, auf Linux nötig (host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  # Optionaler lokaler KI-Dienst für die Kategorisierung.
-  # Wer keine KI braucht, kommentiert diesen Block aus.
-  # Modell pullen (einmalig):
-  #   docker compose exec ollama ollama pull llama3.2:3b
-  # Danach in MeinSaldo → Einstellungen → KI-Kategorisierung:
-  #   Ollama-URL: http://ollama:11434, Modell: llama3.2:3b
+  # Lokaler KI-Dienst für die Kategorisierung — startet standardmäßig mit.
+  # Wer Ollama schon auf dem Host laufen hat und keinen zweiten Container
+  # braucht: einfach `docker compose up -d meinsaldo` (Service explizit
+  # nennen → ollama bleibt aus) und in MeinSaldo
+  #   Ollama-URL: http://host.docker.internal:11434
+  # konfigurieren.
   ollama:
     image: ollama/ollama:latest
     container_name: meinsaldo-ollama
