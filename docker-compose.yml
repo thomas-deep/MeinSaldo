@@ -1,0 +1,48 @@
+# MeinSaldo — Docker-Compose-Setup für lokale Nutzung.
+#
+# Start:        docker compose up -d
+# Logs:         docker compose logs -f meinsaldo
+# Stop:         docker compose down
+# Update:       docker compose pull && docker compose up -d --build
+#
+# Daten:        liegen im benannten Volume `meinsaldo-data` (überlebt down/up).
+#               Sicherung: `docker run --rm -v meinsaldo-data:/data -v $PWD:/backup
+#                            alpine tar czf /backup/meinsaldo-backup.tgz /data`
+
+services:
+  meinsaldo:
+    build: .
+    image: meinsaldo:local
+    container_name: meinsaldo
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # CSRF-Allowlist — auf abweichendem Host/Port anpassen
+      ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+      # KI-Host-Allowlist — "ollama" für den Service-Namen im Compose-Netz
+      ALLOWED_OLLAMA_HOSTS: "localhost,127.0.0.1,::1,ollama"
+    volumes:
+      - meinsaldo-data:/data
+
+  # Optionaler lokaler KI-Dienst für die Kategorisierung.
+  # Wer keine KI braucht, kommentiert diesen Block aus.
+  # Modell pullen (einmalig):
+  #   docker compose exec ollama ollama pull llama3.2:3b
+  # Danach in MeinSaldo → Einstellungen → KI-Kategorisierung:
+  #   Ollama-URL: http://ollama:11434, Modell: llama3.2:3b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: meinsaldo-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    # Standardmäßig kein Port-Mapping nach außen — Ollama bleibt im internen
+    # Compose-Netz erreichbar als http://ollama:11434. Wer auch vom Host darauf
+    # zugreifen möchte, entkommentiert das Mapping:
+    # ports:
+    #   - "11434:11434"
+
+volumes:
+  meinsaldo-data:
+  ollama-data:

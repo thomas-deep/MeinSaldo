@@ -4,13 +4,25 @@
 
 ## Schnellstart
 
+**Mit Docker (empfohlen für reine Nutzer):**
+
+```bash
+git clone https://github.com/thomas-deep/MeinSaldo.git
+cd MeinSaldo
+docker compose up -d
+```
+
+App läuft danach auf [http://localhost:3000](http://localhost:3000), DB im persistenten Volume. Details und KI-Setup in [`QUICKSTART.md`](QUICKSTART.md).
+
+**Lokal mit Node** (für Entwicklung):
+
 ```bash
 cd app
 npm install
 npm run dev
 ```
 
-App läuft danach auf [http://localhost:3000](http://localhost:3000). Die SQLite-Datenbank wird unter `app/data/finanzen.db` angelegt; optionale Umgebungsvariablen siehe `app/.env.example`.
+Gleiche URL, die SQLite-Datenbank wird unter `app/data/finanzen.db` angelegt; optionale Umgebungsvariablen siehe `app/.env.example`.
 
 ## Was kann das Tool?
 
