@@ -29,6 +29,7 @@ import {
 } from "../lib/types";
 import { defaultMapping, bankPresets } from "../lib/field-mapping";
 import { detectCsvHeaders, detectIbanFromCsv } from "../lib/parse-csv";
+import { detectEncoding } from "../lib/encoding-detect";
 import {
   AiProgress,
   runAiOnAllUncategorized,
@@ -60,15 +61,11 @@ interface DbStats {
   latest: string | null;
 }
 
-function presetEncoding(name: string | null): string {
-  if (!name) return "utf-8";
-  return bankPresets.find((p) => p.name === name)?.encoding ?? "utf-8";
-}
-
 async function decodeFile(file: File, encoding: string): Promise<string> {
   const buf = await file.arrayBuffer();
+  const resolved = encoding === "auto" ? detectEncoding(buf) : encoding;
   try {
-    return new TextDecoder(encoding, { fatal: false }).decode(buf);
+    return new TextDecoder(resolved, { fatal: false }).decode(buf);
   } catch {
     return new TextDecoder("utf-8", { fatal: false }).decode(buf);
   }
@@ -330,9 +327,7 @@ export default function Home() {
       setPendingEncoding(encoding);
       setImportError(null);
       setImportPreview(null);
-      const decodeEnc =
-        encoding === "auto" ? presetEncoding(presetName) : encoding;
-      const text = await decodeFile(file, decodeEnc);
+      const text = await decodeFile(file, encoding);
       const headers = detectCsvHeaders(text, separator, presetHooksRef.current);
       setCsvHeaders(headers);
 
@@ -400,11 +395,7 @@ export default function Home() {
         }
       }
 
-      const decodeEnc =
-        pendingEncoding === "auto"
-          ? presetEncoding(activePreset)
-          : pendingEncoding;
-      const text = await decodeFile(pendingFile, decodeEnc);
+      const text = await decodeFile(pendingFile, pendingEncoding);
       const headers = detectCsvHeaders(
         text,
         activeSeparator,
@@ -447,12 +438,10 @@ export default function Home() {
   const refreshHeaders = useCallback(
     async (sep: string) => {
       if (!pendingFile) return;
-      const decodeEnc =
-        pendingEncoding === "auto" ? presetEncoding(presetName) : pendingEncoding;
-      const text = await decodeFile(pendingFile, decodeEnc);
+      const text = await decodeFile(pendingFile, pendingEncoding);
       setCsvHeaders(detectCsvHeaders(text, sep, presetHooksRef.current));
     },
-    [pendingFile, pendingEncoding, presetName]
+    [pendingFile, pendingEncoding]
   );
 
   const handleMappingChange = useCallback((newMapping: FieldMapping) => {

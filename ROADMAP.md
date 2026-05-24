@@ -23,7 +23,7 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 - [ ] **Forecasting** — Kontostand-Prognose basierend auf erkannten Recurrings + Trend.
 - [ ] **Mobile-View / responsive Layout** — aktuell desktop-fokussiert.
 - [ ] **E2E-Tests** mit Playwright (siehe `docs/AUDIT.md`).
-- [ ] **CSV-Encoding-Override pro Bank-Preset** — Sparkasse/Volksbank-Exporte sind häufig `windows-1252` (Roadmap-Punkt aus `AUDIT.md`).
+- [x] **CSV-Encoding-Override pro Bank-Preset** — Auto-Detect-Heuristik (UTF-8-BOM, strict-UTF-8-Probe, sonst windows-1252) löst die meisten Sparkasse/Volksbank-Fälle automatisch; UI-Override bleibt.
 - [ ] **CSV-Vorlagen-Pflege** — laufende Aktualisierung der Bank-Presets, getriebener Beitrags-Workflow.
 - [x] **Speicherbare Filter-Presets** — Zeitraum-/Typ-/Such-Kombinationen auf der Auswertung benennen und wiederverwenden (Dropdown in der Filter-Leiste).
 - [x] **IBAN-basierte Konto-Zuordnung beim Import** — `iban` als optionales Feld in `kontogruppen` (Verwaltung-UI). Beim CSV-Import wird die `IBAN Auftragskonto` aus der ersten Datenzeile gegen die gepflegten IBANs gematcht und das Konto automatisch vorausgewählt.

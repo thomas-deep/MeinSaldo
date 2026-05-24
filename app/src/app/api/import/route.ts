@@ -10,6 +10,7 @@ import {
 import { bankPresets, defaultMapping } from "../../../lib/field-mapping";
 import { parseCsvData } from "../../../lib/parse-csv";
 import { FieldMapping, PreprocessResult, RawRow } from "../../../lib/types";
+import { detectEncoding } from "../../../lib/encoding-detect";
 
 const PREVIEW_LIMIT = 30;
 
@@ -120,14 +121,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const buffer = await file.arrayBuffer();
   const encoding =
     encodingChoice === "auto"
-      ? config.presetEncoding
+      ? detectEncoding(buffer)
       : isEncoding(encodingChoice)
         ? encodingChoice
         : "utf-8";
 
-  const buffer = await file.arrayBuffer();
   let text: string;
   try {
     text = new TextDecoder(encoding, { fatal: false }).decode(buffer);
