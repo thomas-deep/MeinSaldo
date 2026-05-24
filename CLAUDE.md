@@ -1,6 +1,6 @@
 # Hinweise für KI-Coding-Sessions
 
-Lokale Next.js-App zur Aufbereitung von Bankkonto-CSV-Exporten. Single-User, single-host, alles offline. Vor jeder größeren Änderung **`docs/`** lesen — besonders `TECHNICAL.md` (Architektur, Datenmodell, API) und `AUDIT.md` (verifizierte Bugs).
+Lokale Next.js-App zur Aufbereitung von Bankkonto-CSV-Exporten. Single-User, single-host, alles offline. Vor jeder größeren Änderung **`docs/`** lesen — besonders `TECHNICAL.md` (Architektur, Datenmodell, API). Der historische `AUDIT.md`-Report ist als Referenz erhalten, alle dortigen Bugs sind adressiert.
 
 ## Stack-Eigenheiten — bevor du Code schreibst
 
@@ -10,16 +10,6 @@ Lokale Next.js-App zur Aufbereitung von Bankkonto-CSV-Exporten. Single-User, sin
 - **Tailwind v4** (`@import "tailwindcss"` statt klassischer Config).
 - **better-sqlite3** ist sync — keine Promises auf DB-Calls, aber alle Schreib-Operationen müssen via `db.transaction(...)` laufen wenn mehrere Statements zusammengehören.
 - **Recharts-Typen** sind zickig — siehe `CategoryChart.tsx` für das `as unknown as`-Anti-Pattern, das *vermieden* werden soll (Wrapper-Typen sind die richtige Lösung).
-
-## Bekannte Bugs nicht reproduzieren
-
-Vor Eingriffen in folgende Dateien `docs/AUDIT.md` lesen:
-- `lib/db.ts` — Hash-Bug mit `kontogruppeId`, `is_manual_override`-Konflikt
-- `lib/parse-csv.ts` — Encoding hardcoded UTF-8
-- `components/TransactionTable.tsx` — `slice(0,200)`, `localeCompare` ohne Locale
-- `lib/field-mapping.ts` — DKB-Preprocess scannt nur 20 Zeilen
-
-Wenn du an einer dieser Stellen arbeitest, fixe den Bug mit. Nicht ohne Erwähnung darum herum programmieren.
 
 ## Befehle
 
@@ -116,11 +106,6 @@ npx skills add wshobson/agents@nextjs-app-router-patterns
 npx skills add wshobson/agents@typescript-advanced-types
 ```
 
-## Roadmap (aus AUDIT.md)
+## Roadmap
 
-Priorisierung für kommende Fixes:
-1. Dup-Bug: `kontogruppeId` aus Dedup-Hash entfernen
-2. CSV-Encoding-Option pro Bank-Preset + UI-Override (Sparkasse/Volksbank brauchen `windows-1252`)
-3. AI-Override-Flag von `is_manual_override` trennen
-4. Zod-Validierung auf API-Routes
-5. Unit-Tests für `lib/parse-csv.ts`, `lib/categories.ts`, `lib/field-mapping.ts`
+Aktuelle Priorisierung in [`ROADMAP.md`](ROADMAP.md). Die im historischen `docs/AUDIT.md` aufgelisteten Bugs sind alle adressiert — bei neuen Findings dort einen Eintrag mit Datum ergänzen.
