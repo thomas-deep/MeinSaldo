@@ -4,6 +4,50 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+## v0.2.0 — IBAN-Auto-Match + Filter-Presets (2026-05-24)
+
+### IBAN-basierte Auto-Konto-Zuordnung beim CSV-Import
+
+- Kontogruppen haben jetzt ein optionales IBAN-Feld (Migration v10, mit
+  Partial Unique Index auf nicht-NULL-Werten). Verwaltung in den
+  Einstellungen → Kontogruppen.
+- Beim CSV-Import liest `detectIbanFromCsv` die `IBAN Auftragskonto` aus
+  der ersten Datenzeile, normalisiert sie (uppercase, ohne Whitespace) und
+  matched gegen die gepflegten IBANs. Treffer → Kontogruppe wird im
+  KontoPicker automatisch vorausgewählt mit dezentem Hinweis
+  „Automatisch erkannt anhand IBAN DE••3000".
+- Pure IBAN-Utilities in `lib/iban.ts` (`normalizeIban`,
+  `formatIbanForDisplay`, `maskIban`); 409 bei doppelter IBAN.
+
+### Speicherbare Filter-Presets
+
+- Neue Tabelle `filter_presets` (Migration v11) mit eindeutigem Namen,
+  payload als JSON-Snapshot (Auswertung-Filter + Kontogruppen-Filter),
+  automatischer `sort_order`.
+- Neue Komponente `FilterPresetMenu` als Dropdown in der collapsed
+  Filter-Leiste — ohne Aufklappen erreichbar. Zeigt das aktive Preset
+  hervorgehoben, bietet Anwenden + Löschen pro Eintrag und blendet das
+  Speichern-Feld nur ein, wenn die aktuelle Kombination noch keinem
+  Preset entspricht.
+- API: `/api/filter-presets` GET/POST + `[id]` PATCH/DELETE mit
+  409-Handling bei doppeltem Namen.
+
+### Filter-Header zeigt Konto-Auswahl
+
+- Die collapsed Filter-Bar ergänzt jetzt einen Status-Schnipsel wie
+  „· 2 Konten" / „· 1 Inhaber" / „· inkl. ohne Zuordnung", damit klar
+  ist, dass die Kontogruppen-Selektion Teil des aktiven Filters ist.
+- Der „X aktiv"-Counter zählt die Konto-Dimensionen mit. Klick auf den
+  Counter resettet jetzt auch den Konto-Filter.
+
+### Tests + Stack
+
+- 168 Vitest-Tests grün (neu: `iban.ts`, IBAN-API-409,
+  `detectIbanFromCsv`, Filter-Preset-CRUD).
+- Default-Preview-Server zeigt jetzt auf die Demo-DB (`dev:demo`); echte
+  DB-Variante als `finanz-app-real` benannt, um versehentliche Eingriffe
+  in Nutzerdaten auszuschließen.
+
 ### Umbenennung
 
 - Das Tool heißt jetzt **MeinSaldo** (App-Header, Browser-Titel,

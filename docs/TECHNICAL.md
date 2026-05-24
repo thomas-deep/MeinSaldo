@@ -1,6 +1,6 @@
 # Technische Dokumentation
 
-Stand: **v0.1.0**.
+Stand: **v0.2.0**.
 
 ## Architektur-Übersicht
 
