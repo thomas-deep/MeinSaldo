@@ -1,6 +1,10 @@
 # MeinSaldo
 
-**v0.2.0** · Lokales Web-Tool zur Aufbereitung von Konto- und Kreditkarten-CSV-Exporten. Mehrere Banken parallel, Inhaber/Konten-Hierarchie, paarweise Umbuchungs-Erkennung, regelbasierte plus optional KI-gestützte Kategorisierung, Auswertung mit Filter und Vorjahresvergleich. Light- und Dark-Mode. Alles bleibt auf deinem Rechner.
+> **v0.2.0** · Lokales Web-Tool zur Aufbereitung von Konto- und Kreditkarten-CSV-Exporten. Mehrere Banken parallel, Inhaber/Konten-Hierarchie, paarweise Umbuchungs-Erkennung, regelbasierte plus optional KI-gestützte Kategorisierung, Auswertung mit Filter und Vorjahresvergleich. Light- und Dark-Mode. **Alles bleibt auf deinem Rechner.**
+
+<p align="center">
+  <img src="site/img/dashboard.png" alt="MeinSaldo — Auswertungs-Dashboard mit Monatschart, Kategorien-Donut und SummaryCards" width="900" />
+</p>
 
 ## Schnellstart
 
@@ -24,67 +28,73 @@ npm run dev
 
 Gleiche URL, die SQLite-Datenbank wird unter `app/data/finanzen.db` angelegt; optionale Umgebungsvariablen siehe `app/.env.example`.
 
-## Was kann das Tool?
+## Highlights
 
-### Datenpflege
-- **Inhaber & Konten** zweistufig: Inhaber (privat / gemeinsam / firma) und darunter beliebig viele **Kontogruppen** mit eigener Art (Girokonto, Sparkonto, Kreditkarte, Depot, Sonstiges) und Bank-Preset
-- **CSV-Import** server-seitig mit Vorschau vor dem Einfügen — neue vs. bereits vorhandene Buchungen werden vor dem Insert ausgewiesen
-- **Encoding-Auswahl** (auto / utf-8 / windows-1252) je Import oder via Bank-Preset
-- **Import-Historie** mit Konto-Wechsel und Batch-Delete — falsch zugeordnete Imports lassen sich pro Klick zurückrollen
-- **Dedup** beim Re-Import per inhaltsbasiertem Hash; manuelle Änderungen bleiben erhalten
+### Auswertung mit Drill-Down
 
-### Auswertung
-- **Filter-Leiste** (collapsable) mit Zeitraum-Presets (lfd. Monat / Quartal / Jahr, Vorjahre, „Letzte 12 Monate", Custom), Typ-Toggle, Min-Betrag, Volltext-Suche
-- **Vorjahresvergleich** auf den SummaryCards mit Delta-Anzeige (Ausgaben-Rückgang grün, Anstieg rot)
-- **Hierarchischer Filter**: Gesamt · pro Inhaber · pro Konto · Nicht zugeordnet
-- **Klickbarer Monatschart** → setzt Zeitraum-Filter auf den geklickten Monat
-- **CategoryChart** als Balken oder Donut, Mini-Slices unter 1 % zu „Übrige Kleinposten" gebündelt, Beschriftung nur bei Hover
-- **DrillDown** Kategorie → Empfänger/Absender → Einzelbuchungen, mit klickbaren Breadcrumbs
+Zeitraum-Filter, Vorjahresvergleich, Kategorien-Donut, klickbarer Monatschart. Klick auf eine Kategorie öffnet den Drill-Down über Empfänger bis zur Einzelbuchung — mit Breadcrumbs zurück.
 
-### Globale Suche
-- **⌘K / Strg+K** öffnet eine Command-Palette mit Volltext-Suche über alle Transaktionen
-- **FTS5-Index** in SQLite, Umlaut-toleranter `unicode61`-Tokenizer, Prefix-Suche pro Token
-- Klick auf ein Ergebnis öffnet die Auswertung mit dem Empfänger als Filter
+<p align="center">
+  <img src="site/img/drilldown.png" alt="Kategorie-Drill-Down von Lebensmittel bis zur Einzelbuchung" width="820" />
+</p>
 
-### Wiederkehrende Zahlungen
-- Automatische Erkennung von **Abos, Miete, Gehalt** und ähnlichen Serien aus Counterparty + Betrag + Intervall (monatlich / quartalsweise / jährlich)
-- **Preisänderungs-Alert** wenn der letzte Betrag mehr als 8 % vom Durchschnitt abweicht — Highlight-Sektion oben
+- **Filter-Leiste** mit Zeitraum-Presets (lfd. Monat/Quartal/Jahr, Vorjahre, „Letzte 12 Monate", Custom), Typ-Toggle, Min-Betrag, Volltext-Suche
+- **Speicherbare Filter-Presets** — Filter-Kombination benennen, später per Dropdown wieder aktivieren
+- **Hierarchischer Konto-Filter**: Gesamt · pro Inhaber · pro Konto · Nicht zugeordnet
+- **CategoryChart** als Balken oder Donut, Mini-Slices unter 1 % zu „Übrige Kleinposten" gebündelt
+- **Vorjahresvergleich** auf den SummaryCards mit Delta-Anzeige
+
+### Wiederkehrende Zahlungen — automatisch erkannt
+
+Abos, Miete, Gehalt werden aus Counterparty + Betrag + Intervall (monatlich / quartalsweise / jährlich) erkannt. **Preisänderungs-Alert**, wenn der letzte Betrag mehr als 8 % vom Durchschnitt abweicht.
+
+<p align="center">
+  <img src="site/img/recurring.png" alt="Wiederkehrende Zahlungen mit Preisänderungs-Alert" width="820" />
+</p>
 
 ### Vermögensübersicht
-- Eigener **Net-Worth-Tab** mit Summary-Cards und monatlichem Verlaufs-Chart
-- Kontogruppen-Salden werden **automatisch übernommen** (Giro/Spar als Asset, Kreditkarte als Liability)
-- Daneben **manuell pflegbare Posten** für Depot-Werte, Immobilien, Kredite — mit Snapshot-Historie
 
-### Transaktionen-Tabelle
-- Multiselect mit **Bulk-Aktionen**: Kategorie wechseln · Konto wechseln · Umbuchung markieren · KI-Klassifikation · Löschen
-- Paginierung, lokalisierte Sortierung (`Intl.Collator('de-DE')`)
-- Manuelle Kategorie- und Umbuchungs-Override pro Buchung
-- **Tags** pro Zeile via Popover (z. B. `urlaub-2025`, `renovierung`) quer zu Kategorien
+Eigener Tab mit Summary-Cards und monatlichem Verlauf. Kontogruppen-Salden werden automatisch übernommen, daneben manuell pflegbare Posten für Depot, Immobilien, Kredite — mit Snapshot-Historie und optionalem Konto-Anker zur Saldo-Rekonstruktion.
 
-### Umbuchungs-Erkennung
-- **Paarweise**: negative Buchung sucht passende positive Buchung auf anderer Kontogruppe (gleicher absoluter Betrag, ±3 Tage, greedy)
-- Plus IBAN-Match und Kreditkarten-Settlement-Heuristik
-- Erkannte Umbuchungen werden aus Einnahmen- und Ausgaben-Summen ausgeschlossen
+<p align="center">
+  <img src="site/img/networth.png" alt="Vermögensübersicht mit monatlichem Verlauf" width="820" />
+</p>
 
-### Kategorisierung
-- **23+ vordefinierte Regeln** mit ~830 Keywords/Merchant-Patterns für deutsche Banken
-- **Kategorien-Editor**: Regeln voll editierbar (Keywords, Namens-Patterns, Reihenfolge), eigene Kategorien anlegen
-- **Optionale KI-Kategorisierung** über lokales Ollama-LLM:
-  - Nach Import (zwei Modi: nur Sonstiges oder alles)
-  - Auf ausgewählten Tabellen-Zeilen (Bulk, force)
-  - Manuell über Banner auf der Auswertung
-- AI-Prompts und Antworten landen im Audit-Log
+### CSV-Import mit Vorschau
 
-### Sicherheit
-- **CSRF-Schutz** via Origin-Allowlist (Middleware)
-- **SSRF-Härtung** für die `ollamaUrl` (Default Loopback-only)
-- **Zod-Validierung** auf allen mutierenden API-Routes
-- **Concurrency-Lock** auf AI-Endpoint (parallele Läufe → 429)
+Server-seitiges Parsing mit Vorschau vor dem Insert — neue vs. bereits vorhandene Buchungen werden ausgewiesen. **IBAN-Auto-Erkennung**: die Kontogruppe wird automatisch vorausgewählt, wenn die `IBAN Auftragskonto` aus der Datei einer gepflegten IBAN entspricht.
 
-### Tooling
-- **Vitest** mit 145 Tests — Domain-Logik (parser, categories, umbuchung-detection, date-range, recurring, networth, category-history, number-format, validation) **und** API-Routes mit isolierter In-Memory-SQLite pro Test
-- **Light/Dark-Mode** mit Token-System auf oklch-Basis, Theme-Toggle persistiert in localStorage
-- Editorial-Typographie: Instrument Serif für Hero-Zahlen, Geist Sans + Mono für UI
+<p align="center">
+  <img src="site/img/import.png" alt="CSV-Import mit Vorschau, neuen und bereits vorhandenen Buchungen" width="820" />
+</p>
+
+- **Bank-Presets** für Volksbank/ING/Standard, DKB, comdirect, Sparkasse, Commerzbank, Deutsche Bank, American Express
+- **Encoding-Auswahl** (auto / utf-8 / windows-1252) je Import oder via Preset
+- **Dedup** beim Re-Import per inhaltsbasiertem Hash; manuelle Änderungen bleiben erhalten
+- **Import-Historie** mit Konto-Wechsel und Batch-Delete
+
+### Optionale KI-Kategorisierung (lokal)
+
+Wenn ein lokales [Ollama](https://ollama.com) läuft, klassifiziert ein lokales LLM (z. B. `llama3.1`) die „Sonstiges"-Buchungen oder auf Knopfdruck auch alle. Drei Trigger: nach Import, auf ausgewählten Zeilen (Bulk), oder über Banner auf der Auswertung. Prompts und Antworten landen im Audit-Log.
+
+<p align="center">
+  <img src="site/img/ai.png" alt="KI-Kategorisierung mit lokalem Ollama-Modell" width="820" />
+</p>
+
+### Weitere Features
+
+- **⌘K-Suche** mit FTS5-Index, umlaut-tolerantem Tokenizer, Prefix-Suche
+- **Umbuchungs-Erkennung** paarweise zwischen Kontogruppen (gleicher Betrag, ±3 Tage) + IBAN-Match + Kreditkarten-Settlement
+- **Tags** quer zu Kategorien (`urlaub-2025`, `renovierung`) für Querschnittsauswertungen
+- **Bulk-Aktionen** in der Transaktionstabelle: Kategorie/Konto wechseln, Umbuchung markieren, KI-Klassifikation, Löschen
+- **23+ vordefinierte Kategorisierungs-Regeln** mit ~830 Keywords; voll editierbarer Editor
+
+### Sicherheit & Tooling
+
+- **CSRF-Schutz** via Origin-Allowlist (Middleware), **SSRF-Härtung** für `ollamaUrl` (Default Loopback-only)
+- **Zod-Validierung** auf allen mutierenden API-Routes, **Concurrency-Lock** auf AI-Endpoint (parallele Läufe → 429)
+- **Vitest** mit 168 Tests — Domain-Logik **und** API-Routes mit isolierter In-Memory-SQLite pro Test
+- **Light/Dark-Mode** mit Token-System auf oklch-Basis
 
 ## Dokumentation
 
