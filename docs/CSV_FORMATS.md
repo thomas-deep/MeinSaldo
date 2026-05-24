@@ -131,6 +131,10 @@ Default-Mapping wie Volksbank/ING. Trennzeichen wählbar. Alle Spalten frei zuor
 
 ## Beitrag neuer Bank-Presets
 
+> **Direkt loslegen?** Öffne das passende Issue:
+> [neues Bank-Preset →](https://github.com/thomas-deep/MeinSaldo/issues/new?template=neue-bank.yml) ·
+> [Bank-Format-Änderung →](https://github.com/thomas-deep/MeinSaldo/issues/new?template=bank-format-aenderung.yml)
+
 Wir freuen uns über Beiträge für weitere Banken. Workflow:
 
 ### 1. CSV-Sample anonymisieren
@@ -147,12 +151,14 @@ Genug Zeilen für die Parser-Heuristiken: mindestens 20 Buchungen, damit Encodin
 
 ### 2. Sample bereitstellen
 
-Zwei Wege:
+Am einfachsten über die vorbereiteten Issue-Templates:
 
-- **Issue mit Code-Block** (bevorzugt für kleine Samples ≤ 30 Zeilen).
-- **Gist-Link im Issue** für längere Samples — bitte *unlisted* Gist, nicht public.
+- **[„Neue Bank unterstützen"](https://github.com/thomas-deep/MeinSaldo/issues/new?template=neue-bank.yml)** — führt dich durch Header, Beispielzeilen, Encoding, Besonderheiten + Datenschutz-Checkboxen.
+- **[„Bank-Format hat sich geändert"](https://github.com/thomas-deep/MeinSaldo/issues/new?template=bank-format-aenderung.yml)** — wenn eine bestehende Vorlage durch ein Online-Banking-Update gebrochen ist.
 
-**Niemals** echte CSV-Dateien in PRs committen. Wenn du Tests beilegst, nutze einen synthetischen Block direkt in der Testdatei (siehe `field-mapping.test.ts`).
+Für längere Samples (> 30 Zeilen): *unlisted* Gist-Link im Issue, nicht public.
+
+**Niemals** echte CSV-Dateien in PRs committen. Wenn du Tests beilegst, nutze einen synthetischen Block direkt in der Testdatei (siehe `parse-csv.test.ts`).
 
 ### 3. Preset-PR
 

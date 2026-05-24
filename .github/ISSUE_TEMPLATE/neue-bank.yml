@@ -1,0 +1,87 @@
+name: "Neue Bank unterstützen"
+description: "CSV-Sample einer noch nicht unterstützten Bank beisteuern."
+title: "Bank-Preset: <Bankname>"
+labels: ["bank-preset", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke! Anonymisierte CSV-Samples sind der mit Abstand wertvollste
+        Beitrag — pro Bank reicht eine kleine Datei und du sparst anderen
+        Nutzern Stunden Trial-and-Error.
+
+        **Bevor du absendest:** öffne die CSV in einem Editor und ersetze
+        - alle Namen → `Max Mustermann`, `Beispiel GmbH`
+        - alle IBANs → `DE00000000000000000000`
+        - Verwendungszwecke mit identifizierbarem Inhalt → `Rechnung 12345`
+        - Beträge und Datümer dürfen bleiben
+
+        Eine handvoll Zeilen reicht. Lieber sorgfältig anonymisiert als
+        vollständig.
+
+  - type: input
+    id: bank
+    attributes:
+      label: "Bank / Anbieter"
+      placeholder: "z. B. Sparda-Bank München, N26, …"
+    validations:
+      required: true
+
+  - type: input
+    id: export-typ
+    attributes:
+      label: "Export-Typ / Datei-Quelle"
+      description: "Online-Banking-Export? Welcher Menüpunkt? Datum/Version des Exports?"
+      placeholder: "z. B. Web-Banking → Umsätze → CSV-Export, Stand 2026-05"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: encoding
+    attributes:
+      label: "Encoding"
+      options:
+        - "weiß ich nicht"
+        - "UTF-8"
+        - "windows-1252 (Umlaute brechen in Editoren mit UTF-8-Default)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: header
+    attributes:
+      label: "Header-Zeile (CSV-erste Zeile mit Spaltennamen)"
+      render: csv
+    validations:
+      required: true
+
+  - type: textarea
+    id: samples
+    attributes:
+      label: "2–5 anonymisierte Beispiel-Datenzeilen"
+      description: "Eine Einnahme + eine Ausgabe + idealerweise eine Umbuchung wären super."
+      render: csv
+    validations:
+      required: true
+
+  - type: textarea
+    id: besonderheiten
+    attributes:
+      label: "Besonderheiten"
+      description: |
+        - Sind Header-Metadaten / Preamble-Zeilen vor der eigentlichen Tabelle?
+        - Wird die eigene IBAN irgendwo im Header genannt?
+        - Vorzeichen: Ausgaben negativ oder positiv?
+        - Datum-Format (`TT.MM.JJJJ`, `JJJJ-MM-TT`, …)?
+        - Zahlen-Format (`1.234,56` oder `1,234.56`)?
+      placeholder: "z. B. erste 7 Zeilen sind Konto-Header, danach kommt eine Leerzeile, dann der echte CSV-Header."
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: "Datenschutz-Check"
+      options:
+        - label: "Ich habe alle Namen, IBANs und identifizierbaren Verwendungszwecke ersetzt."
+          required: true
+        - label: "Mir ist klar, dass dieses Issue öffentlich einsehbar ist."
+          required: true

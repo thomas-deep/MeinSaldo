@@ -24,7 +24,7 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 - [ ] **Mobile-View / responsive Layout** — aktuell desktop-fokussiert.
 - [ ] **E2E-Tests** mit Playwright (siehe `docs/AUDIT.md`).
 - [x] **CSV-Encoding-Override pro Bank-Preset** — Auto-Detect-Heuristik (UTF-8-BOM, strict-UTF-8-Probe, sonst windows-1252) löst die meisten Sparkasse/Volksbank-Fälle automatisch; UI-Override bleibt.
-- [ ] **CSV-Vorlagen-Pflege** — laufende Aktualisierung der Bank-Presets, getriebener Beitrags-Workflow.
+- [x] **CSV-Vorlagen-Pflege** — Issue-Templates für neue Bank-Presets und Format-Drift, Beitrags-Workflow in `CONTRIBUTING.md` und `docs/CSV_FORMATS.md` verlinkt. Code-Beitrag bleibt optional, Sample-only-Beitrag reicht.
 - [x] **Speicherbare Filter-Presets** — Zeitraum-/Typ-/Such-Kombinationen auf der Auswertung benennen und wiederverwenden (Dropdown in der Filter-Leiste).
 - [x] **IBAN-basierte Konto-Zuordnung beim Import** — `iban` als optionales Feld in `kontogruppen` (Verwaltung-UI). Beim CSV-Import wird die `IBAN Auftragskonto` aus der ersten Datenzeile gegen die gepflegten IBANs gematcht und das Konto automatisch vorausgewählt.
 

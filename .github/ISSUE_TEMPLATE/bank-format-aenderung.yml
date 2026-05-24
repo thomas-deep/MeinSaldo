@@ -1,0 +1,64 @@
+name: "Bank-Format hat sich geändert"
+description: "Eine bestehende Bank-Vorlage matched nicht mehr, weil die Bank ihr Export-Format umgestellt hat."
+title: "Format-Drift: <Bank>"
+labels: ["bank-preset", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Banken ändern ihre CSV-Exports regelmäßig (neue Spalten, andere
+        Reihenfolge, neuer Trenner). Wenn du das bemerkst, hilft uns ein
+        Vorher/Nachher-Sample, das Preset anzupassen.
+
+        **Anonymisierung wie bei „Neue Bank":** Namen, IBANs, identifizierbare
+        Verwendungszwecke ersetzen.
+
+  - type: input
+    id: bank
+    attributes:
+      label: "Bank / Preset-Name aus der App"
+      placeholder: "z. B. DKB (neuer Export), Sparkasse, …"
+    validations:
+      required: true
+
+  - type: input
+    id: zeitpunkt
+    attributes:
+      label: "Seit wann tritt das Problem auf?"
+      placeholder: "z. B. seit Online-Banking-Update Anfang Mai 2026"
+
+  - type: textarea
+    id: header-alt
+    attributes:
+      label: "Header-Zeile vorher (falls bekannt)"
+      render: csv
+
+  - type: textarea
+    id: header-neu
+    attributes:
+      label: "Header-Zeile jetzt"
+      render: csv
+    validations:
+      required: true
+
+  - type: textarea
+    id: samples-neu
+    attributes:
+      label: "1–3 anonymisierte Datenzeilen im neuen Format"
+      render: csv
+    validations:
+      required: true
+
+  - type: textarea
+    id: was-bricht
+    attributes:
+      label: "Was bricht in der App?"
+      description: "Falsche Spalte gemapped, kaputte Umlaute, leere Buchungen, …"
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: "Datenschutz-Check"
+      options:
+        - label: "Ich habe alle Namen, IBANs und identifizierbaren Verwendungszwecke ersetzt."
+          required: true

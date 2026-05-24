@@ -52,13 +52,21 @@ UI-Änderungen zusätzlich im Browser durchspielen. Der Code-Reviewer im AUDIT-R
 
 ## Neue Bank unterstützen
 
-Häufigster Beitrag. Workflow:
+Häufigster und willkommenster Beitrag.
+
+**Du willst nur ein Sample beisteuern** (kein Coding):
+
+→ [Issue „Neue Bank unterstützen"](https://github.com/thomas-deep/MeinSaldo/issues/new?template=neue-bank.yml) führt dich durch Header, Beispielzeilen, Encoding und Anonymisierungs-Checkliste. Wir bauen das Mapping.
+
+→ Bricht eine bestehende Bank? [Issue „Bank-Format hat sich geändert"](https://github.com/thomas-deep/MeinSaldo/issues/new?template=bank-format-aenderung.yml).
+
+**Du willst den Preset-Code direkt beisteuern:**
 
 1. Anonymisiertes CSV-Sample bereitstellen (siehe `docs/CSV_FORMATS.md`).
 2. `app/src/lib/field-mapping.ts`: neuen `BankPreset` ans Array anhängen.
 3. Falls Header-Metadaten oder kombinierte Felder: `preprocess` / `rowTransform` schreiben — DKB-Preset im selben File als Vorlage.
 4. `docs/CSV_FORMATS.md` ergänzen.
-5. Unit-Test in `field-mapping.test.ts` mit synthetischem Sample-Block.
+5. Unit-Test in `parse-csv.test.ts` mit synthetischem Sample-Block.
 6. Mit echtem Sample-CSV im Browser testen, nicht nur via curl.
 
 ## Bekannte Bugs
