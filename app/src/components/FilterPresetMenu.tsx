@@ -189,12 +189,6 @@ export default function FilterPresetMenu({
             </div>
           )}
 
-          {!canSave && presets.length > 0 && (
-            <p className="border-t border-border bg-bg-muted/30 px-4 py-2.5 text-[10px] text-fg-subtle">
-              Aktuelle Filter entsprechen einem vorhandenen Preset.
-            </p>
-          )}
-
           {presets.length === 0 && !canSave && (
             <div className="px-4 py-4 text-[11px] leading-relaxed text-fg-subtle">
               Noch keine Filter-Presets gespeichert. Setze unten einen Filter
