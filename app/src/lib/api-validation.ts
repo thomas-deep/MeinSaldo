@@ -103,6 +103,7 @@ export const kontogruppeCreateSchema = z.object({
   color: hexColor,
   icon: z.string().max(32).optional(),
   bank: z.string().max(64).nullable().optional(),
+  iban: z.string().max(64).nullable().optional(),
 });
 
 export const kontogruppeUpdateSchema = kontogruppeCreateSchema;

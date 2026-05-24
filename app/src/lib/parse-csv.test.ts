@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCsvData, detectCsvHeaders } from "./parse-csv";
+import { parseCsvData, detectCsvHeaders, detectIbanFromCsv } from "./parse-csv";
 import { defaultMapping, bankPresets } from "./field-mapping";
 import { FieldMapping } from "./types";
 
@@ -131,6 +131,56 @@ describe("parseCsvData filtering & defaults", () => {
   });
 });
 
+describe("detectIbanFromCsv (Standard-Preset)", () => {
+  const headers = Object.values(stdMapping).join(";");
+
+  it("liefert normalisierte IBAN aus erster Datenzeile", () => {
+    const row = [
+      "Konto A",
+      "de89 3704 0044 0532 0130 00",
+      "01.02.2024",
+      "01.02.2024",
+      "Empfänger",
+      "DE222",
+      "Buchung",
+      "Zweck",
+      "10,00",
+      "EUR",
+      "100,00",
+    ].join(";");
+    const iban = detectIbanFromCsv(lines(headers, row), stdMapping, ";");
+    expect(iban).toBe("DE89370400440532013000");
+  });
+
+  it("liefert null wenn IBAN-Spalte leer ist", () => {
+    const row = [
+      "Konto A",
+      "",
+      "01.02.2024",
+      "01.02.2024",
+      "Empfänger",
+      "DE222",
+      "Buchung",
+      "Zweck",
+      "10,00",
+      "EUR",
+      "100,00",
+    ].join(";");
+    const iban = detectIbanFromCsv(lines(headers, row), stdMapping, ";");
+    expect(iban).toBeNull();
+  });
+
+  it("liefert null wenn Mapping kein ibanKonto-Feld definiert", () => {
+    const noIbanMapping: FieldMapping = { ...stdMapping, ibanKonto: "" };
+    const iban = detectIbanFromCsv(
+      lines(headers, "x;y;z;a;b;c;d;e;1,00;EUR;0"),
+      noIbanMapping,
+      ";"
+    );
+    expect(iban).toBeNull();
+  });
+});
+
 describe("DKB preset (preprocess + rowTransform)", () => {
   const dkbPreset = bankPresets.find((p) => p.name.startsWith("DKB"))!;
 
@@ -153,6 +203,20 @@ describe("DKB preset (preprocess + rowTransform)", () => {
     expect(out[0].ibanKonto).toBe("DE12345678901234567890");
     expect(out[0].kontoBezeichnung).toBe("Mein Konto");
     expect(out[0].nameZahlungsbeteiligter).toBe("Empfänger GmbH");
+  });
+
+  it("detectIbanFromCsv liefert normalisierte IBAN aus DKB-Preamble", () => {
+    const csv = [
+      `"Mein Konto";"DE89370400440532013000"`,
+      `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";` +
+        `"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)"`,
+      `"01.02.2024";"01.02.2024";"Gebucht";"Foo";"Bar";"Zw";"Ausgang";"DE2";"1,00"`,
+    ].join("\n");
+    const iban = detectIbanFromCsv(csv, dkbPreset.mapping, dkbPreset.separator, {
+      preprocess: dkbPreset.preprocess,
+      rowTransform: dkbPreset.rowTransform,
+    });
+    expect(iban).toBe("DE89370400440532013000");
   });
 
   it("detectCsvHeaders includes synthetic _Counterparty/_IbanKonto fields", () => {

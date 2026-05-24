@@ -7,6 +7,7 @@ import { ICON_KEYS, getIcon } from "../lib/icons";
 import { bankPresets } from "../lib/field-mapping";
 import SortableList, { DragHandle } from "./SortableList";
 import { parseGermanNumber, formatGermanAmount } from "../lib/number-format";
+import { formatIbanForDisplay } from "../lib/iban";
 
 interface KontogruppenManagerProps {
   kontogruppen: Kontogruppe[];
@@ -51,16 +52,19 @@ interface FormState {
   color: string;
   icon: string;
   bank: string;
+  iban: string;
 }
 
 function FormFields({
   state,
   onChange,
   inhaber,
+  ibanError,
 }: {
   state: FormState;
   onChange: (s: FormState) => void;
   inhaber: Inhaber[];
+  ibanError: string | null;
 }) {
   return (
     <div className="space-y-3">
@@ -163,6 +167,31 @@ function FormFields({
         <p className="mt-1 text-xs text-fg-subtle">
           Beim Upload an diese Gruppe wird das passende Bank-Mapping automatisch gewählt.
         </p>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs text-fg-muted">
+          IBAN <span className="text-fg-faint">— optional, für Auto-Erkennung beim Import</span>
+        </label>
+        <input
+          type="text"
+          inputMode="text"
+          autoCapitalize="characters"
+          spellCheck={false}
+          placeholder="DE89 3704 0044 0532 0130 00"
+          value={state.iban}
+          onChange={(e) => onChange({ ...state, iban: e.target.value })}
+          className={`w-full rounded-lg border bg-surface-active px-3 py-2 font-mono text-sm tracking-wider text-fg placeholder:text-fg-subtle ${
+            ibanError ? "border-danger" : "border-border-strong"
+          }`}
+        />
+        {ibanError ? (
+          <p className="mt-1 text-xs text-danger">{ibanError}</p>
+        ) : (
+          <p className="mt-1 text-xs text-fg-subtle">
+            Wenn gesetzt, wählt der CSV-Import dieses Konto automatisch, sobald die
+            IBAN Auftragskonto in der Datei übereinstimmt.
+          </p>
+        )}
       </div>
       <div>
         <label className="mb-1.5 block text-xs text-fg-muted">Icon</label>
@@ -287,6 +316,7 @@ export default function KontogruppenManager({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [anchorEditId, setAnchorEditId] = useState<number | null>(null);
+  const [ibanError, setIbanError] = useState<string | null>(null);
   const defaultInhaberId: number | "" = inhaber[0]?.id ?? "";
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -295,6 +325,7 @@ export default function KontogruppenManager({
     color: PRESET_COLORS[0],
     icon: ART_DEFAULT_ICON["girokonto"],
     bank: "",
+    iban: "",
   });
 
   const grouped = useMemo(() => {
@@ -318,43 +349,53 @@ export default function KontogruppenManager({
       color: PRESET_COLORS[0],
       icon: ART_DEFAULT_ICON["girokonto"],
       bank: "",
+      iban: "",
     });
     setShowForm(false);
     setEditingId(null);
+    setIbanError(null);
   };
+
+  const submitPayload = () => ({
+    name: form.name.trim(),
+    inhaberId: form.inhaberId,
+    art: form.art,
+    color: form.color,
+    icon: form.icon,
+    bank: form.bank || null,
+    iban: form.iban.trim() || null,
+  });
 
   const handleCreate = async () => {
     if (!form.name.trim() || form.inhaberId === "") return;
-    await fetch("/api/kontogruppen", {
+    setIbanError(null);
+    const res = await fetch("/api/kontogruppen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        inhaberId: form.inhaberId,
-        art: form.art,
-        color: form.color,
-        icon: form.icon,
-        bank: form.bank || null,
-      }),
+      body: JSON.stringify(submitPayload()),
     });
+    if (res.status === 409) {
+      const j = await res.json().catch(() => ({}));
+      setIbanError(j.error ?? "IBAN bereits vergeben.");
+      return;
+    }
     resetForm();
     onChange();
   };
 
   const handleUpdate = async () => {
     if (!editingId || !form.name.trim() || form.inhaberId === "") return;
-    await fetch(`/api/kontogruppen/${editingId}`, {
+    setIbanError(null);
+    const res = await fetch(`/api/kontogruppen/${editingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        inhaberId: form.inhaberId,
-        art: form.art,
-        color: form.color,
-        icon: form.icon,
-        bank: form.bank || null,
-      }),
+      body: JSON.stringify(submitPayload()),
     });
+    if (res.status === 409) {
+      const j = await res.json().catch(() => ({}));
+      setIbanError(j.error ?? "IBAN bereits vergeben.");
+      return;
+    }
     resetForm();
     onChange();
   };
@@ -367,9 +408,11 @@ export default function KontogruppenManager({
       color: kg.color,
       icon: kg.icon,
       bank: kg.bank ?? "",
+      iban: formatIbanForDisplay(kg.iban),
     });
     setEditingId(kg.id);
     setShowForm(false);
+    setIbanError(null);
   };
 
   const handleAddForInhaber = (inhaberId: number) => {
@@ -380,9 +423,11 @@ export default function KontogruppenManager({
       color: PRESET_COLORS[0],
       icon: ART_DEFAULT_ICON["girokonto"],
       bank: "",
+      iban: "",
     });
     setEditingId(null);
     setShowForm(true);
+    setIbanError(null);
   };
 
   const handleReorder = async (inhaberId: number, newOrder: Kontogruppe[]) => {
@@ -546,7 +591,7 @@ export default function KontogruppenManager({
 
                     {isEditing && (
                       <div className="border-t border-border px-3 py-3 space-y-3">
-                        <FormFields state={form} onChange={setForm} inhaber={inhaber} />
+                        <FormFields state={form} onChange={setForm} inhaber={inhaber} ibanError={ibanError} />
                         <div className="flex gap-2">
                           <button
                             onClick={resetForm}
@@ -585,7 +630,7 @@ export default function KontogruppenManager({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <FormFields state={form} onChange={setForm} inhaber={inhaber} />
+            <FormFields state={form} onChange={setForm} inhaber={inhaber} ibanError={ibanError} />
             <button
               onClick={handleCreate}
               disabled={!form.name.trim() || form.inhaberId === ""}

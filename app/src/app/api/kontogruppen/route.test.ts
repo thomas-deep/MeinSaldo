@@ -70,4 +70,68 @@ describe("/api/kontogruppen", () => {
     const json = await res.json();
     expect(json.error).toBe("validation failed");
   });
+
+  it("POST normalisiert IBAN (Whitespace, lowercase) und persistiert sie", async () => {
+    const inhaberId = await createInhaberFixture();
+    const res = await POST(
+      nextReq("http://localhost/api/kontogruppen", "POST", {
+        name: "Giro",
+        inhaberId,
+        color: "#112233",
+        iban: "de89 3704 0044 0532 0130 00",
+      })
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.kontogruppe.iban).toBe("DE89370400440532013000");
+  });
+
+  it("POST mit bereits vergebener IBAN antwortet 409 (auch bei anderer Formatierung)", async () => {
+    const inhaberId = await createInhaberFixture();
+    await POST(
+      nextReq("http://localhost/api/kontogruppen", "POST", {
+        name: "Giro",
+        inhaberId,
+        color: "#112233",
+        iban: "DE89370400440532013000",
+      })
+    );
+    const dup = await POST(
+      nextReq("http://localhost/api/kontogruppen", "POST", {
+        name: "Giro 2",
+        inhaberId,
+        color: "#223344",
+        iban: "de89 3704 0044 0532 0130 00",
+      })
+    );
+    expect(dup.status).toBe(409);
+    const json = await dup.json();
+    expect(json.error).toMatch(/IBAN/);
+  });
+
+  it("POST mit leerer IBAN-String persistiert NULL und erlaubt mehrere", async () => {
+    const inhaberId = await createInhaberFixture();
+    const a = await POST(
+      nextReq("http://localhost/api/kontogruppen", "POST", {
+        name: "A",
+        inhaberId,
+        color: "#112233",
+        iban: "",
+      })
+    );
+    const b = await POST(
+      nextReq("http://localhost/api/kontogruppen", "POST", {
+        name: "B",
+        inhaberId,
+        color: "#223344",
+        iban: "   ",
+      })
+    );
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    const aj = await a.json();
+    const bj = await b.json();
+    expect(aj.kontogruppe.iban).toBeNull();
+    expect(bj.kontogruppe.iban).toBeNull();
+  });
 });

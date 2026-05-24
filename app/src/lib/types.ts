@@ -80,6 +80,10 @@ export interface Kontogruppe {
   icon: string;
   bank?: string;
   createdAt?: string;
+  /** Optionale IBAN — beim CSV-Import wird gegen die IBAN Auftragskonto
+   *  gematcht, um automatisch das richtige Konto vorzuwählen. Persistiert
+   *  in Normalform (uppercase, ohne Whitespace). */
+  iban?: string | null;
   /** Optionaler Anker für die Saldo-Rekonstruktion: bekannter Kontostand
    *  (`anchorValue`) an einem Stichtag (`anchorDate`, ISO). */
   anchorDate?: string | null;

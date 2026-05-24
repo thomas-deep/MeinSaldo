@@ -8,6 +8,7 @@ import {
   Transaction,
 } from "./types";
 import { categorizeTransaction } from "./categories";
+import { normalizeIban } from "./iban";
 
 function parseGermanNumber(value: string): number {
   if (!value) return 0;
@@ -140,4 +141,31 @@ export function detectCsvHeaders(
     Object.keys(transformed).forEach((k) => headersSet.add(k));
   }
   return Array.from(headersSet);
+}
+
+/**
+ * Extrahiert die normalisierte IBAN aus dem ersten Datensatz der CSV anhand
+ * des im FieldMapping konfigurierten `ibanKonto`-Headers. Liefert `null`,
+ * wenn das Mapping kein IBAN-Auftragskonto-Feld definiert oder die erste
+ * Datenzeile dort leer ist. Dient der Auto-Konto-Zuordnung beim Import.
+ */
+export function detectIbanFromCsv(
+  csvText: string,
+  mapping: FieldMapping,
+  separator: string,
+  options: ParseOptions = {}
+): string | null {
+  if (!mapping.ibanKonto) return null;
+  const { csvText: cleaned, defaultFields } = applyPreprocessing(csvText, options);
+  const result = Papa.parse<RawRow>(cleaned, {
+    header: true,
+    delimiter: separator,
+    preview: 1,
+  });
+  const firstRow = result.data[0];
+  if (!firstRow) return null;
+  const merged = { ...defaultFields, ...firstRow };
+  const row = options.rowTransform ? options.rowTransform(merged) : merged;
+  const raw = row[mapping.ibanKonto];
+  return normalizeIban(raw);
 }

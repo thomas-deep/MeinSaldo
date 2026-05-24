@@ -26,7 +26,7 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 - [ ] **CSV-Encoding-Override pro Bank-Preset** — Sparkasse/Volksbank-Exporte sind häufig `windows-1252` (Roadmap-Punkt aus `AUDIT.md`).
 - [ ] **CSV-Vorlagen-Pflege** — laufende Aktualisierung der Bank-Presets, getriebener Beitrags-Workflow.
 - [ ] **Speicherbare Filter-Presets** — Zeitraum-/Typ-/Such-Kombinationen auf der Auswertung benennen und wiederverwenden (aus dem First-class-Search-Punkt ausgegliedert).
-- [ ] **IBAN-basierte Konto-Zuordnung beim Import** — `iban` als optionales Feld in `kontogruppen` (Verwaltung-UI). Beim CSV-Import wird die `IBAN Auftragskonto` aus der ersten Datenzeile gegen die gepflegten IBANs gematcht und das Konto automatisch vorausgewählt — entfernt das manuelle Konto-Picken pro Import.
+- [x] **IBAN-basierte Konto-Zuordnung beim Import** — `iban` als optionales Feld in `kontogruppen` (Verwaltung-UI). Beim CSV-Import wird die `IBAN Auftragskonto` aus der ersten Datenzeile gegen die gepflegten IBANs gematcht und das Konto automatisch vorausgewählt.
 
 ## C — Wenn Zeit/Lust
 

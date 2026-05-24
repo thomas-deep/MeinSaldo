@@ -26,7 +26,7 @@ import {
   Transaction,
 } from "../lib/types";
 import { defaultMapping, bankPresets } from "../lib/field-mapping";
-import { detectCsvHeaders } from "../lib/parse-csv";
+import { detectCsvHeaders, detectIbanFromCsv } from "../lib/parse-csv";
 import {
   AiProgress,
   runAiOnAllUncategorized,
@@ -87,7 +87,12 @@ export default function Home() {
   const [invertAmount, setInvertAmount] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState("EUR");
   const presetHooksRef = useRef<PresetHooks>({});
+  const handleKontoSelectedRef = useRef<(id: number | null) => Promise<void>>(
+    async () => {}
+  );
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [detectedIban, setDetectedIban] = useState<string | null>(null);
+  const [autoMatched, setAutoMatched] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "tabelle">("dashboard");
   const [view, setView] = useState<"auswertung" | "wiederkehrend" | "vermoegen" | "daten" | "einstellungen">("auswertung");
   const [dbStats, setDbStats] = useState<DbStats>({ count: 0, earliest: null, latest: null });
@@ -324,8 +329,15 @@ export default function Home() {
       const text = await decodeFile(file, decodeEnc);
       const headers = detectCsvHeaders(text, separator, presetHooksRef.current);
       setCsvHeaders(headers);
-      // Wenn das Konto bereits aus einem früheren Upload gewählt wurde,
-      // direkt eine neue Vorschau ziehen — sonst auf User-Klick warten.
+
+      // IBAN-basierte Auto-Konto-Vorauswahl: nur greifen, wenn der User
+      // noch kein Konto manuell gewählt hat.
+      const iban = detectIbanFromCsv(text, mapping, separator, presetHooksRef.current);
+      setDetectedIban(iban);
+      const match = iban
+        ? kontogruppen.find((k) => k.iban === iban)
+        : undefined;
+
       if (kontoChosen) {
         await fetchPreview(
           file,
@@ -337,6 +349,9 @@ export default function Home() {
           defaultCurrency,
           presetName
         );
+      } else if (match) {
+        setAutoMatched(true);
+        await handleKontoSelectedRef.current(match.id);
       }
     },
     [
@@ -348,6 +363,7 @@ export default function Home() {
       invertAmount,
       defaultCurrency,
       fetchPreview,
+      kontogruppen,
     ]
   );
 
@@ -414,6 +430,13 @@ export default function Home() {
       fetchPreview,
     ]
   );
+
+  // Ref hält die aktuellste handleKontoSelected-Closure, damit der
+  // Auto-Match-Pfad in handleFileSelected (oben definiert) sie nutzen kann
+  // ohne in dessen Callback-Deps zu hängen.
+  useEffect(() => {
+    handleKontoSelectedRef.current = handleKontoSelected;
+  }, [handleKontoSelected]);
 
   const refreshHeaders = useCallback(
     async (sep: string) => {
@@ -504,6 +527,8 @@ export default function Home() {
     setPendingFile(null);
     setPendingKontogruppeId(null);
     setKontoChosen(false);
+    setDetectedIban(null);
+    setAutoMatched(false);
   }, []);
 
   const handleUmbuchungToggle = useCallback(
@@ -817,7 +842,12 @@ export default function Home() {
             <KontoPicker
               kontogruppen={kontogruppen}
               selected={kontoChosen ? pendingKontogruppeId : null}
-              onSelect={handleKontoSelected}
+              detectedIban={detectedIban}
+              autoMatched={autoMatched}
+              onSelect={(id) => {
+                setAutoMatched(false);
+                void handleKontoSelected(id);
+              }}
             />
           )}
 

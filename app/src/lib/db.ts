@@ -334,6 +334,18 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 10,
+    description:
+      "kontogruppen: optionale IBAN für Auto-Konto-Zuordnung beim CSV-Import",
+    up: (db) => {
+      ensureColumn(db, "kontogruppen", "iban", "TEXT");
+      db.exec(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_kontogruppen_iban
+           ON kontogruppen(iban) WHERE iban IS NOT NULL`
+      );
+    },
+  },
 ];
 
 const MAX_LOG_ENTRIES = 5000;
@@ -1824,6 +1836,7 @@ interface KontogruppeRow {
   icon: string | null;
   bank: string | null;
   created_at: string;
+  iban: string | null;
   anchor_date: string | null;
   anchor_value: number | null;
 }
@@ -1841,6 +1854,7 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
     icon: row.icon || "user",
     bank: row.bank ?? undefined,
     createdAt: row.created_at,
+    iban: row.iban,
     anchorDate: row.anchor_date,
     anchorValue: row.anchor_value,
   };
@@ -1849,7 +1863,7 @@ function rowToKontogruppe(row: KontogruppeRow): Kontogruppe {
 const SELECT_KONTOGRUPPEN = `
   SELECT
     kg.id, kg.name, kg.inhaber_id, kg.art, kg.color, kg.icon, kg.bank, kg.created_at,
-    kg.anchor_date, kg.anchor_value,
+    kg.iban, kg.anchor_date, kg.anchor_value,
     i.name AS inhaber_name, i.type AS inhaber_type, i.color AS inhaber_color
   FROM kontogruppen kg
   JOIN inhaber i ON i.id = kg.inhaber_id
@@ -1871,14 +1885,15 @@ export function createKontogruppe(
   art: KontogruppeArt,
   color: string,
   icon: string,
-  bank: string | null
+  bank: string | null,
+  iban: string | null
 ): Kontogruppe {
   const db = getDb();
   const result = db
     .prepare(
-      `INSERT INTO kontogruppen (name, inhaber_id, art, color, icon, bank, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO kontogruppen (name, inhaber_id, art, color, icon, bank, iban, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(name, inhaberId, art, color, icon, bank, new Date().toISOString());
+    .run(name, inhaberId, art, color, icon, bank, iban, new Date().toISOString());
   const row = db
     .prepare(`${SELECT_KONTOGRUPPEN} WHERE kg.id = ?`)
     .get(result.lastInsertRowid) as KontogruppeRow;
@@ -1907,14 +1922,15 @@ export function updateKontogruppe(
   art: KontogruppeArt,
   color: string,
   icon: string,
-  bank: string | null
+  bank: string | null,
+  iban: string | null
 ): boolean {
   const db = getDb();
   const result = db
     .prepare(
-      "UPDATE kontogruppen SET name = ?, inhaber_id = ?, art = ?, color = ?, icon = ?, bank = ? WHERE id = ?"
+      "UPDATE kontogruppen SET name = ?, inhaber_id = ?, art = ?, color = ?, icon = ?, bank = ?, iban = ? WHERE id = ?"
     )
-    .run(name, inhaberId, art, color, icon, bank, id);
+    .run(name, inhaberId, art, color, icon, bank, iban, id);
   if (result.changes > 0) recomputeUmbuchungen(db);
   return result.changes > 0;
 }
