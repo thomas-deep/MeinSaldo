@@ -28,6 +28,15 @@ interface Props {
   /** Optionaler Slot für Preset-Menu o.ä., wird in der collapsed Header-Zeile
    *  vor dem Aktiv-Counter / Chevron eingefügt. */
   headerSlot?: ReactNode;
+  /** Optionaler Zusatzwert, der zum „X aktiv"-Counter addiert wird (z. B.
+   *  externe Filter wie die Konto-Selection). */
+  extraActiveCount?: number;
+  /** Optionaler Text-Schnipsel, der in der collapsed Header-Zeile hinter
+   *  den Auswertungsfilter-Schnipseln erscheint (z. B. „· 2 Konten"). */
+  extraHeaderSummary?: ReactNode;
+  /** Wird beim Klick auf den „X aktiv"-Reset zusätzlich aufgerufen, damit
+   *  externe Filter (z. B. Konto-Selection) ebenfalls zurückgesetzt werden. */
+  onResetExtras?: () => void;
 }
 
 const PRESETS: RangePreset[] = [
@@ -63,9 +72,16 @@ function activeFilterCount(state: AuswertungFilterState): number {
   return n;
 }
 
-export default function AuswertungFilter({ state, onChange, headerSlot }: Props) {
+export default function AuswertungFilter({
+  state,
+  onChange,
+  headerSlot,
+  extraActiveCount = 0,
+  extraHeaderSummary,
+  onResetExtras,
+}: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const activeCount = activeFilterCount(state);
+  const activeCount = activeFilterCount(state) + extraActiveCount;
 
   const handlePreset = (preset: RangePreset) => {
     if (preset === "custom") {
@@ -83,7 +99,7 @@ export default function AuswertungFilter({ state, onChange, headerSlot }: Props)
     });
   };
 
-  const resetAll = () =>
+  const resetAll = () => {
     onChange({
       preset: "alle",
       range: rangeFor("alle", new Date()),
@@ -93,6 +109,8 @@ export default function AuswertungFilter({ state, onChange, headerSlot }: Props)
       compareVorjahr: false,
       includeUmbuchungen: false,
     });
+    onResetExtras?.();
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-surface">
@@ -129,6 +147,7 @@ export default function AuswertungFilter({ state, onChange, headerSlot }: Props)
           {state.includeUmbuchungen && (
             <span className="text-xs text-fg-muted">· inkl. Umbuchungen</span>
           )}
+          {extraHeaderSummary}
         </button>
         <div className="flex items-center gap-2">
           {headerSlot}

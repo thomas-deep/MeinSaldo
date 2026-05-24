@@ -65,10 +65,6 @@ export default function FilterPresetMenu({
     closeMenu();
   };
 
-  if (presets.length === 0 && !canSave) {
-    return null;
-  }
-
   return (
     <div className="relative" ref={ref}>
       <button
@@ -184,6 +180,14 @@ export default function FilterPresetMenu({
             <p className="border-t border-border bg-bg-muted/30 px-3 py-2 text-[10px] text-fg-subtle">
               Aktuelle Filter entsprechen einem vorhandenen Preset.
             </p>
+          )}
+
+          {presets.length === 0 && !canSave && (
+            <div className="px-3 py-3 text-[11px] text-fg-subtle">
+              Noch keine Filter-Presets gespeichert. Setze unten einen Filter
+              (Zeitraum, Typ, Suche…), dann erscheint hier ein
+              &bdquo;Speichern&ldquo;-Feld.
+            </div>
           )}
         </div>
       )}

@@ -1024,6 +1024,42 @@ export default function Home() {
               <AuswertungFilter
                 state={auswertungFilter}
                 onChange={setAuswertungFilter}
+                extraActiveCount={
+                  (filter.inhaberIds.length > 0 ? 1 : 0) +
+                  (filter.kontogruppeIds.length > 0 ? 1 : 0) +
+                  (filter.includeNone ? 1 : 0)
+                }
+                onResetExtras={() => setFilter(EMPTY_FILTER)}
+                extraHeaderSummary={
+                  isFilterEmpty(filter) ? null : (
+                    <span className="text-xs text-fg-muted">
+                      {" · "}
+                      {filter.kontogruppeIds.length > 0 && (
+                        <span>
+                          {filter.kontogruppeIds.length}{" "}
+                          {filter.kontogruppeIds.length === 1
+                            ? "Konto"
+                            : "Konten"}
+                        </span>
+                      )}
+                      {filter.inhaberIds.length > 0 && (
+                        <span>
+                          {filter.kontogruppeIds.length > 0 ? ", " : ""}
+                          {filter.inhaberIds.length} Inhaber
+                        </span>
+                      )}
+                      {filter.includeNone && (
+                        <span>
+                          {filter.kontogruppeIds.length > 0 ||
+                          filter.inhaberIds.length > 0
+                            ? ", "
+                            : ""}
+                          inkl. ohne Zuordnung
+                        </span>
+                      )}
+                    </span>
+                  )
+                }
                 headerSlot={
                   <FilterPresetMenu
                     presets={filterPresets}
