@@ -119,14 +119,17 @@ export default function CategoryDrillDown({
       ...g,
       avg: g.count > 0 ? g.sum / g.count : 0,
       transactions: g.transactions.sort((a, b) =>
-        b.buchungstag.localeCompare(a.buchungstag)
+        // ISO-Datum `YYYY-MM-DD`, String-Compare ist locale-stabil
+        b.buchungstag < a.buchungstag ? -1 : b.buchungstag > a.buchungstag ? 1 : 0
       ),
     }));
+    const nameCollator = new Intl.Collator("de-DE", { sensitivity: "base" });
     list.sort((a, b) => {
       if (sortKey === "sum") return b.sum - a.sum;
       if (sortKey === "count") return b.count - a.count;
-      if (sortKey === "last") return b.last.localeCompare(a.last);
-      return a.name.localeCompare(b.name);
+      // last ist ISO (`YYYY-MM-DD`), reiner String-Compare reicht
+      if (sortKey === "last") return b.last < a.last ? -1 : b.last > a.last ? 1 : 0;
+      return nameCollator.compare(a.name, b.name);
     });
     return list;
   }, [categoryTx, sortKey]);
@@ -138,7 +141,7 @@ export default function CategoryDrillDown({
       grouped[key] = (grouped[key] ?? 0) + Math.abs(t.betrag);
     }
     return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, val]) => {
         let label: string;
         try {

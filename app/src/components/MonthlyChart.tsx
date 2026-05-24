@@ -66,7 +66,7 @@ export default function MonthlyChart({
     }
 
     return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, { einnahmen, ausgaben }]) => {
         let monatLabel: string;
         try {

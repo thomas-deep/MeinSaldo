@@ -47,12 +47,11 @@ export function buildMonthlyNetWorthHistory(
   const months = Array.from(monthlyKeys).sort();
   if (months.length === 0) return [];
 
-  const assetsSorted = [...assetSnapshots].sort((a, b) =>
-    a.date.localeCompare(b.date)
-  );
-  const liabilitiesSorted = [...liabilitySnapshots].sort((a, b) =>
-    a.date.localeCompare(b.date)
-  );
+  // date ist ISO (`YYYY-MM-DD`), reiner String-Compare ist locale-stabil
+  const byDateAsc = (a: SnapshotInput, b: SnapshotInput) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+  const assetsSorted = [...assetSnapshots].sort(byDateAsc);
+  const liabilitiesSorted = [...liabilitySnapshots].sort(byDateAsc);
 
   function sumAt(snapshots: SnapshotInput[], monthEnd: string): number {
     const latestByEntity = new Map<number, number>();

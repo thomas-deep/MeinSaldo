@@ -110,8 +110,9 @@ export function detectRecurring(transactions: Transaction[]): RecurringSeries[] 
   for (const [key, list] of groups) {
     if (list.length < MIN_OCCURRENCES) continue;
 
+    // ISO-Datum, String-Compare ist locale-stabil
     const sorted = [...list].sort((a, b) =>
-      a.buchungstag.localeCompare(b.buchungstag)
+      a.buchungstag < b.buchungstag ? -1 : a.buchungstag > b.buchungstag ? 1 : 0
     );
 
     const intervals: RecurringInterval[] = [];
@@ -139,15 +140,16 @@ export function detectRecurring(transactions: Transaction[]): RecurringSeries[] 
       sorted.map((t) => t.nameZahlungsbeteiligter.trim())
     );
 
+    const nameCollator = new Intl.Collator("de-DE", { sensitivity: "base" });
     const categories = [
       ...new Set(sorted.map((t) => t.kategorie).filter(Boolean)),
-    ].sort((a, b) => a.localeCompare(b, "de"));
+    ].sort((a, b) => nameCollator.compare(a, b));
     const tagMap = new Map<number, Tag>();
     for (const t of sorted) {
       for (const tag of t.tags ?? []) tagMap.set(tag.id, tag);
     }
     const tags = [...tagMap.values()].sort((a, b) =>
-      a.name.localeCompare(b.name, "de")
+      nameCollator.compare(a.name, b.name)
     );
 
     series.push({
