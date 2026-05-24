@@ -123,6 +123,13 @@ export const tagCreateSchema = z.object({
 
 export const tagUpdateSchema = tagCreateSchema;
 
+export const filterPresetCreateSchema = z.object({
+  name: z.string().min(1).max(64),
+  payload: z.string().min(1).max(16_000),
+});
+
+export const filterPresetUpdateSchema = filterPresetCreateSchema;
+
 export const transactionTagsSchema = z.object({
   tagIds: z.array(z.number().int().positive()).max(32),
 });

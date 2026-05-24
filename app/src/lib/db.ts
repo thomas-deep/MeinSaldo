@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { createHash } from "crypto";
 import {
+  FilterPreset,
   Inhaber,
   InhaberType,
   Kontogruppe,
@@ -344,6 +345,22 @@ const migrations: Migration[] = [
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_kontogruppen_iban
            ON kontogruppen(iban) WHERE iban IS NOT NULL`
       );
+    },
+  },
+  {
+    version: 11,
+    description:
+      "filter_presets: benannte Filter-Kombinationen für die Auswertung",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS filter_presets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          payload TEXT NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 999,
+          created_at TEXT NOT NULL
+        );
+      `);
     },
   },
 ];
@@ -1948,6 +1965,69 @@ export function reorderKontogruppen(orderedIds: number[]): number {
   });
   tx();
   return n;
+}
+
+interface FilterPresetRow {
+  id: number;
+  name: string;
+  payload: string;
+  sort_order: number;
+  created_at: string;
+}
+
+function rowToFilterPreset(r: FilterPresetRow): FilterPreset {
+  return {
+    id: r.id,
+    name: r.name,
+    payload: r.payload,
+    sortOrder: r.sort_order,
+    createdAt: r.created_at,
+  };
+}
+
+export function getAllFilterPresets(): FilterPreset[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT id, name, payload, sort_order, created_at FROM filter_presets
+       ORDER BY sort_order ASC, id ASC`
+    )
+    .all() as FilterPresetRow[];
+  return rows.map(rowToFilterPreset);
+}
+
+export function createFilterPreset(name: string, payload: string): FilterPreset {
+  const db = getDb();
+  const result = db
+    .prepare(
+      `INSERT INTO filter_presets (name, payload, sort_order, created_at)
+       VALUES (?, ?, COALESCE((SELECT MAX(sort_order) FROM filter_presets), -1) + 1, ?)`
+    )
+    .run(name, payload, new Date().toISOString());
+  const row = db
+    .prepare(
+      `SELECT id, name, payload, sort_order, created_at FROM filter_presets WHERE id = ?`
+    )
+    .get(result.lastInsertRowid) as FilterPresetRow;
+  return rowToFilterPreset(row);
+}
+
+export function updateFilterPreset(
+  id: number,
+  name: string,
+  payload: string
+): boolean {
+  const db = getDb();
+  const r = db
+    .prepare(`UPDATE filter_presets SET name = ?, payload = ? WHERE id = ?`)
+    .run(name, payload, id);
+  return r.changes > 0;
+}
+
+export function deleteFilterPreset(id: number): boolean {
+  const db = getDb();
+  const r = db.prepare(`DELETE FROM filter_presets WHERE id = ?`).run(id);
+  return r.changes > 0;
 }
 
 export function reorderKategorien(orderedIds: number[]): number {

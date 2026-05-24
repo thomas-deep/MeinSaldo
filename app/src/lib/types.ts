@@ -90,6 +90,20 @@ export interface Kontogruppe {
   anchorValue?: number | null;
 }
 
+/**
+ * Benanntes Filter-Preset für die Auswertungs-Seite. Der `payload` enthält
+ * den `AuswertungFilterState` plus den Kontogruppen-Filter als einzelnes
+ * JSON-Objekt — Form wird vom Frontend definiert und auf API-Ebene als
+ * opaque JSON-String persistiert (Zod-validiert auf Top-Level-Shape).
+ */
+export interface FilterPreset {
+  id: number;
+  name: string;
+  payload: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
 /** „Thomas · Giro" — einheitliche Darstellung wenn Inhaber-Kontext fehlt. */
 export function formatKontogruppe(kg: Pick<Kontogruppe, "name" | "inhaberName">): string {
   return kg.inhaberName ? `${kg.inhaberName} · ${kg.name}` : kg.name;

@@ -16,9 +16,11 @@ import TransactionTable from "../components/TransactionTable";
 import CategoryDrillDown from "../components/CategoryDrillDown";
 import DbStatus from "../components/DbStatus";
 import KontogruppeFilter from "../components/KontogruppeFilter";
+import FilterPresetMenu from "../components/FilterPresetMenu";
 import SettingsView from "../components/SettingsView";
 import {
   FieldMapping,
+  FilterPreset,
   Inhaber,
   Kontogruppe,
   PreprocessResult,
@@ -114,6 +116,7 @@ export default function Home() {
     compareVorjahr: false,
     includeUmbuchungen: false,
   }));
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [drillDown, setDrillDown] = useState<{
     kategorie: string;
     type: "einnahmen" | "ausgaben";
@@ -121,11 +124,12 @@ export default function Home() {
 
   const loadFromDb = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [txRes, kgRes, katRes, inhRes] = await Promise.all([
+      const [txRes, kgRes, katRes, inhRes, presetsRes] = await Promise.all([
         fetch("/api/transactions", { signal }),
         fetch("/api/kontogruppen", { signal }),
         fetch("/api/kategorien", { signal }),
         fetch("/api/inhaber", { signal }),
+        fetch("/api/filter-presets", { signal }),
       ]);
       const txData = await txRes.json();
       const kgData = await kgRes.json();
@@ -133,12 +137,14 @@ export default function Home() {
         kategorien: { name: string }[];
       };
       const inhData = (await inhRes.json()) as { inhaber: Inhaber[] };
+      const presetsData = (await presetsRes.json()) as { presets: FilterPreset[] };
       if (signal?.aborted) return;
       setTransactions(txData.transactions);
       setDbStats(txData.stats);
       setKontogruppen(kgData.kontogruppen);
       setKategorienNames(katData.kategorien.map((k) => k.name));
       setInhaber(inhData.inhaber);
+      setFilterPresets(presetsData.presets);
     } catch (e) {
       if ((e as { name?: string })?.name === "AbortError") return;
       console.error("Load failed:", e);
@@ -745,6 +751,67 @@ export default function Home() {
 
   const hasData = transactions.length > 0;
 
+  // Serialisierte Repräsentation der aktuellen Filter-Kombi — wird mit
+  // FilterPreset.payload verglichen (string-Vergleich), um den aktiven Preset
+  // und die Save-Button-Sichtbarkeit zu derivieren.
+  const currentPresetPayload = useMemo(
+    () => JSON.stringify({ auswertung: auswertungFilter, kontogruppen: filter }),
+    [auswertungFilter, filter]
+  );
+
+  const hasActiveFilters =
+    !isFilterEmpty(filter) ||
+    auswertungFilter.preset !== "alle" ||
+    auswertungFilter.direction !== "alle" ||
+    auswertungFilter.minBetrag > 0 ||
+    auswertungFilter.search.trim().length > 0 ||
+    auswertungFilter.compareVorjahr ||
+    auswertungFilter.includeUmbuchungen;
+
+  const reloadFilterPresets = useCallback(async () => {
+    const r = await fetch("/api/filter-presets");
+    const j = (await r.json()) as { presets: FilterPreset[] };
+    setFilterPresets(j.presets);
+  }, []);
+
+  const handleApplyPreset = useCallback((preset: FilterPreset) => {
+    try {
+      const parsed = JSON.parse(preset.payload) as {
+        auswertung?: AuswertungFilterState;
+        kontogruppen?: KontogruppeFilterValue;
+      };
+      if (parsed.auswertung) setAuswertungFilter(parsed.auswertung);
+      if (parsed.kontogruppen) setFilter(parsed.kontogruppen);
+    } catch (e) {
+      console.error("Preset-Payload ungültig:", e);
+    }
+  }, []);
+
+  const handleSavePreset = useCallback(
+    async (name: string): Promise<{ error?: string } | void> => {
+      const res = await fetch("/api/filter-presets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, payload: currentPresetPayload }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        return { error: j.error ?? "Speichern fehlgeschlagen." };
+      }
+      await reloadFilterPresets();
+    },
+    [currentPresetPayload, reloadFilterPresets]
+  );
+
+  const handleDeletePreset = useCallback(
+    async (preset: FilterPreset) => {
+      if (!confirm(`Preset „${preset.name}" löschen?`)) return;
+      await fetch(`/api/filter-presets/${preset.id}`, { method: "DELETE" });
+      await reloadFilterPresets();
+    },
+    [reloadFilterPresets]
+  );
+
   const navItems = [
     { id: "auswertung" as const, label: "Auswertung", icon: LineChart },
     { id: "wiederkehrend" as const, label: "Wiederkehrend", icon: Repeat },
@@ -957,6 +1024,16 @@ export default function Home() {
               <AuswertungFilter
                 state={auswertungFilter}
                 onChange={setAuswertungFilter}
+                headerSlot={
+                  <FilterPresetMenu
+                    presets={filterPresets}
+                    currentPayload={currentPresetPayload}
+                    hasActiveFilters={hasActiveFilters}
+                    onApply={handleApplyPreset}
+                    onSave={handleSavePreset}
+                    onDelete={handleDeletePreset}
+                  />
+                }
               />
 
               <SummaryCards

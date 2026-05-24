@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { Calendar, ChevronDown, Filter, Search, X } from "lucide-react";
 import {
   DateRange,
@@ -25,6 +25,9 @@ export interface AuswertungFilterState {
 interface Props {
   state: AuswertungFilterState;
   onChange: (next: AuswertungFilterState) => void;
+  /** Optionaler Slot für Preset-Menu o.ä., wird in der collapsed Header-Zeile
+   *  vor dem Aktiv-Counter / Chevron eingefügt. */
+  headerSlot?: ReactNode;
 }
 
 const PRESETS: RangePreset[] = [
@@ -60,7 +63,7 @@ function activeFilterCount(state: AuswertungFilterState): number {
   return n;
 }
 
-export default function AuswertungFilter({ state, onChange }: Props) {
+export default function AuswertungFilter({ state, onChange, headerSlot }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const activeCount = activeFilterCount(state);
 
@@ -93,11 +96,12 @@ export default function AuswertungFilter({ state, onChange }: Props) {
 
   return (
     <div className="rounded-2xl border border-border bg-surface">
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left cursor-pointer"
-      >
-        <div className="flex items-center gap-3">
+      <div className="flex w-full items-center justify-between gap-3 px-5 py-3">
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className="flex flex-1 items-center gap-3 text-left cursor-pointer"
+        >
           <Filter className="h-4 w-4 text-fg-muted" />
           <span className="text-sm font-medium text-fg">Filter</span>
           <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
@@ -125,27 +129,32 @@ export default function AuswertungFilter({ state, onChange }: Props) {
           {state.includeUmbuchungen && (
             <span className="text-xs text-fg-muted">· inkl. Umbuchungen</span>
           )}
-        </div>
+        </button>
         <div className="flex items-center gap-2">
+          {headerSlot}
           {activeCount > 0 && (
-            <span
-              role="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                resetAll();
-              }}
+            <button
+              type="button"
+              onClick={resetAll}
               className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-fg-muted hover:text-fg cursor-pointer"
               title="Filter zurücksetzen"
             >
               <X className="h-3 w-3" />
               {activeCount} aktiv
-            </span>
+            </button>
           )}
-          <ChevronDown
-            className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-          />
+          <button
+            type="button"
+            onClick={() => setIsOpen((v) => !v)}
+            className="rounded p-0.5 cursor-pointer"
+            title={isOpen ? "Zuklappen" : "Aufklappen"}
+          >
+            <ChevronDown
+              className={`h-4 w-4 text-fg-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+            />
+          </button>
         </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="space-y-3 border-t border-border px-5 py-4">
