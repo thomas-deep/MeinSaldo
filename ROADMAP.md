@@ -46,11 +46,11 @@ Legende: **A** = nächste Iteration · **B** = mittelfristig · **C** = wenn Zei
 
 Werden im Zuge angefasster Stellen behoben, nicht als eigene Roadmap-Posten:
 
-- Dedup-Hash inkl. `kontogruppeId` (führt zu Re-Insert bei Konto-Wechsel)
-- `is_manual_override`-Flag kollidiert zwischen User- und KI-Edits
-- DKB-Preprocess scannt nur die ersten 20 Zeilen
-- `TransactionTable` hartes `slice(0, 200)`
-- `localeCompare` ohne Locale-Argument
+- [x] ~~Dedup-Hash inkl. `kontogruppeId`~~ — Hash nutzt jetzt `ibanKonto` statt der Zuordnung; Re-Insert bei Konto-Wechsel löst nur noch ein UPDATE der `kontogruppe_id` aus.
+- [ ] `is_manual_override`-Flag kollidiert zwischen User- und KI-Edits
+- [x] ~~DKB-Preprocess scannt nur die ersten 20 Zeilen~~ — Schleife läuft über alle Zeilen; Regression-Test sichert Header-Position > 20 ab.
+- [ ] `TransactionTable` hartes `slice(0, 200)`
+- [ ] `localeCompare` ohne Locale-Argument
 
 ## Mitmachen
 
