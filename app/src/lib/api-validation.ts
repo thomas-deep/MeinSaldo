@@ -155,6 +155,10 @@ export const snapshotSchema = z.object({
 
 export const anchorSchema = snapshotSchema;
 
+export const snapshotsBulkSchema = z.object({
+  snapshots: z.array(snapshotSchema).min(1).max(2000),
+});
+
 function allowedOllamaHosts(): string[] {
   const env = process.env.ALLOWED_OLLAMA_HOSTS;
   if (env && env.trim()) {

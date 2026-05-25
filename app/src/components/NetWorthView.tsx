@@ -11,7 +11,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Plus, Trash2, Activity } from "lucide-react";
+import { Plus, Trash2, Activity, ClipboardPaste } from "lucide-react";
 import {
   NetWorthEntry,
   NetWorthHistoryPoint,
@@ -19,6 +19,7 @@ import {
 } from "../lib/types";
 import ConfirmDialog from "./ConfirmDialog";
 import { parseGermanNumber } from "../lib/number-format";
+import SnapshotBulkPasteModal from "./SnapshotBulkPasteModal";
 
 const eur = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -257,6 +258,7 @@ function EntryRow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [history, setHistory] = useState<NetWorthSnapshot[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const isManual = e.source === "manual";
   const path = kind === "asset" ? "assets" : "liabilities";
 
@@ -380,6 +382,19 @@ function EntryRow({
       )}
       {showHistory && isManual && (
         <div className="mt-3 border-t border-border pt-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-fg-faint">
+              Werteverlauf
+            </span>
+            <button
+              onClick={() => setBulkOpen(true)}
+              className="flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-border-strong hover:text-fg cursor-pointer"
+              title="Mehrere Werte aus einer Textliste einfügen"
+            >
+              <ClipboardPaste className="h-3 w-3" />
+              Mehrere einfügen
+            </button>
+          </div>
           {history === null ? (
             <p className="text-xs text-fg-muted">Lade Verlauf…</p>
           ) : history.length === 0 ? (
@@ -452,6 +467,17 @@ function EntryRow({
         onConfirm={confirmDelete}
         onCancel={() => setConfirmOpen(false)}
       />
+      {bulkOpen && (
+        <SnapshotBulkPasteModal
+          entryName={e.name}
+          endpoint={`/api/${path}/${e.id}/snapshots/bulk`}
+          onClose={() => setBulkOpen(false)}
+          onSaved={async () => {
+            await loadHistory();
+            onReload();
+          }}
+        />
+      )}
     </li>
   );
 }

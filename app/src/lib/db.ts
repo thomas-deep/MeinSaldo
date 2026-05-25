@@ -1196,6 +1196,56 @@ export function upsertLiabilitySnapshot(
     .run(liabilityId, date, value, new Date().toISOString());
 }
 
+/**
+ * Bulk-Upsert mehrerer Snapshots in einer Transaction. Bestehende
+ * Snapshots mit gleichem `(asset_id|liability_id, date)` werden auf den
+ * neuen Wert aktualisiert. Liefert die Anzahl tatsächlich angefasster
+ * Zeilen zurück (Insert + Update).
+ */
+export function bulkUpsertAssetSnapshots(
+  assetId: number,
+  snapshots: { date: string; value: number }[]
+): number {
+  const db = getDb();
+  const stmt = db.prepare(
+    `INSERT INTO asset_snapshots (asset_id, date, value, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(asset_id, date) DO UPDATE SET value = excluded.value`
+  );
+  let count = 0;
+  const tx = db.transaction(() => {
+    const now = new Date().toISOString();
+    for (const s of snapshots) {
+      const r = stmt.run(assetId, s.date, s.value, now);
+      count += r.changes;
+    }
+  });
+  tx();
+  return count;
+}
+
+export function bulkUpsertLiabilitySnapshots(
+  liabilityId: number,
+  snapshots: { date: string; value: number }[]
+): number {
+  const db = getDb();
+  const stmt = db.prepare(
+    `INSERT INTO liability_snapshots (liability_id, date, value, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(liability_id, date) DO UPDATE SET value = excluded.value`
+  );
+  let count = 0;
+  const tx = db.transaction(() => {
+    const now = new Date().toISOString();
+    for (const s of snapshots) {
+      const r = stmt.run(liabilityId, s.date, s.value, now);
+      count += r.changes;
+    }
+  });
+  tx();
+  return count;
+}
+
 export function getAssetSnapshots(assetId: number): NetWorthSnapshot[] {
   return getDb()
     .prepare(
