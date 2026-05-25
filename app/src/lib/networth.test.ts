@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthlyNetWorthHistory, balanceAsOf } from "./networth";
+import {
+  buildMonthlyNetWorthHistory,
+  balanceAsOf,
+  reconstructKontoMonthlySnapshots,
+} from "./networth";
 
 describe("balanceAsOf", () => {
   const bookings = [
@@ -80,5 +84,72 @@ describe("buildMonthlyNetWorthHistory", () => {
     );
     expect(result[0].assets).toBe(100);
     expect(result[1].assets).toBe(300);
+  });
+});
+
+describe("reconstructKontoMonthlySnapshots", () => {
+  it("ohne Anker: nimmt saldoNachBuchung des letzten Tags je Monat", () => {
+    const result = reconstructKontoMonthlySnapshots({
+      bookings: [
+        { date: "2026-01-10", betrag: 100, saldo: 1100 },
+        { date: "2026-01-20", betrag: 200, saldo: 1300 },
+        { date: "2026-02-05", betrag: -50, saldo: 1250 },
+      ],
+      anchorDate: null,
+      anchorValue: null,
+    });
+    expect(result).toEqual([
+      { date: "2026-01-31", value: 1300 },
+      { date: "2026-02-28", value: 1250 },
+    ]);
+  });
+
+  it("mit Anker: rekonstruiert Saldo vorwärts und rückwärts", () => {
+    // Anker: 28.02. = 1000 EUR (Saldo Ende Februar bekannt)
+    // Buchung 01.02. +200 → ist Teil des Anker-Werts, also Jan-Ende = 800
+    // Apr -50 → Saldo Ende Apr = 1000 - 50 = 950
+    const result = reconstructKontoMonthlySnapshots({
+      bookings: [
+        { date: "2026-01-15", betrag: 0, saldo: 0 }, // markiert nur Monat Jan
+        { date: "2026-02-01", betrag: 200, saldo: 0 },
+        { date: "2026-04-10", betrag: -50, saldo: 0 },
+      ],
+      anchorDate: "2026-02-28",
+      anchorValue: 1000,
+    });
+    expect(result).toEqual([
+      { date: "2026-01-31", value: 800 },
+      { date: "2026-02-28", value: 1000 },
+      { date: "2026-04-30", value: 950 },
+    ]);
+  });
+
+  it("asLiability: nimmt absoluten Wert (negativer Saldo wird positiv ausgewiesen)", () => {
+    const result = reconstructKontoMonthlySnapshots({
+      bookings: [{ date: "2026-01-15", betrag: -500, saldo: -500 }],
+      anchorDate: null,
+      anchorValue: null,
+      asLiability: true,
+    });
+    expect(result).toEqual([{ date: "2026-01-31", value: 500 }]);
+  });
+
+  it("liefert leere Liste wenn keine Buchungen und kein Anker", () => {
+    expect(
+      reconstructKontoMonthlySnapshots({
+        bookings: [],
+        anchorDate: null,
+        anchorValue: null,
+      })
+    ).toEqual([]);
+  });
+
+  it("liefert auch nur den Anker-Monat wenn keine Buchungen aber Anker da", () => {
+    const result = reconstructKontoMonthlySnapshots({
+      bookings: [],
+      anchorDate: "2026-05-15",
+      anchorValue: 7500,
+    });
+    expect(result).toEqual([{ date: "2026-05-31", value: 7500 }]);
   });
 });

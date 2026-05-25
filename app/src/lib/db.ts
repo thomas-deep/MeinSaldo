@@ -14,7 +14,12 @@ import {
   Tag,
   Transaction,
 } from "./types";
-import { buildMonthlyNetWorthHistory, balanceAsOf, SnapshotInput } from "./networth";
+import {
+  buildMonthlyNetWorthHistory,
+  balanceAsOf,
+  reconstructKontoMonthlySnapshots,
+  SnapshotInput,
+} from "./networth";
 import { categoryRules } from "./categories";
 import { detectUmbuchungen, UmbuchungInput } from "./umbuchung-detection";
 import {
@@ -1100,6 +1105,50 @@ function getKontogruppenAsEntries(): {
     }
   }
   return { assets, liabilities };
+}
+
+/** Liefert eine rekonstruierte monatliche Snapshot-Reihe für eine einzelne
+ *  Kontogruppe — fürs Mini-Chart in der Vermögensübersicht. Verwendet den
+ *  Anker (falls gesetzt) plus die Buchungsbeträge, sonst die in den CSVs
+ *  gelieferten `saldo_nach_buchung`-Werte des jeweils letzten Tages im
+ *  Monat. */
+export function getKontogruppeMonthlySnapshots(
+  kontogruppeId: number
+): NetWorthSnapshot[] {
+  const metaRow = getDb()
+    .prepare(
+      `SELECT id, art, anchor_date, anchor_value
+       FROM kontogruppen WHERE id = ?`
+    )
+    .get(kontogruppeId) as
+    | {
+        id: number;
+        art: KontogruppeArt;
+        anchor_date: string | null;
+        anchor_value: number | null;
+      }
+    | undefined;
+  if (!metaRow) return [];
+
+  const bookings = (getDb()
+    .prepare(
+      `SELECT buchungstag AS date, betrag, saldo_nach_buchung AS saldo
+       FROM transactions
+       WHERE kontogruppe_id = ?
+       ORDER BY buchungstag ASC, id ASC`
+    )
+    .all(kontogruppeId) as KontoBookingRow[]).map((b) => ({
+    date: b.date,
+    betrag: b.betrag,
+    saldo: b.saldo,
+  }));
+
+  return reconstructKontoMonthlySnapshots({
+    bookings,
+    anchorDate: metaRow.anchor_date,
+    anchorValue: metaRow.anchor_value,
+    asLiability: !isAssetArt(metaRow.art),
+  });
 }
 
 export function getAssets(): NetWorthEntry[] {

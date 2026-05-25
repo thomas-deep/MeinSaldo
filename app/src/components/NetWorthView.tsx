@@ -263,7 +263,12 @@ function EntryRow({
   const path = kind === "asset" ? "assets" : "liabilities";
 
   async function loadHistory() {
-    const res = await fetch(`/api/${path}/${e.id}/snapshots`);
+    // Manuelle Posten: gepflegte Snapshots. Konto-basierte Posten: aus
+    // Anker + Buchungen rekonstruierte Monats-Snapshots (read-only).
+    const url = isManual
+      ? `/api/${path}/${e.id}/snapshots`
+      : `/api/kontogruppen/${e.id}/snapshots`;
+    const res = await fetch(url);
     const json = await res.json();
     setHistory(json.snapshots as NetWorthSnapshot[]);
   }
@@ -324,20 +329,24 @@ function EntryRow({
             {e.latestValue !== null ? eur.format(e.latestValue) : "—"}
           </div>
           <div className="mt-1 flex items-center gap-1 justify-end">
+            <button
+              onClick={toggleHistory}
+              aria-label="Verlauf anzeigen"
+              title={
+                isManual
+                  ? "Werteverlauf"
+                  : "Werteverlauf aus Buchungen + Anker-Wert"
+              }
+              className={`rounded border border-border p-1 ${
+                showHistory
+                  ? "bg-bg-muted text-fg"
+                  : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" />
+            </button>
             {isManual && (
               <>
-                <button
-                  onClick={toggleHistory}
-                  aria-label="Verlauf anzeigen"
-                  title="Werteverlauf"
-                  className={`rounded border border-border p-1 ${
-                    showHistory
-                      ? "bg-bg-muted text-fg"
-                      : "text-fg-muted hover:text-fg"
-                  }`}
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                </button>
                 <button
                   onClick={() => setEditing((v) => !v)}
                   className="rounded border border-border px-1.5 py-0.5 text-[10px] text-fg-muted hover:text-fg"
@@ -380,27 +389,37 @@ function EntryRow({
           </button>
         </div>
       )}
-      {showHistory && isManual && (
+      {showHistory && (
         <div className="mt-3 border-t border-border pt-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-fg-faint">
-              Werteverlauf
+              {isManual
+                ? "Werteverlauf"
+                : "Werteverlauf (rekonstruiert)"}
             </span>
-            <button
-              onClick={() => setBulkOpen(true)}
-              className="flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-border-strong hover:text-fg cursor-pointer"
-              title="Mehrere Werte aus einer Textliste einfügen"
-            >
-              <ClipboardPaste className="h-3 w-3" />
-              Mehrere einfügen
-            </button>
+            {isManual && (
+              <button
+                onClick={() => setBulkOpen(true)}
+                className="flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-border-strong hover:text-fg cursor-pointer"
+                title="Mehrere Werte aus einer Textliste einfügen"
+              >
+                <ClipboardPaste className="h-3 w-3" />
+                Mehrere einfügen
+              </button>
+            )}
           </div>
           {history === null ? (
             <p className="text-xs text-fg-muted">Lade Verlauf…</p>
           ) : history.length === 0 ? (
             <p className="text-xs text-fg-muted">
-              Noch keine Werte erfasst — über &bdquo;Wert&ldquo; einen
-              datierten Eintrag anlegen.
+              {isManual ? (
+                <>
+                  Noch keine Werte erfasst — über &bdquo;Wert&ldquo; einen
+                  datierten Eintrag anlegen.
+                </>
+              ) : (
+                "Noch keine Buchungen auf diesem Konto."
+              )}
             </p>
           ) : (
             <div className="space-y-2">

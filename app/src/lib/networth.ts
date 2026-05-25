@@ -33,6 +33,61 @@ export function balanceAsOf(
   return bal;
 }
 
+/** Letzter Tag des Monats `YYYY-MM` als ISO-Datum. */
+function lastDayOfMonth(yyyymm: string): string {
+  const [yStr, mStr] = yyyymm.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  // Date(year, monthIndex+1, 0) liefert den letzten Tag des Vormonats —
+  // also genau den gewünschten Tag.
+  const d = new Date(Date.UTC(y, m, 0));
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${yStr}-${mStr}-${dd}`;
+}
+
+/** Rekonstruiert pro Buchungs-Monat einen Snapshot des Kontostands zum
+ *  Monatsende. Wenn ein Anker gesetzt ist, kommt der Anker-Monat ebenfalls
+ *  rein und der Verlauf wird darüber gestützt — auch rückwirkend. Ohne
+ *  Anker fällt der Wert pro Monat auf den `saldoNachBuchung` der letzten
+ *  Buchung des Monats zurück.
+ *
+ *  Die Buchungen müssen aufsteigend nach Datum sortiert sein. */
+export function reconstructKontoMonthlySnapshots(opts: {
+  bookings: { date: string; betrag: number; saldo: number }[];
+  anchorDate: string | null;
+  anchorValue: number | null;
+  /** Bei Liabilities (Kreditkarte) den Betrag absoluten Wert nehmen. */
+  asLiability?: boolean;
+}): { date: string; value: number }[] {
+  const { bookings, anchorDate, anchorValue, asLiability } = opts;
+  if (bookings.length === 0 && anchorDate === null) return [];
+
+  // Distinct months sammeln
+  const monthsSet = new Set<string>();
+  for (const b of bookings) monthsSet.add(b.date.slice(0, 7));
+  if (anchorDate) monthsSet.add(anchorDate.slice(0, 7));
+  const months = Array.from(monthsSet).sort();
+
+  const hasAnchor = anchorDate !== null && anchorValue !== null;
+
+  return months.map((m) => {
+    const monthEnd = lastDayOfMonth(m);
+    let raw: number;
+    if (hasAnchor) {
+      raw = balanceAsOf(anchorDate, anchorValue, bookings, monthEnd);
+    } else {
+      // Letzten saldoNachBuchung im oder vor diesem Monat suchen
+      let last = 0;
+      for (const b of bookings) {
+        if (b.date <= monthEnd) last = b.saldo;
+        else break;
+      }
+      raw = last;
+    }
+    return { date: monthEnd, value: asLiability ? Math.abs(raw) : raw };
+  });
+}
+
 /** Baut eine monatliche Net-Worth-Historie aus Asset- und Liability-Snapshots.
  *  Pro Monat wird der jeweils zuletzt-bekannte Wert je Entity verwendet
  *  (forward-fill): Wer einmal einen Wert hatte, behält ihn, bis ein neuer
