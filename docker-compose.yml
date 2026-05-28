@@ -1,24 +1,31 @@
-# MeinSaldo — Docker-Compose-Setup für lokale Nutzung.
+# MeinSaldo — Docker-Compose-Setup für Endnutzer.
+#
+# Standard-Variante: zieht das fertige Image aus der GitHub Container
+# Registry (Multi-Arch, läuft auf NAS-Geräten wie Synology, UGreen und
+# auf jedem x86/ARM-Linux).
 #
 # Start:        docker compose up -d
 # Logs:         docker compose logs -f meinsaldo
 # Stop:         docker compose down
-# Update:       docker compose pull && docker compose up -d --build
+# Update:       docker compose pull && docker compose up -d
 #
-# Daten:        liegen im benannten Volume `meinsaldo-data` (überlebt down/up).
-#               Sicherung: `docker run --rm -v meinsaldo-data:/data -v $PWD:/backup
-#                            alpine tar czf /backup/meinsaldo-backup.tgz /data`
+# Backup:       docker run --rm -v meinsaldo-data:/data -v $PWD:/backup \
+#                          alpine tar czf /backup/meinsaldo-backup.tgz /data
+#
+# Wer aus dem Quellcode bauen will (Entwickler-Modus):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 services:
   meinsaldo:
-    build: .
-    image: meinsaldo:local
+    image: ghcr.io/thomas-deep/meinsaldo:latest
     container_name: meinsaldo
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      # CSRF-Allowlist — auf abweichendem Host/Port anpassen
+      # CSRF-Allowlist — auf abweichendem Host/Port anpassen, z. B. wenn
+      # die App über die NAS-Adresse erreicht wird:
+      #   ALLOWED_ORIGINS: "http://nas.local:3000,http://192.168.1.50:3000"
       ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
       # KI-Host-Allowlist:
       #   "ollama"              → Compose-interner Service (Default)

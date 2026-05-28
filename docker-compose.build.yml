@@ -1,0 +1,13 @@
+# Compose-Overlay für lokales Bauen aus dem Quellcode.
+#
+# Nutzung (Entwickler):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Wirkung: überschreibt den Image-Pull-Tag durch einen lokalen Build aus dem
+# Repo-Stand. Praktisch, wenn du an Dockerfile-Änderungen arbeitest oder
+# einen PR-Branch testen willst, bevor das CI-Image gebaut wurde.
+
+services:
+  meinsaldo:
+    build: .
+    image: meinsaldo:local

@@ -16,7 +16,12 @@ cd MeinSaldo
 docker compose up -d
 ```
 
-App läuft danach auf [http://localhost:3000](http://localhost:3000), DB im persistenten Volume. Details und KI-Setup in [`QUICKSTART.md`](QUICKSTART.md).
+Zieht das vorgebaute Multi-Arch-Image (`ghcr.io/thomas-deep/meinsaldo:latest`,
+`linux/amd64` + `linux/arm64`) aus der GitHub Container Registry — läuft
+direkt auf NAS-Geräten wie Synology, UGreen und QNAP. App danach auf
+[http://localhost:3000](http://localhost:3000), DB im persistenten Volume.
+
+NAS-Setup und KI-Konfiguration in [`QUICKSTART.md`](QUICKSTART.md).
 
 **Lokal mit Node** (für Entwicklung):
 

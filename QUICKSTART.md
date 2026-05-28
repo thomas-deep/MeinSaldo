@@ -20,10 +20,35 @@ cd MeinSaldo
 docker compose up -d
 ```
 
-Beim ersten Lauf baut Docker das Image (dauert je nach Internet/CPU 2–5 min).
+Es wird ein vorgebautes Image aus der GitHub Container Registry gezogen
+(`ghcr.io/thomas-deep/meinsaldo:latest`, Multi-Arch für x86 und ARM) —
+kein lokaler Build nötig, dauert nur den Image-Download.
+
 Danach erreichbar unter **<http://localhost:3000>**.
 
 Stoppen mit `docker compose down` — die Daten bleiben erhalten.
+
+### Auf einem NAS (Synology, UGreen, QNAP) installieren
+
+Die meisten NAS-Geräte bieten Docker über eine eigene GUI an:
+
+1. **Docker-/Container-App** auf dem NAS öffnen (Synology: „Container Manager",
+   UGreen: „Docker", QNAP: „Container Station").
+2. **Registry / Image hinzufügen**: `ghcr.io/thomas-deep/meinsaldo` mit
+   Tag `latest` ziehen. Das Image bringt sowohl `linux/amd64` als auch
+   `linux/arm64` mit — die NAS-Oberfläche wählt automatisch die richtige.
+3. **Container starten** mit:
+   - Port 3000 nach außen mappen
+   - Verzeichnis-Mount: NAS-Ordner z. B. `/volume1/docker/meinsaldo` →
+     Container-Pfad `/data`
+   - Environment: `ALLOWED_ORIGINS=http://<nas-ip>:3000` (sonst werden
+     mutierende Requests abgewiesen)
+4. Für die KI-Kategorisierung optional einen zweiten Container mit
+   `ollama/ollama` starten, gleiches Docker-Netz, gleiche Anleitung wie
+   unten — oder weglassen, die regelbasierte Klassifikation läuft auch ohne.
+
+Die `docker-compose.yml` aus diesem Repo lässt sich in fast jede NAS-GUI
+direkt importieren und vereinfacht den Schritt 3 deutlich.
 
 ## Was passiert da?
 
@@ -114,12 +139,33 @@ Das Flag `-v` löscht **auch** die Volumes — alle Daten sind weg.
 ## Update auf eine neue Version
 
 ```bash
-git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
+Zieht die jeweils neueste veröffentlichte Version aus der Registry.
 Datenbank-Migrationen laufen beim ersten Start der neuen Version automatisch.
 Trotzdem **vorher das Backup** machen.
+
+Wer aus dem Quellcode bauen will (z. B. um einen Branch zu testen):
+
+```bash
+git pull
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+### Auf eine konkrete Version festnageln
+
+Statt `:latest` ein Versions-Tag wählen, damit Updates kontrolliert
+geschehen — in `docker-compose.yml`:
+
+```yaml
+services:
+  meinsaldo:
+    image: ghcr.io/thomas-deep/meinsaldo:0.2.0
+```
+
+Verfügbare Tags: <https://github.com/thomas-deep/MeinSaldo/pkgs/container/meinsaldo>.
 
 ## Anderer Host / Port
 
