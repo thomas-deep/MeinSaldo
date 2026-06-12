@@ -164,6 +164,34 @@ Der Tab **Vermögen** zeigt den Net Worth: Vermögen minus Verbindlichkeiten.
   2. **Multiselect-Bulk in der Tabelle** — force-Modus, überschreibt alles
   3. **Bei Import** — automatisch über die zwei Import-Buttons mit Sparkle-Icon
 
+### Datenbank (Sicherung & Wiederherstellung)
+
+Komplette Sicherungen der Datenbank — eine Sicherung enthält **alles**
+(Buchungen, Konten, Kategorien, Tags, Vermögen, Einstellungen).
+
+- **Sicherung erstellen** — wahlweise **verschlüsselt** (Schalter „Verschlüsseln"
+  + Passwort). Zwei Wege:
+  - **Im Speicher ablegen** — landet unter `data/backups/` (im Docker-Setup auf
+    dem persistenten Volume) und erscheint in der Liste.
+  - **Herunterladen** — lädt die Sicherung direkt als Datei, ohne sie abzulegen.
+- **Abgelegte Sicherungen** — Liste mit Datum, Größe und Schloss-Symbol bei
+  verschlüsselten. Pro Eintrag: **Herunterladen**, **Wiederherstellen**, **Löschen**.
+- **Aus Datei wiederherstellen** — eine zuvor heruntergeladene `.db`- oder
+  `.msbak`-Datei hochladen und einspielen.
+- Beim Wiederherstellen wird die aktuelle Datenbank **vollständig ersetzt** —
+  direkt davor legt die App **automatisch eine Schutz-Sicherung** des jetzigen
+  Standes an (ebenso vor „DB leeren"). Bei einer verschlüsselten Sicherung wird
+  nach dem Passwort gefragt.
+
+> **Wichtig — Verschlüsselung:** Das Passwort wird nirgends gespeichert. Geht es
+> verloren, ist die verschlüsselte Sicherung **nicht** wiederherstellbar.
+
+> **Hinweis — Daten auf der Platte:** Die Datenbank selbst (`app/data/finanzen.db`
+> bzw. das Docker-Volume) liegt **unverschlüsselt**. Wer das absichern will,
+> sollte für Datenträger-/Ordner-Verschlüsselung (z. B. FileVault, LUKS,
+> verschlüsseltes NAS-Volume) und Zugriffsschutz sorgen. Die Backup-Verschlüsselung
+> oben schützt nur die **Sicherungsdateien**, nicht die laufende Datenbank.
+
 ### Logs
 Audit-Trail für KI-Klassifikationen (mit Prompt + Antwort), Imports, DB-Operationen und Settings-Änderungen. Filter nach Event-Typ, klickbare Zeilen klappen JSON-Details aus. Auto-Trim bei >5000 Einträgen.
 

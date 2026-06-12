@@ -4,6 +4,68 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+## v0.3.0 — Datenbank-Sicherung + Docker-Images (2026-06-12)
+
+### Datenbank-Sicherung (Backup & Restore)
+
+- **Neue Einstellungen-Sektion „Datenbank"**: vollständige Sicherungen der DB
+  (alle Tabellen inkl. `settings`) anlegen, herunterladen, hochladen,
+  wiederherstellen und löschen.
+- **Optionale Verschlüsselung** der Sicherung: AES-256-GCM, Schlüssel via
+  `scrypt` aus einem Passwort. Container-Format `.msbak`
+  (`MAGIC | salt | iv | authTag | ciphertext`); authenticated → falsches
+  Passwort/Manipulation scheitern sauber. Passwort wird nie gespeichert und
+  beim Wiederherstellen abgefragt. Unverschlüsselte Sicherungen sind rohe
+  `.db`-Dateien (mit jedem SQLite-Tool lesbar).
+- **Zwei Wege beim Erstellen**: im Speicher ablegen (`data/backups/`, im Docker
+  auf dem persistenten Volume) oder direkt herunterladen ohne Ablage.
+- **Restore** validiert die Datei (`quick_check` + Schema), legt **automatisch
+  eine Schutz-Sicherung** des aktuellen Standes an und tauscht dann die DB-Datei
+  atomar unter der laufenden Verbindung (`closeDb` mit WAL-Checkpoint →
+  `rename`). Eine ältere Sicherung wird beim Öffnen automatisch aufs aktuelle
+  Schema migriert. Schutz-Sicherung auch vor „DB leeren".
+- Snapshots via `VACUUM INTO` (konsistent, kompakt, ohne WAL-Sidecar). Pfad-
+  Sicherheit gegen Traversal; In-Memory-Lock serialisiert Backup/Restore (409).
+- Neue Module `lib/backup-crypto.ts`, `lib/backup.ts`, `lib/backup-response.ts`,
+  Komponenten `DatabaseBackup` + `PasswordPromptDialog`; Routen `/api/backups`,
+  `/api/backups/[name]`, `/api/backups/[name]/restore`, `/api/backup-download`,
+  `/api/backup-restore-upload` (Download/Upload als Geschwister-Routen, um den
+  Next-16-Konflikt mit `[name]` zu vermeiden).
+- 20 neue Vitest-Tests (Crypto-Round-Trip, falsches Passwort, Restore-Swap,
+  Path-Traversal); insgesamt **219 grün**.
+
+> **Hinweis:** Die laufende Datenbank liegt weiterhin **unverschlüsselt** auf
+> der Platte — eine DB-Verschlüsselung im Betrieb ist bewusst nicht eingebaut.
+> Schutz bei Bedarf über Datenträger-/Ordner-Verschlüsselung. Die
+> Backup-Verschlüsselung schützt nur die Sicherungsdateien.
+
+### Docker & Distribution
+
+- **GHCR-Publishing-Pipeline + Standalone-Image**: Multi-Arch-Image
+  (`linux/amd64`, `linux/arm64`) auf Basis von Next.js `output: "standalone"`,
+  lauffähig auf NAS-Geräten (Synology, UGreen). `docker compose up -d` zieht das
+  fertige Image; DB unter `/data` per Volume persistiert.
+
+### Vermögen
+
+- **Werteverlauf-Chart auch für konto-basierte Posten**: Mini-Chart/Verlauf
+  jetzt ebenfalls für die automatisch aus Kontogruppen abgeleiteten
+  Vermögens-/Verbindlichkeits-Einträge (rekonstruierte Monats-Snapshots).
+- **Bulk-Paste für Asset/Liability-Snapshots**: mehrere Werteverlaufs-Einträge
+  auf einmal einfügen (Bulk-Upsert je `(entity, date)`).
+
+### CSV-Import
+
+- **Encoding-Auto-Detect** (UTF-8 vs. windows-1252) — robustere Erkennung beim
+  Einlesen statt fester Preset-Vorgabe.
+
+### Fixes & Doku
+
+- Lokalisierte Sortierung durchgängig auf `de-DE` / `Intl.Collator`;
+  Override-Trennung getestet.
+- README: Screenshots aus der Landing-Page eingebunden, Featureblock kompakter;
+  erledigte „Bekannte Bugs" aus ROADMAP/CLAUDE entfernt.
+
 ## v0.2.0 — IBAN-Auto-Match + Filter-Presets (2026-05-24)
 
 ### IBAN-basierte Auto-Konto-Zuordnung beim CSV-Import
