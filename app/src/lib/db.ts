@@ -36,12 +36,27 @@ function resolveDbPath(): string {
   );
 }
 
+/** Absoluter Pfad der aktiven SQLite-Datei — von der Backup-Logik genutzt,
+ *  um Sicherungen daneben abzulegen und beim Restore die Datei zu ersetzen. */
+export function getDbFilePath(): string {
+  return resolveDbPath();
+}
+
 let dbInstance: Database.Database | null = null;
 
-/** Test-Hilfe: schließt die DB und vergisst das Singleton, damit der nächste
- * `getDb()`-Aufruf eine frische Instanz öffnet. Nur in Tests verwenden. */
-export function __resetDbForTests(): void {
+/** Schließt das DB-Singleton und vergisst es, sodass der nächste `getDb()`
+ *  eine frische Instanz öffnet. Wird beim Restore gebraucht, um die Datei
+ *  unter der offenen Verbindung austauschen zu können. */
+export function closeDb(): void {
   if (dbInstance) {
+    try {
+      // WAL in die Hauptdatei falten, damit die .db-Datei nach dem Schließen
+      // vollständig ist (wichtig für den Restore-Datei-Tausch und als
+      // Sicherheitsnetz, falls der Tausch fehlschlägt).
+      dbInstance.pragma("wal_checkpoint(TRUNCATE)");
+    } catch {
+      // ignore (z.B. :memory: ohne WAL)
+    }
     try {
       dbInstance.close();
     } catch {
@@ -49,6 +64,12 @@ export function __resetDbForTests(): void {
     }
     dbInstance = null;
   }
+}
+
+/** Test-Hilfe: schließt die DB und vergisst das Singleton, damit der nächste
+ * `getDb()`-Aufruf eine frische Instanz öffnet. Nur in Tests verwenden. */
+export function __resetDbForTests(): void {
+  closeDb();
 }
 
 interface Migration {
@@ -534,6 +555,22 @@ function getDb(): Database.Database {
 
   dbInstance = db;
   return db;
+}
+
+/** Stellt sicher, dass die DB geöffnet (und migriert) ist. Wird nach einem
+ *  Restore aufgerufen, um die frisch eingespielte Datei zu öffnen und ggf.
+ *  ein älteres Schema auf den aktuellen Stand zu migrieren. */
+export function reopenDb(): void {
+  getDb();
+}
+
+/** Schreibt eine konsistente, kompakte Kopie der aktuellen DB nach
+ *  `targetPath` (ohne WAL-Sidecar). Grundlage der Backup-Snapshots.
+ *  Der Pfad wird app-seitig erzeugt; einfache Hochkommata werden für das
+ *  SQL-String-Literal escaped (`VACUUM INTO` akzeptiert keine Bind-Parameter). */
+export function vacuumInto(targetPath: string): void {
+  const escaped = targetPath.replace(/'/g, "''");
+  getDb().exec(`VACUUM INTO '${escaped}'`);
 }
 
 export function computeTransactionHash(

@@ -7,6 +7,7 @@ import {
   logEvent,
 } from "../../../lib/db";
 import { parseBody, transactionsPostSchema } from "../../../lib/api-validation";
+import { createSafetySnapshot } from "../../../lib/backup";
 
 export async function GET() {
   const transactions = getAllTransactions();
@@ -27,9 +28,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
+  // Schutz-Sicherung der kompletten DB anlegen, bevor unwiderruflich geleert
+  // wird (schlägt sie fehl, blockiert das die Löschung nicht — siehe Logs).
+  const snapshot = createSafetySnapshot("vor-leeren");
   const count = clearAll();
   logEvent("warn", "db.clear", `Alle Transaktionen gelöscht (${count} Zeilen)`, {
     deleted: count,
+    safetyBackup: snapshot?.name ?? null,
   });
-  return NextResponse.json({ deleted: count });
+  return NextResponse.json({ deleted: count, safetyBackup: snapshot?.name ?? null });
 }

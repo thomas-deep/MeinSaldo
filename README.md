@@ -1,6 +1,6 @@
 # MeinSaldo
 
-> **v0.2.0** · Lokales Web-Tool zur Aufbereitung von Konto- und Kreditkarten-CSV-Exporten. Mehrere Banken parallel, Inhaber/Konten-Hierarchie, paarweise Umbuchungs-Erkennung, regelbasierte plus optional KI-gestützte Kategorisierung, Auswertung mit Filter und Vorjahresvergleich. Light- und Dark-Mode. **Alles bleibt auf deinem Rechner.**
+> **v0.3.0** · Lokales Web-Tool zur Aufbereitung von Konto- und Kreditkarten-CSV-Exporten. Mehrere Banken parallel, Inhaber/Konten-Hierarchie, paarweise Umbuchungs-Erkennung, regelbasierte plus optional KI-gestützte Kategorisierung, Auswertung mit Filter und Vorjahresvergleich. Light- und Dark-Mode. **Alles bleibt auf deinem Rechner.**
 
 <p align="center">
   <img src="site/img/dashboard.png" alt="MeinSaldo — Auswertungs-Dashboard mit Monatschart, Kategorien-Donut und SummaryCards" width="900" />
@@ -93,12 +93,13 @@ Wenn ein lokales [Ollama](https://ollama.com) läuft, klassifiziert ein lokales 
 - **Tags** quer zu Kategorien (`urlaub-2025`, `renovierung`) für Querschnittsauswertungen
 - **Bulk-Aktionen** in der Transaktionstabelle: Kategorie/Konto wechseln, Umbuchung markieren, KI-Klassifikation, Löschen
 - **23+ vordefinierte Kategorisierungs-Regeln** mit ~830 Keywords; voll editierbarer Editor
+- **Datenbank-Sicherung** (Einstellungen → Datenbank): komplette Backups anlegen, herunterladen/hochladen, wiederherstellen — optional AES-256-verschlüsselt; automatische Schutz-Sicherung vor Restore und „DB leeren"
 
 ### Sicherheit & Tooling
 
 - **CSRF-Schutz** via Origin-Allowlist (Middleware), **SSRF-Härtung** für `ollamaUrl` (Default Loopback-only)
 - **Zod-Validierung** auf allen mutierenden API-Routes, **Concurrency-Lock** auf AI-Endpoint (parallele Läufe → 429)
-- **Vitest** mit 168 Tests — Domain-Logik **und** API-Routes mit isolierter In-Memory-SQLite pro Test
+- **Vitest** mit 219 Tests — Domain-Logik **und** API-Routes mit isolierter In-Memory-SQLite pro Test
 - **Light/Dark-Mode** mit Token-System auf oklch-Basis
 
 ## Dokumentation
@@ -127,6 +128,12 @@ Alles bleibt auf dem Rechner:
 - Datenbank ist eine einzelne SQLite-Datei unter `app/data/`
 - Ollama (falls aktiviert) läuft ebenfalls lokal
 - Keine Telemetrie, keine Cloud-Sync, keine Auth (bewusst single-user, single-host)
+
+> **Daten at rest:** Die SQLite-Datei liegt **unverschlüsselt** auf der Platte —
+> eine DB-Verschlüsselung im Betrieb ist bewusst nicht eingebaut. Wer das
+> absichern möchte, nutzt Datenträger-/Ordner-Verschlüsselung (FileVault, LUKS,
+> verschlüsseltes NAS-Volume) und Zugriffsschutz. **Sicherungen** lassen sich in
+> der App optional AES-256-verschlüsselt anlegen (Einstellungen → Datenbank).
 
 ## Konfiguration
 

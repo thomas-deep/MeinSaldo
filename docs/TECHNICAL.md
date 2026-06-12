@@ -18,7 +18,8 @@ Stand: **v0.2.0**.
 │  ├─ Daten: CsvUpload, FieldMapping, CsvImportPreview,        │
 │  │         ImportHistory, DbStatus                           │
 │  └─ Einstellungen: InhaberManager, KontogruppenManager,      │
-│              CategoriesView, TagManager, AiSettings, LogsView│
+│              CategoriesView, TagManager, AiSettings,          │
+│              DatabaseBackup, LogsView                         │
 └─────────────────────┬───────────────────────────────────────┘
                       │ fetch (mit Origin-Check via Middleware)
 ┌─────────────────────▼───────────────────────────────────────┐
@@ -40,6 +41,8 @@ Stand: **v0.2.0**.
 │  /api/assets(/[id])    GET/POST · DELETE  (+/snapshots POST) │
 │  /api/liabilities(/[id])  GET/POST · DELETE (+/snapshots)    │
 │  /api/settings         GET/PUT                               │
+│  /api/backups(/[name](/restore))  GET/POST · GET/DELETE · POST│
+│  /api/backup-download  POST   /api/backup-restore-upload POST │
 │  /api/logs             GET/DELETE                            │
 │  /api/ai/models        GET (Proxy auf Ollama)                │
 │  /api/ai/categorize    GET/POST   (mit Concurrency-Lock)     │
@@ -484,6 +487,65 @@ Konto-Anker: `PUT/DELETE /api/kontogruppen/[id]/anchor` (siehe oben).
 | **Input-Validation** | Zod auf allen mutierenden Routes | — |
 | **AbortController** | Mount-Fetches in den Komponenten, durch bis zum Ollama-Fetch | — |
 
+## Datenbank-Sicherung (Backup & Restore)
+
+Einstellungen → **Datenbank**. Eine Sicherung ist eine vollständige Kopie der
+SQLite-Datei (alle Tabellen, inkl. `settings`), erzeugt via `VACUUM INTO` —
+ein konsistenter, kompakter Snapshot ohne `-wal`/`-shm`-Sidecar.
+
+### Module
+- `lib/backup-crypto.ts` (pure) — `encryptBackup`/`decryptBackup`/
+  `isEncryptedBackup`. AES-256-GCM, Schlüssel via `scrypt(password, salt)`.
+  Container-Layout: `MAGIC("MSBAK1\0\0", 8) | salt(16) | iv(12) | authTag(16) |
+  ciphertext`. GCM ist authenticated → falsches Passwort oder Manipulation
+  scheitern mit `BackupAuthError`.
+- `lib/backup.ts` — Filesystem-Orchestrierung: `createBackup`,
+  `createBackupBuffer` (Download ohne Ablage), `listBackups`, `readBackup`,
+  `deleteBackup`, `restoreFromBuffer`/`restoreFromStored`,
+  `createSafetySnapshot`. Pfad-Sicherheit über `resolveBackupPath` (nur
+  Basenames in `backups/`, kein Path-Traversal). Ein In-Memory-`opInProgress`-
+  Lock serialisiert Backup/Restore (→ 409 `BackupBusyError`).
+- `lib/db.ts` — `getDbFilePath`, `vacuumInto`, `closeDb` (checkpointet das WAL
+  per `wal_checkpoint(TRUNCATE)`, bevor geschlossen wird) und `reopenDb`.
+- `lib/backup-response.ts` — Mapping der Fehlerklassen auf HTTP-Antworten mit
+  `code`-Feld (`busy`, `not_found`, `password_required`, `wrong_password`,
+  `invalid`, …) + `fileDownloadResponse`.
+
+### Ablage
+`<dataDir>/backups/` (Geschwister von `finanzen.db`). Im Docker-Setup liegt das
+auf dem gemounteten Volume `/data` und überlebt Container-Neustarts.
+Dateinamen: `meinsaldo-YYYYMMDD-HHMMSS.db` (unverschlüsselt) bzw. `.msbak`
+(verschlüsselt); Schutz-Sicherungen `schutz-vor-restore-…` / `schutz-vor-leeren-…`.
+Aufbewahrung: alle behalten (manuelles Löschen im UI).
+
+### Restore-Ablauf (Datei-Tausch unter laufender Verbindung)
+1. Bei `.msbak`: entschlüsseln → Temp-Datei in `backups/`.
+2. Validieren: read-only öffnen, `PRAGMA quick_check = ok` **und** `schema_migrations`/
+   `transactions` vorhanden (sonst `BackupInvalidError`).
+3. `createSafetySnapshot("vor-restore")` — Sicherheitsnetz.
+4. `closeDb()` (checkpoint), Sidecars `-wal`/`-shm` löschen,
+   `fs.renameSync(tmp, dbPath)` ersetzt die Datei atomar (gleiche Partition).
+5. `reopenDb()` öffnet die frische Datei und lässt `runMigrations()` laufen →
+   eine **ältere** Sicherung wird automatisch aufs aktuelle Schema migriert.
+
+### API
+| Route | Zweck |
+|---|---|
+| `GET /api/backups` | Liste `{ name, size, createdAt, encrypted }` |
+| `POST /api/backups` | `{ encrypt, password? }` legt Sicherung ab |
+| `GET /api/backups/[name]` | Download (octet-stream) |
+| `DELETE /api/backups/[name]` | löschen |
+| `POST /api/backups/[name]/restore` | `{ password? }` aus abgelegter Sicherung |
+| `POST /api/backup-download` | `{ encrypt, password? }` erzeugt & streamt ohne Ablage |
+| `POST /api/backup-restore-upload` | multipart `file` (+ `password?`) einspielen |
+
+Download/Upload liegen als **Geschwister-Routen** (nicht unter `/api/backups/`),
+um den Next-16-Konflikt statischer Segmente mit dem dynamischen `[name]` zu
+vermeiden — derselbe Grund wie bei `/api/transactions-bulk`. Passwörter werden
+nie geloggt oder persistiert; bei Restore einer verschlüsselten Sicherung fragt
+das UI danach (Server-`code: password_required` steuert den Dialog).
+Schutz-Sicherung auch vor „DB leeren" (`DELETE /api/transactions`).
+
 ## Erweiterungspunkte
 
 ### Neue Bank
@@ -581,4 +643,12 @@ npx eslint .     # Lint
   Buchungen — kein paralleles Inferencing
 - **Kein Logging-Retention-System**: Auto-Trim bei >5000 Log-Einträgen, kein
   externes Log-Storage
-- **Kein Backup-Mechanismus**: SQLite-Datei manuell sichern
+- **Backup ohne Zeitplan**: Sicherungen sind manuell (Einstellungen →
+  Datenbank); zusätzlich entsteht automatisch eine Schutz-Sicherung vor
+  Restore und „DB leeren". Keine zeitgesteuerten Backups (siehe Backup-Abschnitt).
+- **DB unverschlüsselt at rest**: `finanzen.db` (bzw. das Docker-Volume `/data`)
+  liegt im Klartext auf der Platte — eine DB-Verschlüsselung im Betrieb
+  (SQLCipher o.ä.) ist bewusst **nicht** eingebaut. Schutz bei Bedarf über
+  Datenträger-/Ordner-Verschlüsselung (FileVault, LUKS, verschlüsseltes
+  NAS-Volume) und Zugriffsrechte. Nur die **Sicherungsdateien** lassen sich
+  optional AES-256-verschlüsseln (siehe Backup-Abschnitt).

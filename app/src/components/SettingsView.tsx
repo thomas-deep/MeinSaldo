@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Tag, Tags as TagsIcon, Sparkles, ScrollText } from "lucide-react";
+import {
+  Users,
+  Tag,
+  Tags as TagsIcon,
+  Sparkles,
+  ScrollText,
+  Database,
+} from "lucide-react";
 import InhaberManager from "./InhaberManager";
 import KontogruppenManager from "./KontogruppenManager";
 import CategoriesView from "./CategoriesView";
 import TagManager from "./TagManager";
 import AiSettings from "./AiSettings";
 import LogsView from "./LogsView";
+import DatabaseBackup from "./DatabaseBackup";
 import { Inhaber, Kontogruppe } from "../lib/types";
 
 interface SettingsViewProps {
@@ -16,13 +24,14 @@ interface SettingsViewProps {
   onKontogruppenChange: () => void;
 }
 
-type Section = "konten" | "kategorien" | "tags" | "ki" | "logs";
+type Section = "konten" | "kategorien" | "tags" | "ki" | "datenbank" | "logs";
 
 const SECTIONS: { id: Section; label: string; icon: typeof Users }[] = [
   { id: "konten", label: "Inhaber & Konten", icon: Users },
   { id: "kategorien", label: "Kategorien", icon: Tag },
   { id: "tags", label: "Tags", icon: TagsIcon },
   { id: "ki", label: "KI-Kategorisierung", icon: Sparkles },
+  { id: "datenbank", label: "Datenbank", icon: Database },
   { id: "logs", label: "Logs", icon: ScrollText },
 ];
 
@@ -73,6 +82,7 @@ export default function SettingsView({
         {section === "kategorien" && <CategoriesView />}
         {section === "tags" && <TagManager />}
         {section === "ki" && <AiSettings />}
+        {section === "datenbank" && <DatabaseBackup />}
         {section === "logs" && <LogsView />}
       </div>
     </div>

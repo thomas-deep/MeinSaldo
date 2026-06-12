@@ -219,3 +219,17 @@ export const aiCategorizeSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "ids array darf nicht leer sein"),
   force: z.boolean().optional(),
 });
+
+export const backupCreateSchema = z
+  .object({
+    encrypt: z.boolean(),
+    password: z.string().min(1).max(256).optional(),
+  })
+  .refine((d) => !d.encrypt || (d.password?.length ?? 0) > 0, {
+    message: "Passwort erforderlich für verschlüsselte Sicherung",
+    path: ["password"],
+  });
+
+export const backupRestoreSchema = z.object({
+  password: z.string().min(1).max(256).optional(),
+});
