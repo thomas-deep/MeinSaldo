@@ -28,16 +28,18 @@
   <body>
     <!-- ── Navigation ─────────────────────────────────────────── -->
     <header class="nav" id="top">
-      <a class="wordmark" href="#top" aria-label="MeinSaldo">
-        <span class="wordmark-bar" aria-hidden="true"></span>
-        <span><em>Mein</em>Saldo</span>
-      </a>
-      <nav class="nav-links">
-        <a href="#funktionen">Funktionen</a>
-        <a href="#datenschutz">Datenschutz</a>
-        <a href="#start">Schnellstart</a>
-        <a class="nav-cta" href="https://github.com/thomas-deep/MeinSaldo">GitHub</a>
-      </nav>
+      <div class="container nav-inner">
+        <a class="wordmark" href="#top" aria-label="MeinSaldo">
+          <span class="wordmark-bar" aria-hidden="true"></span>
+          <span><em>Mein</em>Saldo</span>
+        </a>
+        <nav class="nav-links">
+          <a href="#funktionen">Funktionen</a>
+          <a href="#datenschutz">Datenschutz</a>
+          <a href="#start">Schnellstart</a>
+          <a class="nav-cta" href="https://github.com/thomas-deep/MeinSaldo">GitHub</a>
+        </nav>
+      </div>
     </header>
 
     <main>
@@ -76,7 +78,8 @@
 
       <!-- ── Stats ────────────────────────────────────────────── -->
       <section class="stats">
-        <div class="container stats-grid">
+        <div class="container">
+        <div class="stats-grid">
           <div class="stat reveal">
             <span class="stat-num">100&thinsp;%</span>
             <span class="stat-label">lokal verarbeitet</span>
@@ -93,6 +96,7 @@
             <span class="stat-num">∞</span>
             <span class="stat-label">Konten &amp; Inhaber</span>
           </div>
+        </div>
         </div>
       </section>
 
@@ -179,8 +183,38 @@
           </figure>
         </article>
 
+        <article class="showcase container">
+          <div class="showcase-text reveal">
+            <span class="showcase-kicker">Mobil</span>
+            <h3>Die Auswertung in der Hosentasche</h3>
+            <p>
+              Auf dem Smartphone öffnet sich MeinSaldo als eigene,
+              touch-optimierte Ansicht: Saldo, Kategorien, Buchungen,
+              Vermögen und Abos im Schnellzugriff. Wegen der Komplexität
+              bewusst eine reine Sicht — Daten ändern geht mobil nicht,
+              einzig die Kategorie einer Buchung lässt sich anpassen.
+              Import und Verwaltung bleiben am Desktop.
+            </p>
+          </div>
+          <figure class="showcase-phones reveal" style="--d: 1">
+            <div
+              class="phone-stack"
+              role="button"
+              tabindex="0"
+              aria-label="Smartphone-Ansichten durchblättern"
+            >
+              <img class="phone-card" src="img/iphone-dashboard.png" alt="Mobile Übersicht mit Saldo, Monatsverlauf und Kategorien" width="1339" height="2716" loading="lazy" draggable="false" />
+              <img class="phone-card" src="img/iphone-drilldown.png" alt="Mobile Buchungsliste mit Kategorie-Drilldown" width="1339" height="2716" loading="lazy" draggable="false" />
+              <img class="phone-card" src="img/iphone-networth.png" alt="Mobile Vermögensübersicht mit Verlauf" width="1339" height="2716" loading="lazy" draggable="false" />
+              <img class="phone-card" src="img/iphone-recurring.png" alt="Mobile Abo-Übersicht mit festen Kosten pro Monat" width="1339" height="2716" loading="lazy" draggable="false" />
+            </div>
+            <figcaption class="phone-hint">Klicken oder tippen zum Weiterblättern</figcaption>
+          </figure>
+        </article>
+
         <!-- ── Feature-Grid ───────────────────────────────────── -->
-        <div class="container feature-grid">
+        <div class="container">
+        <div class="feature-grid">
           <div class="feature reveal">
             <h4>Mehrkonten-Import</h4>
             <p>
@@ -228,6 +262,7 @@
             </p>
           </div>
         </div>
+        </div>
       </section>
 
       <!-- ── Datenschutz ──────────────────────────────────────── -->
@@ -241,31 +276,41 @@
           <ul class="privacy-list">
             <li class="reveal">
               <span class="privacy-mark" aria-hidden="true"></span>
-              Keine Cloud, kein Konto, keine Anmeldung. Die App läuft auf
-              <code>localhost</code>.
+              <span class="privacy-text">
+                Keine Cloud, kein Konto, keine Anmeldung. Die App läuft auf
+                <code>localhost</code>.
+              </span>
             </li>
             <li class="reveal" style="--d: 1">
               <span class="privacy-mark" aria-hidden="true"></span>
-              Alle Buchungen liegen in einer einzigen SQLite-Datei auf deiner
-              Festplatte.
+              <span class="privacy-text">
+                Alle Buchungen liegen in einer einzigen SQLite-Datei auf deiner
+                Festplatte.
+              </span>
             </li>
             <li class="reveal" style="--d: 2">
               <span class="privacy-mark" aria-hidden="true"></span>
-              Optionale KI-Kategorisierung über ein lokales Ollama-Modell —
-              auch hier verlässt nichts den Rechner.
+              <span class="privacy-text">
+                Optionale KI-Kategorisierung über ein lokales Ollama-Modell —
+                auch hier verlässt nichts den Rechner.
+              </span>
             </li>
             <li class="reveal" style="--d: 3">
               <span class="privacy-mark" aria-hidden="true"></span>
-              Keine Telemetrie, kein Tracking, keine Analytics. Es gibt
-              schlicht nichts zu sammeln.
+              <span class="privacy-text">
+                Keine Telemetrie, kein Tracking, keine Analytics. Es gibt
+                schlicht nichts zu sammeln.
+              </span>
             </li>
             <li class="reveal" style="--d: 4">
               <span class="privacy-mark" aria-hidden="true"></span>
-              Die SQLite-Datei liegt <strong>unverschlüsselt</strong> auf der
-              Platte — sorge je nach Schutzbedarf selbst für Datenträger-
-              bzw. Ordner-Verschlüsselung und Zugriffsschutz. Sicherungen
-              lassen sich in der App auf Wunsch <strong>AES-256-verschlüsselt</strong>
-              anlegen.
+              <span class="privacy-text">
+                Die SQLite-Datei liegt <strong>unverschlüsselt</strong> auf der
+                Platte — sorge je nach Schutzbedarf selbst für Datenträger-
+                bzw. Ordner-Verschlüsselung und Zugriffsschutz. Sicherungen
+                lassen sich in der App auf Wunsch
+                <strong>AES-256-verschlüsselt</strong> anlegen.
+              </span>
             </li>
           </ul>
         </div>
