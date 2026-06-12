@@ -85,6 +85,13 @@ app/
 │   │       ├── logs/              Audit-Trail
 │   │       └── ai/                Ollama-Proxy + Klassifikation
 │   ├── components/                React-Komponenten
+│   │   ├── mobile/                Smartphone-Shell (siehe „Mobile-Ansicht")
+│   │   │   ├── MobileApp.tsx      Bottom-Tab-Shell + Sheet-Host
+│   │   │   ├── MobileDashboard.tsx        Hero-Saldo, Cashflow, Kategorien
+│   │   │   ├── MobileTransactionList.tsx  Suche, Tages-Gruppen, Paging
+│   │   │   ├── MobileTransactionSheet.tsx Detail-Sheet + Kategorie-Wechsel
+│   │   │   ├── MobileNetWorth.tsx         Vermögen read-only + Sparkline
+│   │   │   └── MobileRecurring.tsx        Abos read-only + Fixkosten/Monat
 │   │   ├── ThemeProvider.tsx      System/Light/Dark mit Persistenz
 │   │   ├── ThemeToggle.tsx        3-State Pill im Header
 │   │   ├── SearchPalette.tsx      ⌘K-Volltextsuche-Modal
@@ -126,6 +133,8 @@ app/
 │   │   ├── api-validation.ts      Zod-Schemas + parseBody-Helper
 │   │   ├── test-helpers.ts        In-Memory-DB-Setup für Tests
 │   │   ├── use-ai-categorize.ts   Client-Hook + Runner
+│   │   ├── use-is-mobile.ts       Viewport-Switch (< 768px) via matchMedia
+│   │   ├── mobile-format.ts       Format-Helfer der Mobile-Ansicht (pure)
 │   │   ├── chart-theme.ts         CSS-Var-Lesen für Recharts
 │   │   ├── icons.ts               Lucide-Icon-Map für Kontogruppen
 │   │   └── ollama.ts              LLM-Client + Prompt-Building
@@ -631,6 +640,41 @@ npx eslint .     # Lint
   einem `MutationObserver` für Recharts-Inline-Styles
 - `categoryPalette(resolved)` liefert eine theme-aware oklch-Palette für
   Kategorie-Visualisierungen
+
+## Mobile-Ansicht (Smartphone)
+
+Smartphone-Viewports (< 768px) bekommen eine eigene Oberfläche statt eines
+responsiven Umbaus der Desktop-Ansicht. Der Switch lebt in `page.tsx`:
+`useIsMobile()` (`lib/use-is-mobile.ts`, `matchMedia` über
+`useSyncExternalStore`, SSR-Snapshot = Desktop) entscheidet **nach** allen
+Hooks zwischen Desktop-JSX und `components/mobile/MobileApp.tsx`. Beide
+Varianten teilen sich Datenladung (`loadFromDb`) und Mutations-Handler —
+es gibt keine doppelte Fetch-Logik für Transaktionen.
+
+- **Shell** (`MobileApp.tsx`): Sticky-Header mit ThemeToggle, fixe
+  Bottom-Tab-Navigation (Übersicht · Buchungen · Vermögen · Abos) mit
+  Safe-Area-Polster. Dafür setzt `layout.tsx` `viewportFit: "cover"` plus
+  `themeColor` via `export const viewport`. Das Transaktions-Detail-Sheet
+  wird in der Shell gehostet, damit Übersicht und Buchungsliste es teilen.
+- **Übersicht**: Monats-Chips (abgeleitet aus vorhandenen Buchungsmonaten,
+  Default = aktuellster Monat), Hero-Saldo mit Sparquote/Defizit-Pill,
+  Monats-Cashflow der letzten 12 Monate als reine CSS-Balken (kein
+  Recharts auf Mobile — Performance + Touch-Targets), Kategorie-Ranking
+  (Top 6 + Rest, `categoryPalette`), letzte Buchungen. Kategorie-Tap
+  springt in die Buchungsliste mit vorgesetztem Kategorie-Filter.
+- **Buchungen**: clientseitige Suche + Richtungs-Chips, Gruppierung nach
+  Buchungstag, Paging (50, dann +100). Tap öffnet das Bottom-Sheet
+  (`MobileTransactionSheet`) mit Details und Kategorie-Wechsel über den
+  bestehenden `PATCH /api/transactions/[id]`-Handler.
+- **Vermögen / Abos**: read-only, eigene Mount-Fetches auf `/api/networth`
+  bzw. `/api/recurring`; Net-Worth-Verlauf als leichtgewichtige
+  SVG-Sparkline, Abos mit Fixkosten-Hochrechnung pro Monat.
+- **Bewusst Desktop-only**: CSV-Import, Einstellungen, Bulk-Operationen,
+  Tag-Pflege, Backups. Die Mobile-Ansicht ist eine Auswerte-/Nachschlage-
+  Oberfläche, keine vollständige Verwaltungsoberfläche.
+
+Umbuchungen sind in allen Mobile-Summen ausgeschlossen (entspricht dem
+Desktop-Default); in Listen sind sie mit einem Pfeil-Icon markiert.
 
 ## Bekannte Einschränkungen
 

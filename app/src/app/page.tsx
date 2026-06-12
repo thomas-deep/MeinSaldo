@@ -18,6 +18,8 @@ import DbStatus from "../components/DbStatus";
 import KontogruppeFilter from "../components/KontogruppeFilter";
 import FilterPresetMenu from "../components/FilterPresetMenu";
 import SettingsView from "../components/SettingsView";
+import MobileApp from "../components/mobile/MobileApp";
+import { useIsMobile } from "../lib/use-is-mobile";
 import {
   FieldMapping,
   FilterPreset,
@@ -72,6 +74,7 @@ async function decodeFile(file: File, encoding: string): Promise<string> {
 }
 
 export default function Home() {
+  const isMobile = useIsMobile();
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingEncoding, setPendingEncoding] = useState<EncodingChoice>("auto");
   const [pendingKontogruppeId, setPendingKontogruppeId] = useState<number | null>(null);
@@ -800,6 +803,20 @@ export default function Home() {
     },
     [reloadFilterPresets]
   );
+
+  // Smartphone-Viewports bekommen eine eigene Shell mit Bottom-Navigation.
+  // Der Switch liegt nach allen Hooks, damit die Hook-Reihenfolge stabil bleibt.
+  if (isMobile) {
+    return (
+      <MobileApp
+        transactions={transactions}
+        kontogruppen={kontogruppen}
+        kategorien={kategorienNames}
+        isLoading={isLoading}
+        onCategoryChange={handleCategoryChange}
+      />
+    );
+  }
 
   const navItems = [
     { id: "auswertung" as const, label: "Auswertung", icon: LineChart },

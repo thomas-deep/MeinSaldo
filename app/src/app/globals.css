@@ -247,3 +247,48 @@
 .rise-3 { animation-delay: 120ms; }
 .rise-4 { animation-delay: 160ms; }
 .rise-5 { animation-delay: 200ms; }
+
+/* ---------------------------------------------------------------
+ * Mobile-Ansicht: Sheet-/Chip-Utilities
+ * ------------------------------------------------------------- */
+
+/* Horizontale Chip-Reihen ohne sichtbare Scrollbar */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Bottom-Sheet: von unten hereingleiten, Backdrop einblenden */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .sheet-up,
+  .fade-in {
+    animation: none;
+  }
+}
