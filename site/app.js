@@ -26,6 +26,55 @@
   items.forEach((el) => observer.observe(el));
 })();
 
+// Phone-Stack: Klick schiebt die vorderste Karte nach hinten (Shuffle).
+(() => {
+  const stack = document.querySelector(".phone-stack");
+  if (!stack) return;
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let order = Array.from(stack.querySelectorAll(".phone-card"));
+  let busy = false;
+
+  function apply() {
+    order.forEach((card, i) => {
+      card.classList.remove("pos-0", "pos-1", "pos-2", "pos-3");
+      card.classList.add(`pos-${i}`);
+    });
+  }
+  apply();
+
+  function next() {
+    if (busy || order.length < 2) return;
+    const front = order[0];
+    order = [...order.slice(1), front];
+
+    if (reduced) {
+      apply();
+      return;
+    }
+
+    // Erst seitlich rausgleiten, dann hinten einsortieren — die
+    // pos-Transitions ziehen die restlichen Karten nach vorn.
+    busy = true;
+    front.classList.add("is-leaving");
+    setTimeout(() => {
+      front.classList.remove("is-leaving");
+      apply();
+      setTimeout(() => {
+        busy = false;
+      }, 480);
+    }, 270);
+  }
+
+  stack.addEventListener("click", next);
+  stack.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      next();
+    }
+  });
+})();
+
 // Lightbox: Klick auf Screenshots öffnet sie groß.
 (() => {
   const targets = document.querySelectorAll(

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
@@ -19,6 +19,17 @@ const displaySerif = Instrument_Serif({
   weight: "400",
   style: ["normal", "italic"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // cover + safe-area-insets: Bottom-Nav der Mobile-Ansicht respektiert die Home-Bar
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "oklch(0.985 0.004 80)" },
+    { media: "(prefers-color-scheme: dark)", color: "oklch(0.165 0.012 270)" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "MeinSaldo",
