@@ -4,6 +4,27 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+## v0.5.0 — Smartphone-Ansicht (2026-06-12)
+
+### Mobile
+
+- **Eigene Smartphone-Oberfläche** für Viewports < 768px statt eines
+  responsiven Umbaus: `useIsMobile()` schaltet in `page.tsx` zwischen der
+  unveränderten Desktop-Ansicht und einer neuen Mobile-Shell um; Datenladung
+  und Mutations-Handler werden geteilt.
+- **Bottom-Tab-Navigation** (Übersicht · Buchungen · Vermögen · Abos) mit
+  Safe-Area-Unterstützung (`viewport-fit=cover`, `themeColor` je Farbschema).
+- **Übersicht**: Monats-Chips als Zeitraumwahl, Hero-Saldo mit
+  Sparquote/Defizit-Pill, tippbarer 12-Monats-Cashflow-Chart (reine
+  CSS-Balken, kein Recharts auf Mobile), Kategorie-Ranking mit Drilldown in
+  die Buchungsliste, letzte Buchungen.
+- **Buchungen**: Volltextsuche, Einnahmen/Ausgaben-Chips, Gruppierung nach
+  Buchungstag, Paging; Detail-Bottom-Sheet mit Kategorie-Wechsel.
+- **Vermögen** (read-only): Nettovermögen, SVG-Sparkline des Verlaufs,
+  Posten-Listen. **Abos** (read-only): Fixkosten-Hochrechnung pro Monat,
+  Serien mit Preisänderungs-Alert.
+- CSV-Import, Einstellungen und Bulk-Operationen bleiben bewusst Desktop-only.
+
 ## v0.3.0 — Datenbank-Sicherung + Docker-Images (2026-06-12)
 
 ### Datenbank-Sicherung (Backup & Restore)
