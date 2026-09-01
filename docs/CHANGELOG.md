@@ -4,6 +4,33 @@ Reverse-chronologisch — neueste zuerst.
 
 ## Unveröffentlicht
 
+## v0.6.0 — Menge × Preis für Vermögensposten (2026-09-01)
+
+### Vermögen
+
+- **Menge × Preis-Erfassung** für manuelle Vermögensposten, gedacht für
+  Edelmetalle (z. B. Gold in oz × Tageskurs): Das „Wert"-Formular hat einen
+  Umschalter **Betrag | Menge × Preis**; im zweiten Modus berechnet der
+  Server `value = quantity × unitPrice` (auf Cent gerundet) und speichert
+  die Aufschlüsselung mit (`asset_snapshots.quantity`/`unit_price`,
+  Migration v12, nullable). Live-Vorschau des Produkts im Formular; der
+  Werteverlauf zeigt die Aufschlüsselung neben dem EUR-Wert.
+- **Vorbefüllung**: Beim Öffnen des Formulars wird die Menge aus dem letzten
+  Snapshot übernommen und der Modus automatisch gewählt — für laufende
+  Kurs-Updates genügen Datum + neuer Preis.
+- Plain-Value- und Bulk-Upserts am selben Datum setzen die Aufschlüsselung
+  zurück, damit keine veralteten Menge/Preis-Angaben stehen bleiben.
+  Verbindlichkeiten und Bulk-Import bleiben unverändert value-only.
+- **Fehler-Feedback** beim Speichern und Anlegen im Vermögensbereich:
+  ungültige Eingaben, Server-Fehler (`res.ok`) und Netzwerkfehler zeigen
+  jetzt eine Meldung statt still zu scheitern; Formular/Modal bleiben offen.
+- 10 neue Vitest-Tests (Schema, DB-Upsert, Route); insgesamt **229 grün**.
+
+### Website
+
+- Landing-Page: Mobile-Sektion mit iPhone-Karten-Stack, aktualisierte
+  iPhone-Bilder für Dashboard und Drilldown, Layout-Fixes.
+
 ## v0.5.0 — Smartphone-Ansicht (2026-06-12)
 
 ### Mobile
