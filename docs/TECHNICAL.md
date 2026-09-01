@@ -234,8 +234,12 @@ komplett, nicht inkrementell).
 - `assets (id, name, kind, note, created_at)` — manuell gepflegte Vermögens-
   posten (Depot, Immobilie, Bargeld, sonstiges)
 - `liabilities (id, name, kind, note, created_at)` — Kredite und Hypotheken
-- `asset_snapshots (asset_id, date, value)` / `liability_snapshots` —
-  Werteverläufe mit `UNIQUE(entity, date)` für Upsert-Semantik
+- `asset_snapshots (asset_id, date, value, quantity, unit_price)` /
+  `liability_snapshots (liability_id, date, value)` — Werteverläufe mit
+  `UNIQUE(entity, date)` für Upsert-Semantik. `quantity`/`unit_price`
+  (Migration v12, nullable) halten bei Asset-Snapshots optional die
+  Aufschlüsselung Menge × Preis (z. B. Gold in oz × Kurs); ein
+  Plain-Value-Upsert am selben Datum setzt beide zurück auf NULL.
 
 **Wichtig**: Kontogruppen-Salden (letzter `saldoNachBuchung` pro
 `kontogruppe_id`) zählen **zusätzlich** automatisch — Giro/Spar/Bargeld
@@ -472,10 +476,15 @@ kombiniert Kontogruppen-Salden (`source: "konto"`) und manuelle Posten
 (`source: "manual"`).
 
 `GET/POST /api/assets`, `DELETE /api/assets/[id]`
-`GET/POST /api/assets/[id]/snapshots` — `POST { date, value }` Upsert je
-`(asset, date)`, `GET` liefert den Werteverlauf.
+`GET/POST /api/assets/[id]/snapshots` — `POST { date, value }` **oder**
+`POST { date, quantity, unitPrice }` (beide > 0, nur gemeinsam); im
+zweiten Fall berechnet der Server `value = quantity × unitPrice`
+(auf Cent gerundet) und speichert die Aufschlüsselung mit. Upsert je
+`(asset, date)`, `GET` liefert den Werteverlauf inkl. `quantity`/`unitPrice`.
+Zod-Schema: `assetSnapshotSchema` in `api-validation.ts`.
 
-Analog `/api/liabilities` und `/api/liabilities/[id]/snapshots`.
+Analog `/api/liabilities` und `/api/liabilities/[id]/snapshots`
+(dort weiterhin nur `{ date, value }`).
 
 Konto-Anker: `PUT/DELETE /api/kontogruppen/[id]/anchor` (siehe oben).
 

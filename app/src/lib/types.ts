@@ -24,6 +24,9 @@ export interface NetWorthEntry {
 export interface NetWorthSnapshot {
   date: string;
   value: number;
+  /** Aufschlüsselung Menge × Preis — nur bei manuellen Asset-Snapshots gesetzt. */
+  quantity?: number | null;
+  unitPrice?: number | null;
 }
 
 export interface NetWorthHistoryPoint {

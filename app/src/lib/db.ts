@@ -389,6 +389,15 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 12,
+    description:
+      "asset_snapshots: optionale Aufschlüsselung Menge × Preis (z. B. Edelmetalle)",
+    up: (db) => {
+      ensureColumn(db, "asset_snapshots", "quantity", "REAL");
+      ensureColumn(db, "asset_snapshots", "unit_price", "REAL");
+    },
+  },
 ];
 
 const MAX_LOG_ENTRIES = 5000;
@@ -1257,15 +1266,22 @@ export function deleteLiability(id: number): boolean {
 export function upsertAssetSnapshot(
   assetId: number,
   date: string,
-  value: number
+  value: number,
+  quantity: number | null = null,
+  unitPrice: number | null = null
 ): void {
+  // Ohne Menge/Preis werden beide Spalten geleert, damit nach einem
+  // Plain-Value-Update keine veraltete Aufschlüsselung stehen bleibt.
   getDb()
     .prepare(
-      `INSERT INTO asset_snapshots (asset_id, date, value, created_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(asset_id, date) DO UPDATE SET value = excluded.value`
+      `INSERT INTO asset_snapshots (asset_id, date, value, quantity, unit_price, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(asset_id, date) DO UPDATE SET
+         value = excluded.value,
+         quantity = excluded.quantity,
+         unit_price = excluded.unit_price`
     )
-    .run(assetId, date, value, new Date().toISOString());
+    .run(assetId, date, value, quantity, unitPrice, new Date().toISOString());
 }
 
 export function upsertLiabilitySnapshot(
@@ -1296,7 +1312,10 @@ export function bulkUpsertAssetSnapshots(
   const stmt = db.prepare(
     `INSERT INTO asset_snapshots (asset_id, date, value, created_at)
      VALUES (?, ?, ?, ?)
-     ON CONFLICT(asset_id, date) DO UPDATE SET value = excluded.value`
+     ON CONFLICT(asset_id, date) DO UPDATE SET
+       value = excluded.value,
+       quantity = NULL,
+       unit_price = NULL`
   );
   let count = 0;
   const tx = db.transaction(() => {
@@ -1335,7 +1354,8 @@ export function bulkUpsertLiabilitySnapshots(
 export function getAssetSnapshots(assetId: number): NetWorthSnapshot[] {
   return getDb()
     .prepare(
-      "SELECT date, value FROM asset_snapshots WHERE asset_id = ? ORDER BY date"
+      `SELECT date, value, quantity, unit_price AS unitPrice
+       FROM asset_snapshots WHERE asset_id = ? ORDER BY date`
     )
     .all(assetId) as NetWorthSnapshot[];
 }

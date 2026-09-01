@@ -153,6 +153,34 @@ export const snapshotSchema = z.object({
   value: z.number().finite(),
 });
 
+/** Asset-Snapshots können statt `value` auch `quantity` + `unitPrice`
+ *  mitschicken (z. B. Gold: Menge in oz × Preis); der Server berechnet
+ *  daraus den Wert. Liabilities und Bulk-Import bleiben value-only. */
+export const assetSnapshotSchema = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Datum muss ISO-Format YYYY-MM-DD haben"),
+    value: z.number().finite().optional(),
+    quantity: z.number().finite().positive().optional(),
+    unitPrice: z.number().finite().positive().optional(),
+  })
+  .superRefine((d, ctx) => {
+    const hasQuantity = d.quantity !== undefined;
+    const hasPrice = d.unitPrice !== undefined;
+    if (hasQuantity !== hasPrice) {
+      ctx.addIssue({
+        code: "custom",
+        message: "quantity und unitPrice nur gemeinsam angeben",
+      });
+    } else if (!hasQuantity && d.value === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Entweder value oder quantity + unitPrice erforderlich",
+      });
+    }
+  });
+
 export const anchorSchema = snapshotSchema;
 
 export const snapshotsBulkSchema = z.object({

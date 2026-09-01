@@ -30,6 +30,13 @@ const eurCompact = new Intl.NumberFormat("de-DE", {
   currency: "EUR",
   maximumFractionDigits: 0,
 });
+const mengeFmt = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 4 });
+// Für Input-Vorbefüllung: ohne Tausender-Punkte, damit parseGermanNumber
+// die Eingabe eindeutig zurücklesen kann.
+const mengeInputFmt = new Intl.NumberFormat("de-DE", {
+  useGrouping: false,
+  maximumFractionDigits: 6,
+});
 
 function formatDate(iso: string | null): string {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "—";
@@ -254,6 +261,10 @@ function EntryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const [mode, setMode] = useState<"betrag" | "mengePreis">("betrag");
+  const [menge, setMenge] = useState("");
+  const [preis, setPreis] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [history, setHistory] = useState<NetWorthSnapshot[] | null>(null);
@@ -262,7 +273,7 @@ function EntryRow({
   const isManual = e.source === "manual";
   const path = kind === "asset" ? "assets" : "liabilities";
 
-  async function loadHistory() {
+  async function loadHistory(): Promise<NetWorthSnapshot[]> {
     // Manuelle Posten: gepflegte Snapshots. Konto-basierte Posten: aus
     // Anker + Buchungen rekonstruierte Monats-Snapshots (read-only).
     const url = isManual
@@ -270,20 +281,76 @@ function EntryRow({
       : `/api/kontogruppen/${e.id}/snapshots`;
     const res = await fetch(url);
     const json = await res.json();
-    setHistory(json.snapshots as NetWorthSnapshot[]);
+    const snaps = json.snapshots as NetWorthSnapshot[];
+    setHistory(snaps);
+    return snaps;
+  }
+
+  async function toggleEditor() {
+    setSaveError(null);
+    if (editing) {
+      setEditing(false);
+      return;
+    }
+    if (kind === "asset") {
+      // Modus und Menge aus dem Verlauf ableiten: Hatte der letzte Snapshot
+      // eine Menge (z. B. Gold in oz), startet das Formular im
+      // Menge-×-Preis-Modus mit vorbefüllter Menge.
+      const snaps = history ?? (await loadHistory());
+      const latest = snaps.length > 0 ? snaps[snaps.length - 1] : null;
+      setMode(latest?.quantity != null ? "mengePreis" : "betrag");
+      const lastWithMenge = [...snaps]
+        .reverse()
+        .find((s) => s.quantity != null);
+      if (lastWithMenge?.quantity != null) {
+        setMenge(mengeInputFmt.format(lastWithMenge.quantity));
+      }
+    }
+    setEditing(true);
   }
 
   async function handleSave() {
-    const v = parseGermanNumber(value);
-    if (v === null) return;
-    await fetch(`/api/${path}/${e.id}/snapshots`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ date, value: v }),
-    });
+    let body: {
+      date: string;
+      value?: number;
+      quantity?: number;
+      unitPrice?: number;
+    };
+    setSaveError(null);
+    if (kind === "asset" && mode === "mengePreis") {
+      const q = parseGermanNumber(menge);
+      const p = parseGermanNumber(preis);
+      if (q === null || p === null || q <= 0 || p <= 0) {
+        setSaveError("Menge und Preis müssen Zahlen größer 0 sein.");
+        return;
+      }
+      body = { date, quantity: q, unitPrice: p };
+    } else {
+      const v = parseGermanNumber(value);
+      if (v === null) {
+        setSaveError("Ungültiger Wert — Eingabe wie 1.234,56 erwartet.");
+        return;
+      }
+      body = { date, value: v };
+    }
+    try {
+      const res = await fetch(`/api/${path}/${e.id}/snapshots`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setSaveError("Speichern fehlgeschlagen — der Server hat den Wert nicht akzeptiert.");
+        return;
+      }
+    } catch {
+      setSaveError("Speichern fehlgeschlagen — keine Verbindung zum Server.");
+      return;
+    }
     setEditing(false);
     setValue("");
-    if (showHistory) await loadHistory();
+    setPreis("");
+    await loadHistory();
     onReload();
   }
 
@@ -348,7 +415,7 @@ function EntryRow({
             {isManual && (
               <>
                 <button
-                  onClick={() => setEditing((v) => !v)}
+                  onClick={toggleEditor}
                   className="rounded border border-border px-1.5 py-0.5 text-[10px] text-fg-muted hover:text-fg"
                 >
                   Wert
@@ -366,27 +433,76 @@ function EntryRow({
         </div>
       </div>
       {editing && isManual && (
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
-          />
-          <input
-            type="text"
-            inputMode="decimal"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Wert in EUR"
-            className="flex-1 rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
-          />
-          <button
-            onClick={handleSave}
-            className="rounded bg-fg px-2 py-1 text-xs text-fg-inverse"
-          >
-            Speichern
-          </button>
+        <div className="mt-2 space-y-2">
+          {kind === "asset" && (
+            <div className="flex gap-1">
+              {(
+                [
+                  ["betrag", "Betrag"],
+                  ["mengePreis", "Menge × Preis"],
+                ] as const
+              ).map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`rounded border border-border px-2 py-0.5 text-[10px] ${
+                    mode === m
+                      ? "bg-bg-muted text-fg"
+                      : "text-fg-muted hover:text-fg"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+            />
+            {kind === "asset" && mode === "mengePreis" ? (
+              <>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={menge}
+                  onChange={(e) => setMenge(e.target.value)}
+                  placeholder="Menge (z. B. oz)"
+                  className="w-28 rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+                />
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={preis}
+                  onChange={(e) => setPreis(e.target.value)}
+                  placeholder="Preis in EUR"
+                  className="flex-1 rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+                />
+              </>
+            ) : (
+              <input
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="Wert in EUR"
+                className="flex-1 rounded border border-border bg-bg px-2 py-1 text-xs text-fg"
+              />
+            )}
+            <button
+              onClick={handleSave}
+              className="rounded bg-fg px-2 py-1 text-xs text-fg-inverse"
+            >
+              Speichern
+            </button>
+          </div>
+          {kind === "asset" && mode === "mengePreis" && (
+            <ProductPreview menge={menge} preis={preis} />
+          )}
+          {saveError && <p className="text-xs text-danger">{saveError}</p>}
         </div>
       )}
       {showHistory && (
@@ -466,7 +582,15 @@ function EntryRow({
                     key={s.date}
                     className="flex justify-between text-xs text-fg-muted"
                   >
-                    <span>{formatDate(s.date)}</span>
+                    <span>
+                      {formatDate(s.date)}
+                      {s.quantity != null && s.unitPrice != null && (
+                        <span className="ml-2 tabular-nums text-fg-faint">
+                          {mengeFmt.format(s.quantity)} ×{" "}
+                          {eur.format(s.unitPrice)}
+                        </span>
+                      )}
+                    </span>
                     <span className="tabular-nums text-fg">
                       {eur.format(s.value)}
                     </span>
@@ -501,6 +625,19 @@ function EntryRow({
   );
 }
 
+function ProductPreview({ menge, preis }: { menge: string; preis: string }) {
+  const q = parseGermanNumber(menge);
+  const p = parseGermanNumber(preis);
+  if (q === null || p === null || q <= 0 || p <= 0) return null;
+  const produkt = Math.round(q * p * 100) / 100;
+  return (
+    <p className="text-xs tabular-nums text-fg-muted">
+      {mengeFmt.format(q)} × {eur.format(p)} ={" "}
+      <span className="text-fg">{eur.format(produkt)}</span>
+    </p>
+  );
+}
+
 function AddEntryModal({
   kind,
   onClose,
@@ -513,20 +650,31 @@ function AddEntryModal({
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [note, setNote] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    setCreateError(null);
     const path = kind === "asset" ? "assets" : "liabilities";
-    await fetch(`/api/${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        kind: type.trim() || "Sonstiges",
-        note: note.trim() || null,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          kind: type.trim() || "Sonstiges",
+          note: note.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        setCreateError("Anlegen fehlgeschlagen — der Server hat die Eingabe nicht akzeptiert.");
+        return;
+      }
+    } catch {
+      setCreateError("Anlegen fehlgeschlagen — keine Verbindung zum Server.");
+      return;
+    }
     onCreated();
     onClose();
   }
@@ -573,6 +721,7 @@ function AddEntryModal({
           maxLength={500}
           className="w-full rounded border border-border bg-bg px-3 py-2 text-sm text-fg"
         />
+        {createError && <p className="text-xs text-danger">{createError}</p>}
         <div className="flex justify-end gap-2">
           <button
             type="button"
